@@ -1,0 +1,28 @@
+services:
+    db:
+        image: postgres:15
+        restart: unless-stopped
+        env_file:
+            - .env.db
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - beetrack-net
+
+    api:
+        build: .
+        restart: unless-stopped
+        env_file:
+            - .env
+        depends_on:
+            - db
+        ports:
+            - "8000:8000"
+        networks:
+            - beetrack-net
+
+volumes:
+    pgdata:
+
+networks:
+    beetrack-net:

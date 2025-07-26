@@ -1,0 +1,2 @@
+Dodanie logów wszędzie
+BackgroundScheduler -> Celery z Redis (bardziej skalowalny)
