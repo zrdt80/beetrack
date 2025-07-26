@@ -27,8 +27,8 @@ var/
 venv/
 env/
 ENV/
-.venv/
-.env/
+.venv
+.env
 
 # PyInstaller
 *.manifest
