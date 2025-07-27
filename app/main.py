@@ -16,14 +16,11 @@ origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # lub ["*"] podczas developmentu
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Automatyczne tworzenie tabel – tylko na etapie rozwoju
-# Base.metadata.create_all(bind=engine)
 
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(products.router, prefix="/products", tags=["Products"])

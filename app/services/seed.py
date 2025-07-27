@@ -11,14 +11,12 @@ def run_seed(db: Session):
         print("⚠️ Tabela users nie istnieje – seed pominięty.")
         return
 
-    # Sprawdź, czy użytkownicy już istnieją
     if db.query(models.User).first():
         print("ℹ️ Seed danych pominięty – użytkownicy już istnieją.")
         return
     
     print("🌱 Uruchamiam seed danych...")
 
-    # Dodaj admina
     admin = models.User(
         username="admin",
         email="admin@beetrack.pl",
@@ -33,7 +31,6 @@ def run_seed(db: Session):
         role="worker"
     )
 
-    # Produkty
     product1 = models.Product(
         name="Miód lipowy",
         description="Delikatny, jasny miód z lipy",
@@ -47,11 +44,9 @@ def run_seed(db: Session):
         stock_quantity=80
     )
 
-    # Ule
     hive1 = models.Hive(name="UL-001", location="Pasieka północna", status="active")
     hive2 = models.Hive(name="UL-002", location="Pasieka południowa", status="active")
 
-    # Inspekcja testowa
     inspection1 = models.Inspection(
         hive=hive1,
         date=datetime.utcnow(),
@@ -60,7 +55,6 @@ def run_seed(db: Session):
         notes="Stan bardzo dobry."
     )
 
-    # Dodaj wszystko do bazy
     db.add_all([admin, worker, product1, product2, hive1, hive2, inspection1])
     db.commit()
 
