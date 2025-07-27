@@ -42,6 +42,25 @@ def get_inspections_for_hive(hive_id: int, db: Session = Depends(get_db)):
     return db.query(models.Inspection).filter(models.Inspection.hive_id == hive_id).all()
 
 
+@router.put("/{inspection_id}", response_model=schemas.InspectionRead)
+def update_inspection(
+    inspection_id: int,
+    inspection: schemas.InspectionCreate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(requires_role("admin"))
+):
+    existing_inspection = db.query(models.Inspection).get(inspection_id)
+    if not existing_inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    for key, value in inspection.dict(exclude_unset=True).items():
+        setattr(existing_inspection, key, value)
+
+    db.commit()
+    db.refresh(existing_inspection)
+    return existing_inspection
+
+
 @router.delete("/{inspection_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_inspection(
     inspection_id: int,

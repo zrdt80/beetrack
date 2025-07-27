@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import users, products, hives, inspections, orders, export, stats
 from app.services.scheduler import start_scheduler
@@ -9,6 +10,16 @@ app = FastAPI(
     title="BeeTrack API",
     description="Apiary and order management system for beekeepers",
     version="1.0.0"
+)
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # lub ["*"] podczas developmentu
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Automatyczne tworzenie tabel – tylko na etapie rozwoju

@@ -21,14 +21,14 @@ def run_seed(db: Session):
     # Dodaj admina
     admin = models.User(
         username="admin",
-        email="admin@beetrack.local",
+        email="admin@beetrack.pl",
         hashed_password=Hasher.hash_password("admin123"),
         role="admin"
     )
 
     worker = models.User(
         username="worker",
-        email="worker@beetrack.local",
+        email="worker@beetrack.pl",
         hashed_password=Hasher.hash_password("worker123"),
         role="worker"
     )
