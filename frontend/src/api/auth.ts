@@ -14,8 +14,29 @@ export const login = async (data: LoginForm) => {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
-    return res.data; // zawiera access_token
+    return res.data;
 };
+
+export interface RegisterForm {
+    username: string;
+    email: string;
+    password: string;
+}
+
+export async function register(
+    data: RegisterForm
+): Promise<{ access_token: string }> {
+    const payload = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        role: "worker",
+    };
+
+    const res = await api.post("/users/register", payload);
+
+    return res.data;
+}
 
 export const getMe = async () => {
     const res = await api.get("/users/me");

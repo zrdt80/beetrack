@@ -24,8 +24,17 @@ export interface OrderCreate {
     items: OrderItem[];
 }
 
+export interface OrderUpdate {
+    status: string;
+}
+
 export const getOrders = async (): Promise<Order[]> => {
     const res = await api.get("/orders/");
+    return res.data;
+};
+
+export const getAllOrders = async (): Promise<Order[]> => {
+    const res = await api.get("/orders/all/");
     return res.data;
 };
 
@@ -34,6 +43,14 @@ export const createOrder = async (data: OrderCreate): Promise<Order> => {
     return res.data;
 };
 
-export const cancelOrder = async (id: number): Promise<void> => {
+export const updateOrder = async (
+    id: number,
+    data: OrderUpdate
+): Promise<Order> => {
+    const res = await api.put(`/orders/${id}/`, data);
+    return res.data;
+};
+
+export const deleteOrder = async (id: number): Promise<void> => {
     await api.delete(`/orders/${id}`);
 };

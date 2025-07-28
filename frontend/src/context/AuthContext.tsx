@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getMe, login } from "@/api/auth";
-import type { LoginForm } from "@/api/auth";
+import { getMe, login, register } from "@/api/auth";
+import type { LoginForm, RegisterForm } from "@/api/auth";
 import { setAuthToken } from "@/api/axios";
 
 export interface User {
@@ -13,6 +13,7 @@ export interface User {
 interface AuthContextType {
     user: User | null;
     loginUser: (data: LoginForm) => Promise<void>;
+    registerUser: (data: RegisterForm) => Promise<void>;
     logout: () => void;
 }
 
@@ -27,6 +28,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem("token", tokenData.access_token);
         const profile = await getMe();
         setUser(profile);
+    };
+
+    const registerUser = async (registerData: RegisterForm) => {
+        const responseData = await register(registerData);
     };
 
     const logout = () => {
@@ -44,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loginUser, logout }}>
+        <AuthContext.Provider value={{ user, loginUser, registerUser, logout }}>
             {children}
         </AuthContext.Provider>
     );

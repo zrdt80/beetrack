@@ -1,11 +1,7 @@
-import {
-    BrowserRouter as Router,
-    Routes,
-    Route,
-    Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
 import Dashboard from "@/pages/Dashboard";
 import DashboardHome from "@/pages/DashboardHome";
 import HivesPage from "@/pages/HivesPage";
@@ -14,10 +10,7 @@ import ProductsPage from "@/pages/ProductsPage";
 import OrdersPage from "@/pages/OrdersPage";
 import StatsPage from "@/pages/StatsPage";
 import ExportPage from "@/pages/ExportPage";
-
-const Placeholder = ({ name }: { name: string }) => (
-    <div>{name} – coming soon</div>
-);
+import HelpPage from "@/pages/HelpPage";
 
 function App() {
     const { user } = useAuth();
@@ -29,6 +22,10 @@ function App() {
                 path="/login"
                 element={!user ? <LoginPage /> : <Navigate to="/dashboard" />}
             />
+            <Route
+                path="/register"
+                element={!user ? <RegisterPage /> : <Navigate to="/login" />}
+            />
 
             {user && (
                 <Route path="/dashboard" element={<Dashboard />}>
@@ -39,7 +36,7 @@ function App() {
                     <Route path="orders" element={<OrdersPage />} />
                     <Route path="stats" element={<StatsPage />} />
                     <Route path="export" element={<ExportPage />} />
-                    <Route path="todo" element={<Placeholder name="ToDo" />} />
+                    <Route path="help" element={<HelpPage />} />
                 </Route>
             )}
 
