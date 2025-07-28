@@ -9,7 +9,6 @@ from app import models
 from app.utils.hashing import Hasher
 import os
 
-# Klucz tajny i parametry JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
