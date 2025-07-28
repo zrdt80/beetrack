@@ -64,15 +64,38 @@ def get_all_orders(
     return db.query(models.Order).all()
 
 
+@router.put("/{order_id}", response_model=schemas.OrderRead)
+def update_order_status(
+    order_id: int,
+    status_update: schemas.OrderStatusUpdate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    order = db.query(models.Order).get(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if user.role != "admin" and order.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this order")
+
+    if status_update.status not in ["pending", "processing", "completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Invalid status update")
+
+    order.status = status_update.status
+    db.commit()
+    db.refresh(order)
+    return order
+
+
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
-def cancel_order(
+def delete_order(
     order_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
     order = db.query(models.Order).get(order_id)
     if not order or (user.role != "admin" and order.user_id != user.id):
-        raise HTTPException(status_code=403, detail="Not authorized to cancel this order")
+        raise HTTPException(status_code=403, detail="Not authorized to delete this order")
 
     # Zwróć produkty do magazynu
     for item in order.items:

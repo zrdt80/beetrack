@@ -151,3 +151,10 @@ class OrderRead(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str
+
+    class Config:
+        orm_mode = True
