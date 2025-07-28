@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import {
-    getProducts,
-    createProduct,
-    deleteProduct,
-    updateProduct,
-} from "@/api/products";
+import { getProducts, createProduct, deleteProduct } from "@/api/products";
 import type { Product, ProductCreate } from "@/types/product";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogClose,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import ProductEditModal from "@/components/ProductEditModal";
 
 export default function ProductsPage() {
@@ -16,10 +20,11 @@ export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [form, setForm] = useState<ProductCreate>({
         name: "",
-        unit_price: 0,
-        stock_quantity: 0,
+        unit_price: "",
+        stock_quantity: "",
         description: "",
     });
+    const [open, setOpen] = useState(false);
 
     const load = async () => {
         const data = await getProducts();
@@ -38,10 +43,16 @@ export default function ProductsPage() {
         e.preventDefault();
         await createProduct({
             ...form,
-            price: Number(form.price),
-            stock: Number(form.stock),
+            unit_price: Number(form.unit_price),
+            stock_quantity: Number(form.stock_quantity),
         });
-        setForm({ name: "", description: "", price: 0, stock: 0 });
+        setForm({
+            name: "",
+            description: "",
+            unit_price: "",
+            stock_quantity: "",
+        });
+        setOpen(false);
         load();
     };
 
@@ -57,39 +68,60 @@ export default function ProductsPage() {
             <h1 className="text-2xl font-bold mb-4">📦 Products</h1>
 
             {user?.role === "admin" && (
-                <form
-                    onSubmit={handleSubmit}
-                    className="flex gap-4 flex-wrap mb-6 items-end"
-                >
-                    <Input
-                        name="name"
-                        value={form.name}
-                        onChange={handleChange}
-                        placeholder="Name"
-                        required
-                    />
-                    <Input
-                        name="description"
-                        value={form.description}
-                        onChange={handleChange}
-                        placeholder="Description"
-                    />
-                    <Input
-                        name="unit_price"
-                        type="number"
-                        value={form.unit_price}
-                        onChange={handleChange}
-                        placeholder="Price"
-                    />
-                    <Input
-                        name="stock_quantity"
-                        type="number"
-                        value={form.stock_quantity}
-                        onChange={handleChange}
-                        placeholder="Stock"
-                    />
-                    <Button type="submit">Add Product</Button>
-                </form>
+                <div className="mb-6">
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button>Add Product</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Add New Product</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <Input
+                                    name="name"
+                                    value={form.name}
+                                    onChange={handleChange}
+                                    placeholder="Name"
+                                    required
+                                />
+                                <Input
+                                    name="description"
+                                    value={form.description}
+                                    onChange={handleChange}
+                                    placeholder="Description"
+                                />
+                                <Input
+                                    name="unit_price"
+                                    type="number"
+                                    value={form.unit_price}
+                                    onChange={handleChange}
+                                    placeholder="Unit price"
+                                    required
+                                    min={0}
+                                    step="0.01"
+                                />
+                                <Input
+                                    name="stock_quantity"
+                                    type="number"
+                                    value={form.stock_quantity}
+                                    onChange={handleChange}
+                                    placeholder="Stock quantity"
+                                    required
+                                    min={0}
+                                />
+                                <DialogFooter>
+                                    <Button type="submit">Add</Button>
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="outline">
+                                            Cancel
+                                        </Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             )}
 
             <table className="w-full bg-white rounded shadow border">
@@ -110,7 +142,7 @@ export default function ProductsPage() {
                             <td className="p-2">{p.name}</td>
                             <td className="p-2">{p.description || "-"}</td>
                             <td className="p-2">
-                                {p.unit_price.toFixed(2)} zł
+                                {Number(p.unit_price).toFixed(2)} zł
                             </td>
                             <td className="p-2">{p.stock_quantity} szt.</td>
                             {user?.role === "admin" && (

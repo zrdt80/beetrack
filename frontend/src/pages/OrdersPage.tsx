@@ -1,20 +1,50 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getOrders, createOrder, cancelOrder } from "@/api/orders";
+import {
+    getOrders,
+    getAllOrders,
+    createOrder,
+    deleteOrder,
+} from "@/api/orders";
 import type { Order, OrderItem } from "@/api/orders";
 import { getProducts } from "@/api/products";
 import type { Product } from "@/api/products";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import OrderEditModal from "@/components/OrderEditModal";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { ArrowUp, ArrowDown } from "lucide-react";
+
+type SortKey = "date" | "status";
+type SortOrder = "asc" | "desc";
 
 export default function OrdersPage() {
     const { user } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [selected, setSelected] = useState<OrderItem[]>([]);
+    const [sortKey, setSortKey] = useState<SortKey>("date");
+    const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+    const [statusFilter, setStatusFilter] = useState<string>("");
 
     const load = async () => {
-        const [o, p] = await Promise.all([getOrders(), getProducts()]);
+        const [o, p] = await Promise.all([
+            user?.role === "admin" ? getAllOrders() : getOrders(),
+            getProducts(),
+        ]);
         setOrders(o);
         setProducts(p);
     };
@@ -47,10 +77,38 @@ export default function OrdersPage() {
         load();
     };
 
-    const handleCancel = async (id: number) => {
-        if (confirm("Cancel this order?")) {
-            await cancelOrder(id);
+    const handleDelete = async (id: number) => {
+        if (confirm("Delete this order?")) {
+            await deleteOrder(id);
             load();
+        }
+    };
+
+    const sortedOrders = [...orders]
+        .filter(
+            (o) =>
+                ["all", ""].includes(statusFilter) || o.status === statusFilter
+        )
+        .sort((a, b) => {
+            let cmp = 0;
+            if (sortKey === "date") {
+                cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+            } else if (sortKey === "id") {
+                cmp = a.id - b.id;
+            } else if (sortKey === "status") {
+                cmp = a.status.localeCompare(b.status);
+            }
+            return sortOrder === "asc" ? cmp : -cmp;
+        });
+
+    const statuses = Array.from(new Set(orders.map((o) => o.status)));
+
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setSortKey(key);
+            setSortOrder("asc");
         }
     };
 
@@ -58,58 +116,237 @@ export default function OrdersPage() {
         <div>
             <h1 className="text-2xl font-bold mb-4">🛒 Orders</h1>
 
-            <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-2">Create New Order</h2>
-                <div className="flex gap-4 flex-wrap mb-2">
-                    {products.map((p) => (
-                        <Button
-                            key={p.id}
-                            onClick={() => handleAddProduct(p.id)}
+            <div className="mb-8 rounded-xl border bg-card p-8 shadow-md">
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <span className="text-primary">New Order</span>
+                </h2>
+                <div className="flex flex-col md:flex-row gap-4 items-end mb-6">
+                    <div className="flex-1">
+                        <label className="block mb-2 text-sm font-medium text-muted-foreground">
+                            Add Product
+                        </label>
+                        <Select
+                            onValueChange={(val) =>
+                                handleAddProduct(Number(val))
+                            }
                         >
-                            {productMap[p.id]}
-                        </Button>
-                    ))}
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose a product..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {products.map((p) => (
+                                    <SelectItem key={p.id} value={String(p.id)}>
+                                        {p.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 {selected.length > 0 && (
-                    <>
-                        <ul className="mb-2 text-sm text-gray-600">
+                    <div className="rounded-lg border bg-muted/40 p-4 mb-4">
+                        <h3 className="font-semibold mb-3 text-muted-foreground text-base">
+                            Order Items
+                        </h3>
+                        <div className="divide-y">
                             {selected.map((s) => {
                                 const prod = products.find(
-                                    (p) => p.product_id === s.product_id
+                                    (p) => p.id === s.product_id
                                 );
                                 return (
-                                    <li key={s.product_id}>
-                                        {prod?.product_id} – {s.quantity}
-                                    </li>
+                                    <div
+                                        key={s.product_id}
+                                        className="flex items-center justify-between py-2 gap-4"
+                                    >
+                                        <div className="flex-1 flex items-center gap-2">
+                                            <span className="font-medium">
+                                                {prod?.name ??
+                                                    "Unknown Product"}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="icon"
+                                                variant="outline"
+                                                className="h-8 w-8"
+                                                onClick={() =>
+                                                    setSelected((prev) =>
+                                                        prev.map((item) =>
+                                                            item.product_id ===
+                                                                s.product_id &&
+                                                            item.quantity > 1
+                                                                ? {
+                                                                      ...item,
+                                                                      quantity:
+                                                                          item.quantity -
+                                                                          1,
+                                                                  }
+                                                                : item
+                                                        )
+                                                    )
+                                                }
+                                                disabled={s.quantity <= 1}
+                                                aria-label="Decrease quantity"
+                                            >
+                                                <span className="text-lg">
+                                                    -
+                                                </span>
+                                            </Button>
+                                            <span className="font-semibold w-8 text-center">
+                                                {s.quantity}
+                                            </span>
+                                            <Button
+                                                size="icon"
+                                                variant="outline"
+                                                className="h-8 w-8"
+                                                onClick={() =>
+                                                    setSelected((prev) =>
+                                                        prev.map((item) =>
+                                                            item.product_id ===
+                                                            s.product_id
+                                                                ? {
+                                                                      ...item,
+                                                                      quantity:
+                                                                          item.quantity +
+                                                                          1,
+                                                                  }
+                                                                : item
+                                                        )
+                                                    )
+                                                }
+                                                aria-label="Increase quantity"
+                                            >
+                                                <span className="text-lg">
+                                                    +
+                                                </span>
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-destructive"
+                                                onClick={() =>
+                                                    setSelected((prev) =>
+                                                        prev.filter(
+                                                            (item) =>
+                                                                item.product_id !==
+                                                                s.product_id
+                                                        )
+                                                    )
+                                                }
+                                                aria-label="Remove product"
+                                            >
+                                                <span className="text-lg">
+                                                    ×
+                                                </span>
+                                            </Button>
+                                        </div>
+                                    </div>
                                 );
                             })}
-                        </ul>
-                        <Button onClick={handleSubmit}>Submit Order</Button>
-                    </>
+                        </div>
+                        <Button
+                            onClick={handleSubmit}
+                            className="w-full mt-6"
+                            disabled={selected.length === 0}
+                        >
+                            Place Order
+                        </Button>
+                    </div>
+                )}
+                {selected.length === 0 && (
+                    <div className="text-center text-muted-foreground text-sm py-6">
+                        Select products to start a new order.
+                    </div>
                 )}
             </div>
 
-            <table className="w-full bg-white border rounded shadow-sm">
-                <thead className="bg-gray-100 text-left">
-                    <tr>
-                        <th className="p-2">ID</th>
-                        <th className="p-2">Date</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2">Items</th>
+            <div className="flex items-center gap-4 mb-2">
+                <span>Status:</span>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                        <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        {statuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                                {status}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <Table className="border rounded-lg overflow-hidden shadow-sm">
+                <TableHeader className="bg-muted">
+                    <TableRow>
+                        <TableHead
+                            className="cursor-pointer select-none border-b"
+                            onClick={() => handleSort("id")}
+                        >
+                            ID{" "}
+                            {sortKey === "id" &&
+                                (sortOrder === "asc" ? (
+                                    <ArrowUp className="inline w-4 h-4" />
+                                ) : (
+                                    <ArrowDown className="inline w-4 h-4" />
+                                ))}
+                        </TableHead>
                         {user?.role === "admin" && (
-                            <th className="p-2">Actions</th>
+                            <TableHead className="border-b">Customer</TableHead>
                         )}
-                    </tr>
-                </thead>
-                <tbody>
-                    {orders.map((o) => (
-                        <tr key={o.id} className="border-t">
-                            <td className="p-2">{o.id}</td>
-                            <td className="p-2">
+                        <TableHead
+                            className="cursor-pointer select-none border-b"
+                            onClick={() => handleSort("date")}
+                        >
+                            Date{" "}
+                            {sortKey === "date" &&
+                                (sortOrder === "asc" ? (
+                                    <ArrowUp className="inline w-4 h-4" />
+                                ) : (
+                                    <ArrowDown className="inline w-4 h-4" />
+                                ))}
+                        </TableHead>
+                        <TableHead
+                            className="cursor-pointer select-none border-b"
+                            onClick={() => handleSort("status")}
+                        >
+                            Status{" "}
+                            {sortKey === "status" &&
+                                (sortOrder === "asc" ? (
+                                    <ArrowUp className="inline w-4 h-4" />
+                                ) : (
+                                    <ArrowDown className="inline w-4 h-4" />
+                                ))}
+                        </TableHead>
+                        <TableHead className="border-b">Items</TableHead>
+                        {user?.role === "admin" && (
+                            <TableHead className="border-b">Actions</TableHead>
+                        )}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sortedOrders.map((o, idx) => (
+                        <TableRow
+                            key={o.id}
+                            className={`transition-colors ${
+                                idx % 2 === 0 ? "bg-muted/80" : "bg-muted/50"
+                            } hover:bg-muted`}
+                            style={{ borderBottom: "1px solid #e5e7eb" }}
+                        >
+                            <TableCell className="border-r">{o.id}</TableCell>
+                            {user?.role === "admin" && (
+                                <TableCell className="border-r">
+                                    {o.user_id || "N/A"}
+                                </TableCell>
+                            )}
+                            <TableCell className="border-r">
                                 {new Date(o.date).toLocaleString()}
-                            </td>
-                            <td className="p-2">{o.status}</td>
-                            <td className="p-2">
+                            </TableCell>
+                            <TableCell className="border-r">
+                                {o.status}
+                            </TableCell>
+                            <TableCell className="border-r">
                                 <ul className="text-sm">
                                     {o.items.map((item, i) => (
                                         <li key={i}>
@@ -118,21 +355,25 @@ export default function OrdersPage() {
                                         </li>
                                     ))}
                                 </ul>
-                            </td>
+                            </TableCell>
                             {user?.role === "admin" && (
-                                <td className="p-2">
+                                <TableCell className="gap-2 flex items-center">
+                                    <OrderEditModal
+                                        order={o}
+                                        onSuccess={load}
+                                    />
                                     <Button
                                         variant="destructive"
-                                        onClick={() => handleCancel(o.id)}
+                                        onClick={() => handleDelete(o.id)}
                                     >
-                                        Cancel
+                                        Delete
                                     </Button>
-                                </td>
+                                </TableCell>
                             )}
-                        </tr>
+                        </TableRow>
                     ))}
-                </tbody>
-            </table>
+                </TableBody>
+            </Table>
         </div>
     );
 }
