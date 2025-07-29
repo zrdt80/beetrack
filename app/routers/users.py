@@ -68,3 +68,16 @@ def list_users(
 ):
     log_event(f"User list requested by admin: {_.username}")
     return db.query(models.User).all()
+
+@router.get("/{user_id}", response_model=schemas.UserRead)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        log_event(f"User not found: {user_id}")
+        raise HTTPException(status_code=404, detail="User not found")
+    log_event(f"User details requested: {user.username} by {current_user.username}")
+    return user
