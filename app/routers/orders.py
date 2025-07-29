@@ -20,7 +20,7 @@ def create_order(
 
     order = models.Order(user_id=user.id, date=datetime.utcnow(), status="pending", total_price=0)
     db.add(order)
-    db.flush()  # uzyskujemy order.id
+    db.flush()
 
     total = 0
     for item in order_data.items:
