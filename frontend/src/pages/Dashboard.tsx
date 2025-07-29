@@ -12,6 +12,7 @@ const navLinks = [
     { to: "/dashboard/orders", label: "🛒 Orders", admin: false },
     { to: "/dashboard/stats", label: "📊 Stats", admin: true },
     { to: "/dashboard/export", label: "📁 Export", admin: true },
+    { to: "/dashboard/users", label: "👥 Users", admin: true },
     { to: "/dashboard/help", label: "❓ Help", admin: false },
 ];
 
