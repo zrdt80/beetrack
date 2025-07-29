@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
-import type { Product, ProductCreate } from "@/types/product";
+import type { Product, ProductCreate } from "@/api/product";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

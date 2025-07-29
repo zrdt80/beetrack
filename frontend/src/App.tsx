@@ -10,7 +10,9 @@ import ProductsPage from "@/pages/ProductsPage";
 import OrdersPage from "@/pages/OrdersPage";
 import StatsPage from "@/pages/StatsPage";
 import ExportPage from "@/pages/ExportPage";
+import UsersPage from "@/pages/UsersPage";
 import HelpPage from "@/pages/HelpPage";
+import UserPage from "@/pages/UserPage";
 
 function App() {
     const { user } = useAuth();
@@ -36,7 +38,12 @@ function App() {
                     <Route path="orders" element={<OrdersPage />} />
                     <Route path="stats" element={<StatsPage />} />
                     <Route path="export" element={<ExportPage />} />
+                    <Route path="users" element={<UsersPage />} />
                     <Route path="help" element={<HelpPage />} />
+                    <Route
+                        path="user/:id"
+                        element={user ? <UserPage /> : <Navigate to="/login" />}
+                    />
                 </Route>
             )}
 
