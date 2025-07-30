@@ -3,59 +3,83 @@ from sqlalchemy import inspect
 from app import models
 from app.utils.hashing import Hasher
 from datetime import datetime
-
+import json
+import os
 
 def run_seed(db: Session):
     inspector = inspect(db.bind)
     if "users" not in inspector.get_table_names():
-        print("⚠️ Tabela users nie istnieje – seed pominięty.")
+        print("⚠️ Table 'users' does not exist – seed skipped.")
         return
 
     if db.query(models.User).first():
-        print("ℹ️ Seed danych pominięty – użytkownicy już istnieją.")
+        print("ℹ️ Seeding skipped – users already exist.")
         return
-    
-    print("🌱 Uruchamiam seed danych...")
 
-    admin = models.User(
-        username="admin",
-        email="admin@beetrack.pl",
-        hashed_password=Hasher.hash_password("admin123"),
-        role="admin"
-    )
+    print("🌱 Running data seed...")
 
-    worker = models.User(
-        username="worker",
-        email="worker@beetrack.pl",
-        hashed_password=Hasher.hash_password("worker123"),
-        role="worker"
-    )
+    # Load seed data from JSON file
+    seed_file = os.path.join(os.path.dirname(__file__), "seed_data.json")
+    with open(seed_file, "r", encoding="utf-8") as f:
+        seed_data = json.load(f)
 
-    product1 = models.Product(
-        name="Miód lipowy",
-        description="Delikatny, jasny miód z lipy",
-        unit_price=25.0,
-        stock_quantity=100
-    )
-    product2 = models.Product(
-        name="Miód gryczany",
-        description="Ciemny, intensywny miód z gryki",
-        unit_price=30.0,
-        stock_quantity=80
-    )
+    # Insert users
+    users = []
+    for user in seed_data.get("users", []):
+        users.append(models.User(
+            username=user["username"],
+            email=user["email"],
+            hashed_password=Hasher.hash_password(user["password"]),
+            role=user["role"]
+        ))
+    db.add_all(users)
 
-    hive1 = models.Hive(name="UL-001", location="Pasieka północna", status="active")
-    hive2 = models.Hive(name="UL-002", location="Pasieka południowa", status="active")
+    # Insert products
+    products = []
+    for product in seed_data.get("products", []):
+        products.append(models.Product(
+            name=product["name"],
+            description=product["description"],
+            unit_price=product["unit_price"],
+            stock_quantity=product["stock_quantity"]
+        ))
+    db.add_all(products)
 
-    inspection1 = models.Inspection(
-        hive=hive1,
-        date=datetime.utcnow(),
-        temperature=33.5,
-        disease_detected="none",
-        notes="Stan bardzo dobry."
-    )
-
-    db.add_all([admin, worker, product1, product2, hive1, hive2, inspection1])
+    # Insert hives
+    hives = []
+    for hive in seed_data.get("hives", []):
+        hives.append(models.Hive(
+            name=hive["name"],
+            location=hive["location"],
+            status=hive["status"]
+        ))
+    db.add_all(hives)
     db.commit()
 
-    print("✅ Seed danych zakończony.")
+    # Insert inspections (assign hive by name)
+    for inspection in seed_data.get("inspections", []):
+        hive_obj = db.query(models.Hive).filter_by(name=inspection["hive_name"]).first()
+        db.add(models.Inspection(
+            hive=hive_obj,
+            date=datetime.fromisoformat(inspection["date"]),
+            temperature=inspection["temperature"],
+            disease_detected=inspection["disease_detected"],
+            notes=inspection["notes"]
+        ))
+
+    # Insert orders
+    for order in seed_data.get("orders", []):
+        db.add(models.Order(
+            user_id=order["user_id"],
+            date=datetime.fromisoformat(order["date"]),
+            status=order["status"],
+            total_price=order["total_price"],
+            items=[models.OrderItem(
+                product_id=item["product_id"],
+                quantity=item["quantity"],
+                price_each=item["price_each"]
+            ) for item in order.get("items", [])]
+        ))
+    db.commit()
+
+    print("✅ Data seeding completed.")
