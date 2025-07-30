@@ -87,3 +87,6 @@ alembic/versions/
 # Misc
 *.bak
 *.tmp
+
+# Todo files
+todo.txt
