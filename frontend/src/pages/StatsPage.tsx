@@ -26,21 +26,22 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 const colors = ["#82ca9d", "#8884d8", "#ffc658", "#d62728", "#2ca02c"];
 
 export default function StatsPage() {
+    const currentYear = new Date().getFullYear();
+    const [year, setYear] = useState(currentYear);
     const [sales, setSales] = useState<MonthlySales[]>([]);
     const [inspections, setInspections] = useState<MonthlyInspections[]>([]);
     const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchYearlyData = async () => {
+    const fetchYearlyData = async (selectedYear: number) => {
         setLoading(true);
-        const year = new Date().getFullYear();
         const monthNumbers = Array.from({ length: 12 }, (_, i) => i + 1);
 
         const salesPromises = monthNumbers.map((m) =>
-            getMonthlySales(year, m).catch(() => null)
+            getMonthlySales(selectedYear, m).catch(() => null)
         );
         const inspectionsPromises = monthNumbers.map((m) =>
-            getMonthlyInspections(year, m).catch(() => null)
+            getMonthlyInspections(selectedYear, m).catch(() => null)
         );
 
         const salesResults = await Promise.all(salesPromises);
@@ -60,19 +61,47 @@ export default function StatsPage() {
     };
 
     useEffect(() => {
-        fetchYearlyData();
-    }, []);
+        fetchYearlyData(year);
+    }, [year]);
 
     const sortedSales = [...sales].sort((a, b) => a.month - b.month);
     const sortedInspections = [...inspections].sort(
         (a, b) => a.month - b.month
     );
 
+    const handlePrevYear = () => setYear((y) => y - 1);
+    const handleNextYear = () => setYear((y) => Math.min(currentYear, y + 1));
+
     return (
         <div className="max-w-5xl mx-auto py-8 px-4 space-y-8">
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-                <span>📊</span> BeeTrack Statistics
-            </h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <span>📊</span> BeeTrack Statistics
+                </h1>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handlePrevYear}
+                        disabled={year <= 2000}
+                        className="px-2 py-1 rounded bg-muted hover:bg-accent disabled:opacity-50"
+                        aria-label="Previous year"
+                        type="button"
+                    >
+                        ←
+                    </button>
+                    <span className="font-semibold text-lg w-16 text-center">
+                        {year}
+                    </span>
+                    <button
+                        onClick={handleNextYear}
+                        disabled={year >= currentYear}
+                        className="px-2 py-1 rounded bg-muted hover:bg-accent disabled:opacity-50"
+                        aria-label="Next year"
+                        type="button"
+                    >
+                        →
+                    </button>
+                </div>
+            </div>
 
             <Tabs defaultValue="sales" className="w-full">
                 <TabsList className="mb-4 flex justify-center gap-4">

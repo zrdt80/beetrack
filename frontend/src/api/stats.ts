@@ -18,7 +18,6 @@ export interface TopProduct {
     sold: number;
 }
 
-// Możliwość podania np. 2025, 7
 export const getMonthlySales = async (
     year: number,
     month: number
