@@ -77,7 +77,7 @@ export default function UsersPage() {
                             >
                                 <option value="all">All Roles</option>
                                 <option value="admin">Admin</option>
-                                <option value="user">User</option>
+                                <option value="worker">Worker</option>
                             </select>
                         </CardDescription>
                     </div>
