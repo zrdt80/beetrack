@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
     getOrders,
@@ -337,7 +338,12 @@ export default function OrdersPage() {
                             <TableCell className="border-r">{o.id}</TableCell>
                             {user?.role === "admin" && (
                                 <TableCell className="border-r">
-                                    {o.user_id || "N/A"}
+                                    <Link
+                                        to={`/dashboard/user/${o.user_id}`}
+                                        className="underline font-semibold"
+                                    >
+                                        {o.user_id || "N/A"}
+                                    </Link>
                                 </TableCell>
                             )}
                             <TableCell className="border-r">

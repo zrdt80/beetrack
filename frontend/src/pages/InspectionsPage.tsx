@@ -79,37 +79,64 @@ export default function InspectionsPage() {
                 Location: {hive.location} | Status: {hive.status}
             </p>
 
-            <form
-                onSubmit={handleSubmit}
-                className="mb-6 flex flex-wrap gap-4 items-end"
-            >
-                <Input
-                    name="date"
-                    type="datetime-local"
-                    value={form.date.slice(0, 16)}
-                    onChange={handleChange}
-                />
-                <Input
-                    name="temperature"
-                    type="number"
-                    placeholder="Temperature (°C)"
-                    value={form.temperature}
-                    onChange={handleChange}
-                />
-                <Input
-                    name="disease_detected"
-                    placeholder="Disease"
-                    value={form.disease_detected}
-                    onChange={handleChange}
-                />
-                <Input
-                    name="notes"
-                    placeholder="Notes"
-                    value={form.notes}
-                    onChange={handleChange}
-                />
-                <Button type="submit">Add Inspection</Button>
-            </form>
+            <div className="mb-8 rounded-xl border bg-card p-8 shadow-md">
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <span className="text-primary">New Inspection</span>
+                </h2>
+                <form
+                    onSubmit={handleSubmit}
+                    className="flex flex-col md:flex-row gap-4 items-end mb-2"
+                >
+                    <div className="flex-1">
+                        <label className="block mb-2 text-sm font-medium text-muted-foreground">
+                            Date & Time
+                        </label>
+                        <Input
+                            name="date"
+                            type="datetime-local"
+                            value={form.date.slice(0, 16)}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block mb-2 text-sm font-medium text-muted-foreground">
+                            Temperature (°C)
+                        </label>
+                        <Input
+                            name="temperature"
+                            type="number"
+                            placeholder="Temperature"
+                            value={form.temperature}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block mb-2 text-sm font-medium text-muted-foreground">
+                            Disease Detected
+                        </label>
+                        <Input
+                            name="disease_detected"
+                            placeholder="Disease"
+                            value={form.disease_detected}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block mb-2 text-sm font-medium text-muted-foreground">
+                            Notes
+                        </label>
+                        <Input
+                            name="notes"
+                            placeholder="Notes"
+                            value={form.notes}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <Button type="submit" className="h-12 mt-6 md:mt-0">
+                        Add Inspection
+                    </Button>
+                </form>
+            </div>
 
             <table className="w-full border bg-white rounded shadow-sm">
                 <thead className="bg-gray-100">
