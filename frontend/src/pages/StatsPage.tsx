@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
+    getFirstYear,
     getMonthlySales,
     getMonthlyInspections,
+    getYearlyTopProducts,
     getTopProducts,
 } from "@/api/stats";
 import type { MonthlySales, MonthlyInspections, TopProduct } from "@/api/stats";
@@ -32,6 +34,7 @@ export default function StatsPage() {
     const [inspections, setInspections] = useState<MonthlyInspections[]>([]);
     const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [firstYear, setFirstYear] = useState<number>(currentYear);
 
     const fetchYearlyData = async (selectedYear: number) => {
         setLoading(true);
@@ -55,12 +58,13 @@ export default function StatsPage() {
         setSales(validSales);
         setInspections(validInspections);
 
-        getTopProducts(5)
+        getYearlyTopProducts(selectedYear, 10)
             .then(setTopProducts)
             .finally(() => setLoading(false));
     };
 
     useEffect(() => {
+        getFirstYear().then(setFirstYear);
         fetchYearlyData(year);
     }, [year]);
 
@@ -69,7 +73,7 @@ export default function StatsPage() {
         (a, b) => a.month - b.month
     );
 
-    const handlePrevYear = () => setYear((y) => y - 1);
+    const handlePrevYear = () => setYear((y) => Math.max(firstYear, y - 1));
     const handleNextYear = () => setYear((y) => Math.min(currentYear, y + 1));
 
     return (
@@ -81,7 +85,7 @@ export default function StatsPage() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handlePrevYear}
-                        disabled={year <= 2000}
+                        disabled={year <= firstYear}
                         className="px-2 py-1 rounded bg-muted hover:bg-accent disabled:opacity-50"
                         aria-label="Previous year"
                         type="button"
@@ -132,9 +136,9 @@ export default function StatsPage() {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <Skeleton className="w-full h-[300px] rounded-lg" />
+                                <Skeleton className="w-full h-[400px] rounded-lg" />
                             ) : (
-                                <ResponsiveContainer width="100%" height={300}>
+                                <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={sortedSales}>
                                         <XAxis
                                             dataKey="month"
@@ -151,7 +155,7 @@ export default function StatsPage() {
                                         <Tooltip />
                                         <Bar
                                             dataKey="total_sales"
-                                            fill="#8884d8"
+                                            fill="#ffb700"
                                             radius={[6, 6, 0, 0]}
                                         />
                                     </BarChart>
@@ -168,9 +172,9 @@ export default function StatsPage() {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <Skeleton className="w-full h-[300px] rounded-lg" />
+                                <Skeleton className="w-full h-[400px] rounded-lg" />
                             ) : (
-                                <ResponsiveContainer width="100%" height={300}>
+                                <ResponsiveContainer width="100%" height={400}>
                                     <LineChart data={sortedInspections}>
                                         <XAxis
                                             dataKey="month"
@@ -207,9 +211,9 @@ export default function StatsPage() {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <Skeleton className="w-full h-[300px] rounded-lg" />
+                                <Skeleton className="w-full h-[400px] rounded-lg" />
                             ) : (
-                                <ResponsiveContainer width="100%" height={300}>
+                                <ResponsiveContainer width="100%" height={400}>
                                     <PieChart>
                                         <Pie
                                             data={topProducts}
