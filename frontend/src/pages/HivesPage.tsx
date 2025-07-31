@@ -65,22 +65,20 @@ export default function HivesPage() {
                     <tbody>
                         {hives.map((hive) => (
                             <tr key={hive.id} className="border-t">
+                                <td className="p-2">{hive.name}</td>
+                                <td className="p-2">{hive.location}</td>
+                                <td className="p-2">{hive.status}</td>
                                 <td className="p-2">
                                     <Link
                                         className="text-blue-600 underline"
                                         to={`/dashboard/hives/${hive.id}`}
                                     >
-                                        {hive.name}
+                                        {hive.last_inspection_date
+                                            ? new Date(
+                                                  hive.last_inspection_date
+                                              ).toLocaleDateString()
+                                            : "N/A"}
                                     </Link>
-                                </td>
-                                <td className="p-2">{hive.location}</td>
-                                <td className="p-2">{hive.status}</td>
-                                <td className="p-2">
-                                    {hive.last_inspection_date
-                                        ? new Date(
-                                              hive.last_inspection_date
-                                          ).toLocaleDateString()
-                                        : "N/A"}
                                 </td>
                                 <td>
                                     {user?.role === "admin" && (
