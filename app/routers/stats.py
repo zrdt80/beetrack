@@ -9,6 +9,16 @@ from datetime import datetime
 router = APIRouter()
 
 
+@router.get("/first-year")
+def get_first_year(db: Session = Depends(get_db),
+    _: str = Depends(requires_role("admin"))
+):
+    first_order = db.query(func.min(Order.date)).scalar()
+    if first_order:
+        return first_order.year
+    return datetime.now().year
+
+
 @router.get("/monthly-sales")
 def get_monthly_sales(
     year: int,
@@ -51,6 +61,22 @@ def get_monthly_inspections(
         "month": month,
         "inspections": count
     }
+
+@router.get("/yearly-top-products")
+def get_yearly_top_products(
+    year: int,
+    limit: int = 5,
+    db: Session = Depends(get_db),
+    _: str = Depends(requires_role("admin"))
+):
+    result = db.query(
+        Product.name,
+        func.sum(OrderItem.quantity).label("total_sold")
+    ).join(OrderItem.product).join(OrderItem.order).filter(
+        extract("year", Order.date) == year
+    ).group_by(Product.id).order_by(func.sum(OrderItem.quantity).desc()).limit(limit).all()
+
+    return [{"product": r[0], "sold": int(r[1])} for r in result]
 
 
 @router.get("/top-products")

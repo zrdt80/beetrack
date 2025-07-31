@@ -18,6 +18,11 @@ export interface TopProduct {
     sold: number;
 }
 
+export const getFirstYear = async (): Promise<number> => {
+    const res = await api.get("/stats/first-year");
+    return res.data;
+};
+
 export const getMonthlySales = async (
     year: number,
     month: number
@@ -34,6 +39,16 @@ export const getMonthlyInspections = async (
 ): Promise<MonthlyInspections[]> => {
     const res = await api.get("/stats/monthly-inspections", {
         params: { year, month },
+    });
+    return res.data;
+};
+
+export const getYearlyTopProducts = async (
+    year: number,
+    limit: number = 5
+): Promise<TopProduct[]> => {
+    const res = await api.get("/stats/yearly-top-products", {
+        params: { year, limit },
     });
     return res.data;
 };
