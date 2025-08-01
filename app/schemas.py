@@ -30,6 +30,15 @@ class UserRead(UserBase):
         orm_mode = True
 
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[constr(min_length=6)] = None
+
+    class Config:
+        orm_mode = True
+
+
 # ---------------------
 # --- LOGIN SCHEMAS ---
 # ---------------------

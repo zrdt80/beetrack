@@ -26,7 +26,7 @@ def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user_data.username,
         email=user_data.email,
         hashed_password=hashed_pw,
-        role=user_data.role
+        role=models.UserRole.worker
     )
     db.add(user)
     db.commit()
@@ -59,6 +59,34 @@ def login_user(
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     log_event(f"User details requested: {current_user.username}")
     return current_user
+
+@router.put("/me", response_model=schemas.UserRead)
+def update_me(
+    user_data: schemas.UserUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user_data.password:
+        user_data.hashed_password = Hasher.hash_password(user_data.password)
+
+    update_data = user_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    access_token = auth.create_access_token(
+        data={"sub": current_user.username},
+        expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    log_event(f"User updated: {current_user.username}")
+    return {
+        "user": current_user,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.get("/", response_model=list[schemas.UserRead])
