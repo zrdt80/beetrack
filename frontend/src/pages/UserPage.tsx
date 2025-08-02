@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getUser } from "@/api/users";
-import type { User } from "@/api/users";
+import { getUser, updateMe, updateUser } from "@/api/users";
+import type { User, UpdateUserPayload } from "@/api/users";
 import {
     Card,
     CardHeader,
@@ -9,24 +9,98 @@ import {
     CardContent,
     CardDescription,
 } from "@/components/ui/card";
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 export default function UserPage() {
     const { id } = useParams<{ id: string }>();
+    const { user } = useAuth();
     const [userInfo, setUserInfo] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [editMode, setEditMode] = useState(false);
+    const [form, setForm] = useState({
+        username: "",
+        email: "",
+        password: "",
+        role: "",
+    });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const isMe = user?.id == id;
 
     useEffect(() => {
         if (id) {
             getUser(id)
-                .then((data) => setUserInfo(data))
+                .then((data) => {
+                    setUserInfo(data);
+                    setForm({
+                        username: data.username || "",
+                        email: data.email || "",
+                        password: "",
+                        role: data.role || "",
+                    });
+                })
                 .finally(() => setLoading(false));
         } else {
             setLoading(false);
         }
     }, [id]);
+
+    const canEdit = isMe || user?.role === "admin";
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((f) => ({
+            ...f,
+            [e.target.name]: e.target.value,
+        }));
+    };
+
+    const handleSelectChange = (value: string) => {
+        setForm((f) => ({
+            ...f,
+            role: value,
+        }));
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        setError(null);
+        try {
+            const payload: UpdateUserPayload = {
+                username: form.username,
+                email: form.email,
+            };
+            if (form.password) payload.password = form.password;
+            if (user?.role === "admin" && !isMe) {
+                payload.role = form.role;
+            }
+            let updated: User;
+            if (isMe) {
+                updated = await updateMe(payload);
+            } else {
+                updated = await updateUser(id!, payload);
+            }
+            setUserInfo(updated);
+            setEditMode(false);
+            setForm((f) => ({ ...f, password: "" }));
+        } catch (err: any) {
+            setError(err?.message || "Failed to update user.");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -64,60 +138,167 @@ export default function UserPage() {
                 </CardHeader>
                 <Separator />
                 <CardContent className="pt-6">
-                    <div className="mb-4 flex items-center gap-3">
-                        <span className="text-sm text-gray-700 font-medium">
-                            Role:
-                        </span>
-                        <Badge
-                            variant={
-                                userInfo.role === "admin"
-                                    ? "destructive"
-                                    : "secondary"
-                            }
-                            className={
-                                userInfo.role === "admin"
-                                    ? "text-xs px-3 py-1"
-                                    : "text-xs px-3 py-1 bg-yellow-100 text-yellow-800 border-yellow-200"
-                            }
-                        >
-                            {userInfo.role}
-                        </Badge>
-                    </div>
-                    <div className="mb-4 flex items-center gap-3">
-                        <span className="text-sm text-gray-700 font-medium">
-                            Joined:
-                        </span>
-                        <span className="text-sm">
-                            {userInfo.createdAt
-                                ? new Date(
-                                      userInfo.createdAt
-                                  ).toLocaleDateString()
-                                : "N/A"}
-                        </span>
-                        <Badge
-                            variant={
-                                userInfo.isActive ? "default" : "destructive"
-                            }
-                            className="text-xs px-2 py-1"
-                        >
-                            {userInfo.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                    </div>
-                    <div className="bg-yellow-200 rounded-lg p-3 text-center text-sm text-yellow-900 shadow-inner">
-                        <p>
-                            <strong>Tip:</strong> Keep your profile up to date!
-                        </p>
-                        <p className="mt-1">
-                            Need help? Visit the{" "}
-                            <Link
-                                to="/dashboard/help"
-                                className="underline font-semibold"
-                            >
-                                Help Center
-                            </Link>{" "}
-                            or contact support.
-                        </p>
-                    </div>
+                    {editMode ? (
+                        <form onSubmit={handleSave} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    Username
+                                </label>
+                                <Input
+                                    name="username"
+                                    value={form.username}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    Email
+                                </label>
+                                <Input
+                                    name="email"
+                                    type="email"
+                                    value={form.email}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    New Password
+                                </label>
+                                <Input
+                                    name="password"
+                                    type="password"
+                                    value={form.password}
+                                    onChange={handleInputChange}
+                                    placeholder="Leave blank to keep current"
+                                />
+                            </div>
+                            {user?.role === "admin" && !isMe && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Role
+                                    </label>
+                                    <Select
+                                        name="role"
+                                        value={form.role}
+                                        onValueChange={handleSelectChange}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select a role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="worker">
+                                                worker
+                                            </SelectItem>
+                                            <SelectItem value="admin">
+                                                admin
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {error && (
+                                <div className="text-red-600 text-sm">
+                                    {error}
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="submit"
+                                    disabled={saving}
+                                    variant="default"
+                                >
+                                    {saving ? "Saving..." : "Save"}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setEditMode(false);
+                                        setForm({
+                                            username: userInfo.username || "",
+                                            email: userInfo.email || "",
+                                            password: "",
+                                            role: userInfo.role || "",
+                                        });
+                                        setError(null);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </form>
+                    ) : (
+                        <>
+                            <div className="mb-4 flex items-center gap-3">
+                                <span className="text-sm text-gray-700 font-medium">
+                                    Role:
+                                </span>
+                                <Badge
+                                    variant={
+                                        userInfo.role === "admin"
+                                            ? "destructive"
+                                            : "secondary"
+                                    }
+                                    className={
+                                        userInfo.role === "admin"
+                                            ? "text-xs px-3 py-1"
+                                            : "text-xs px-3 py-1 bg-yellow-100 text-yellow-800 border-yellow-200"
+                                    }
+                                >
+                                    {userInfo.role}
+                                </Badge>
+                            </div>
+                            <div className="mb-4 flex items-center gap-3">
+                                <span className="text-sm text-gray-700 font-medium">
+                                    Joined:
+                                </span>
+                                <span className="text-sm">
+                                    {userInfo.createdAt
+                                        ? new Date(
+                                              userInfo.createdAt
+                                          ).toLocaleDateString()
+                                        : "N/A"}
+                                </span>
+                                <Badge
+                                    variant={
+                                        userInfo.isActive
+                                            ? "default"
+                                            : "destructive"
+                                    }
+                                    className="text-xs px-2 py-1"
+                                >
+                                    {userInfo.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                            </div>
+                            <div className="bg-yellow-200 rounded-lg p-3 text-center text-sm text-yellow-900 shadow-inner mb-4">
+                                <p>
+                                    <strong>Tip:</strong> Keep your profile up
+                                    to date!
+                                </p>
+                                <p className="mt-1">
+                                    Need help? Visit the{" "}
+                                    <Link
+                                        to="/dashboard/help"
+                                        className="underline font-semibold"
+                                    >
+                                        Help Center
+                                    </Link>{" "}
+                                    or contact support.
+                                </p>
+                            </div>
+                            {canEdit && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setEditMode(true)}
+                                >
+                                    Edit profile
+                                </Button>
+                            )}
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>

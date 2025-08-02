@@ -60,33 +60,64 @@ def get_me(current_user: models.User = Depends(auth.get_current_user)):
     log_event(f"User details requested: {current_user.username}")
     return current_user
 
-@router.put("/me", response_model=schemas.UserRead)
+@router.put("/me", response_model=schemas.Token)
 def update_me(
     user_data: schemas.UserUpdate,
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    if user_data.password:
-        user_data.hashed_password = Hasher.hash_password(user_data.password)
-
     update_data = user_data.dict(exclude_unset=True)
+
+    if "password" in update_data:
+        update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
+
     for key, value in update_data.items():
         setattr(current_user, key, value)
 
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
-
+    
+    if not current_user:
+        log_event(f"User update failed: {current_user.username} not found")
+        raise HTTPException(status_code=404, detail="User not found")
+    
     access_token = auth.create_access_token(
         data={"sub": current_user.username},
         expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+
     log_event(f"User updated: {current_user.username}")
-    return {
-        "user": current_user,
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.put("/{user_id}", response_model=schemas.UserRead)
+def update_user(
+    user_id: int,
+    user_data: schemas.UserUpdate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        log_event(f"Admin update failed: user {user_id} not found")
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_data.dict(exclude_unset=True)
+    if "password" in update_data:
+        update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
+
+    for key, value in update_data.items():
+        setattr(user, key, value)
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    log_event(f"Admin updated user: {user.username}")
+
+    return user
 
 
 @router.get("/", response_model=list[schemas.UserRead])

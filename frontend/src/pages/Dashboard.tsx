@@ -53,7 +53,20 @@ export default function Dashboard() {
                     ))}
                 </nav>
                 <div className="p-4 border-t flex flex-col gap-3 items-start">
-                    <div className="flex items-center gap-3">
+                    <div
+                        className="w-full flex items-center gap-3 cursor-pointer hover:bg-gray-100 rounded p-2 transition"
+                        onClick={() =>
+                            user?.id && navigate(`/dashboard/user/${user.id}`)
+                        }
+                        tabIndex={0}
+                        role="button"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                user?.id &&
+                                    navigate(`/dashboard/user/${user.id}`);
+                            }
+                        }}
+                    >
                         <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-600">
                             {user?.role?.[0]?.toUpperCase() ?? "U"}
                         </div>

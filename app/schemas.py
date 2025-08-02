@@ -34,6 +34,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[constr(min_length=6)] = None
+    role: Optional[UserRole] = None
 
     class Config:
         orm_mode = True
