@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { getAllUsers } from "@/api/users";
 import type { User } from "@/api/users";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
-import { CardDescription } from "../components/ui/card";
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[] | null>(null);
@@ -25,9 +30,12 @@ export default function UsersPage() {
         load();
     }, []);
     const [search, setSearch] = useState("");
-    const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">(
-        "all"
-    );
+    const [roleFilter, setRoleFilter] = useState<
+        "all" | "admin" | "user" | "worker"
+    >("all");
+    const [activeFilter, setActiveFilter] = useState<
+        "all" | "active" | "inactive"
+    >("all");
 
     const filteredUsers = users
         ? users.filter((user) => {
@@ -36,7 +44,13 @@ export default function UsersPage() {
                   user.email.toLowerCase().includes(search.toLowerCase());
               const matchesRole =
                   roleFilter === "all" ? true : user.role === roleFilter;
-              return matchesSearch && matchesRole;
+              const matchesActive =
+                  activeFilter === "all"
+                      ? true
+                      : activeFilter === "active"
+                      ? user.is_active
+                      : !user.is_active;
+              return matchesSearch && matchesRole && matchesActive;
           })
         : [];
 
@@ -55,13 +69,13 @@ export default function UsersPage() {
                             </span>
                             Users
                         </CardTitle>
-                        <CardDescription className="flex flex-row gap-4 items-center w-auto m-0">
+                        <CardDescription className="flex flex-row gap-3 items-center w-full m-0 flex-wrap">
                             <input
                                 type="text"
-                                placeholder="Search by username or email..."
+                                placeholder="Search users..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-w-[320px] max-w-[480px] text-gray-800 placeholder-gray-400"
+                                className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-gray-800 placeholder-gray-400"
                             />
                             <select
                                 value={roleFilter}
@@ -71,13 +85,30 @@ export default function UsersPage() {
                                             | "all"
                                             | "admin"
                                             | "user"
+                                            | "worker"
                                     )
                                 }
-                                className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-gray-800"
+                                className="px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-gray-800"
                             >
                                 <option value="all">All Roles</option>
                                 <option value="admin">Admin</option>
                                 <option value="worker">Worker</option>
+                            </select>
+                            <select
+                                value={activeFilter}
+                                onChange={(e) =>
+                                    setActiveFilter(
+                                        e.target.value as
+                                            | "all"
+                                            | "active"
+                                            | "inactive"
+                                    )
+                                }
+                                className="px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-gray-800"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
                             </select>
                         </CardDescription>
                     </div>
@@ -98,11 +129,24 @@ export default function UsersPage() {
                             {filteredUsers.map((user) => (
                                 <div
                                     key={user.id}
-                                    className="flex items-center justify-between bg-muted rounded px-4 py-3"
+                                    className={`flex items-center justify-between rounded px-4 py-3 ${
+                                        !user.is_active
+                                            ? "bg-red-50 border border-red-200"
+                                            : "bg-muted"
+                                    }`}
                                 >
                                     <div>
-                                        <div className="font-medium">
+                                        <div className="font-medium flex items-center gap-2">
                                             {user.username}
+                                            {!user.is_active && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-red-100 text-red-700 border-red-300 px-2 py-0.5 text-xs font-semibold rounded-full shadow-sm"
+                                                >
+                                                    <span className="mr-1.5 inline-block w-2 h-2 bg-red-500 rounded-full" />
+                                                    Inactive
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="text-xs text-muted-foreground">
                                             {user.email}

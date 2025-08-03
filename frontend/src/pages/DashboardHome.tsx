@@ -38,7 +38,18 @@ export default function DashboardHome() {
                         <span className="text-sm text-gray-700 font-medium">
                             Role:
                         </span>
-                        <Badge variant="outline" className="text-sm px-2 py-1">
+                        <Badge
+                            variant={
+                                user?.role === "admin"
+                                    ? "destructive"
+                                    : "secondary"
+                            }
+                            className={
+                                user?.role === "admin"
+                                    ? "text-xs px-3 py-1"
+                                    : "text-xs px-3 py-1 bg-yellow-100 text-yellow-800 border-yellow-200"
+                            }
+                        >
                             {user?.role}
                         </Badge>
                     </div>

@@ -17,6 +17,8 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     role: UserRole = UserRole.worker
+    created_at: datetime = None
+    is_active: bool = True
 
 
 class UserCreate(UserBase):
@@ -35,6 +37,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[constr(min_length=6)] = None
     role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
 
     class Config:
         orm_mode = True

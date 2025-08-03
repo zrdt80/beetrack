@@ -22,7 +22,11 @@ export default function LoginPage() {
             await loginUser(form);
             navigate("/dashboard");
         } catch (err: any) {
-            setError("Invalid credentials or server error.");
+            if (err?.response?.status === 403) {
+                setError("Your account is inactive. Please contact support.");
+            } else {
+                setError("Invalid credentials or server error.");
+            }
         }
     };
 

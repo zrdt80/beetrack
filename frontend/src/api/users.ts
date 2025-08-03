@@ -7,6 +7,8 @@ export interface User {
     username: string;
     email: string;
     role: string;
+    created_at: string;
+    is_active: boolean;
 }
 
 export interface UpdateUserPayload {
@@ -14,6 +16,7 @@ export interface UpdateUserPayload {
     email?: string;
     password?: string;
     role?: string;
+    is_active?: boolean;
 }
 
 export const getUser = async (userId: number): Promise<User> => {

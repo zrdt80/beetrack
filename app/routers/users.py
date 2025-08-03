@@ -47,6 +47,10 @@ def login_user(
         log_event(f"Login failed: {form_data.username} not found or incorrect password")
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
+    if not user.is_active:
+        log_event(f"Login failed: {form_data.username} is not active")
+        raise HTTPException(status_code=403, detail="User account is not active")
+
     access_token = auth.create_access_token(
         data={"sub": user.username},
         expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)

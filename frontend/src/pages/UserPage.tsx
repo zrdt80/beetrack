@@ -34,6 +34,7 @@ export default function UserPage() {
         email: "",
         password: "",
         role: "",
+        is_active: true,
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -42,13 +43,14 @@ export default function UserPage() {
     useEffect(() => {
         if (id) {
             getUser(id)
-                .then((data) => {
+                .then((data: User) => {
                     setUserInfo(data);
                     setForm({
                         username: data.username || "",
                         email: data.email || "",
                         password: "",
                         role: data.role || "",
+                        is_active: data.is_active ?? true,
                     });
                 })
                 .finally(() => setLoading(false));
@@ -73,6 +75,13 @@ export default function UserPage() {
         }));
     };
 
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((f) => ({
+            ...f,
+            is_active: e.target.checked,
+        }));
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
@@ -85,6 +94,7 @@ export default function UserPage() {
             if (form.password) payload.password = form.password;
             if (user?.role === "admin" && !isMe) {
                 payload.role = form.role;
+                payload.is_active = form.is_active;
             }
             let updated: User;
             if (isMe) {
@@ -118,6 +128,8 @@ export default function UserPage() {
         );
     }
 
+    console.log("UserPage userInfo:", form);
+
     return (
         <div className="flex justify-center items-center min-h-[80vh]">
             <Card className="w-full max-w-lg shadow-lg border-0 p-8">
@@ -130,6 +142,16 @@ export default function UserPage() {
                     <div>
                         <CardTitle className="text-xl font-bold mb-1">
                             {userInfo.username}
+                            <Badge
+                                variant={
+                                    userInfo.is_active
+                                        ? "default"
+                                        : "destructive"
+                                }
+                                className="text-xs px-2 py-1 ml-2"
+                            >
+                                {userInfo.is_active ? "Active" : "Inactive"}
+                            </Badge>
                         </CardTitle>
                         <CardDescription className="text-sm text-muted-foreground">
                             {userInfo.email}
@@ -176,28 +198,46 @@ export default function UserPage() {
                                 />
                             </div>
                             {user?.role === "admin" && !isMe && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Role
-                                    </label>
-                                    <Select
-                                        name="role"
-                                        value={form.role}
-                                        onValueChange={handleSelectChange}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select a role" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="worker">
-                                                worker
-                                            </SelectItem>
-                                            <SelectItem value="admin">
-                                                admin
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">
+                                            Role
+                                        </label>
+                                        <Select
+                                            name="role"
+                                            value={form.role}
+                                            onValueChange={handleSelectChange}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select a role" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="worker">
+                                                    worker
+                                                </SelectItem>
+                                                <SelectItem value="admin">
+                                                    admin
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="is_active"
+                                            name="is_active"
+                                            checked={form.is_active}
+                                            onChange={handleCheckboxChange}
+                                            className="accent-primary"
+                                        />
+                                        <label
+                                            htmlFor="is_active"
+                                            className="text-sm font-medium"
+                                        >
+                                            Active
+                                        </label>
+                                    </div>
+                                </>
                             )}
                             {error && (
                                 <div className="text-red-600 text-sm">
@@ -222,6 +262,8 @@ export default function UserPage() {
                                             email: userInfo.email || "",
                                             password: "",
                                             role: userInfo.role || "",
+                                            is_active:
+                                                userInfo.is_active ?? true,
                                         });
                                         setError(null);
                                     }}
@@ -256,22 +298,12 @@ export default function UserPage() {
                                     Joined:
                                 </span>
                                 <span className="text-sm">
-                                    {userInfo.createdAt
+                                    {userInfo.created_at
                                         ? new Date(
-                                              userInfo.createdAt
-                                          ).toLocaleDateString()
+                                              userInfo.created_at
+                                          ).toLocaleString()
                                         : "N/A"}
                                 </span>
-                                <Badge
-                                    variant={
-                                        userInfo.isActive
-                                            ? "default"
-                                            : "destructive"
-                                    }
-                                    className="text-xs px-2 py-1"
-                                >
-                                    {userInfo.isActive ? "Active" : "Inactive"}
-                                </Badge>
                             </div>
                             <div className="bg-yellow-200 rounded-lg p-3 text-center text-sm text-yellow-900 shadow-inner mb-4">
                                 <p>

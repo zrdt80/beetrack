@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, Float, ForeignKey,
-    DateTime, Text, Enum, Table
+    DateTime, Text, Enum, Boolean
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -21,6 +21,8 @@ class User(Base):
     email = Column(String(120), unique=True, nullable=False)
     hashed_password = Column(String(256), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.worker, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
 
     orders = relationship("Order", back_populates="user")
 
