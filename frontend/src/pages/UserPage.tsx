@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 
 export default function UserPage() {
@@ -75,10 +76,10 @@ export default function UserPage() {
         }));
     };
 
-    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSwitchChange = (checked: boolean) => {
         setForm((f) => ({
             ...f,
-            is_active: e.target.checked,
+            is_active: checked,
         }));
     };
 
@@ -128,8 +129,6 @@ export default function UserPage() {
         );
     }
 
-    console.log("UserPage userInfo:", form);
-
     return (
         <div className="flex justify-center items-center min-h-[80vh]">
             <Card className="w-full max-w-lg shadow-lg border-0 p-8">
@@ -142,16 +141,14 @@ export default function UserPage() {
                     <div>
                         <CardTitle className="text-xl font-bold mb-1">
                             {userInfo.username}
-                            <Badge
-                                variant={
-                                    userInfo.is_active
-                                        ? "default"
-                                        : "destructive"
-                                }
-                                className="text-xs px-2 py-1 ml-2"
-                            >
-                                {userInfo.is_active ? "Active" : "Inactive"}
-                            </Badge>
+                            {!userInfo.is_active && (
+                                <Badge
+                                    variant="destructive"
+                                    className="text-xs px-2 py-1 ml-2"
+                                >
+                                    Inactive
+                                </Badge>
+                            )}
                         </CardTitle>
                         <CardDescription className="text-sm text-muted-foreground">
                             {userInfo.email}
@@ -221,22 +218,28 @@ export default function UserPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
+                                    <label
+                                        htmlFor="is_active"
+                                        className="flex items-center justify-between py-2 bg-gray-50 rounded-md px-4 border border-input shadow-sm cursor-pointer"
+                                    >
+                                        <div>
+                                            <span className="text-sm font-medium text-gray-700">
+                                                Account status
+                                            </span>
+                                            <br />
+                                            <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                                {form.is_active
+                                                    ? "Active"
+                                                    : "Inactive"}
+                                            </span>
+                                        </div>
+                                        <Switch
                                             id="is_active"
-                                            name="is_active"
                                             checked={form.is_active}
-                                            onChange={handleCheckboxChange}
-                                            className="accent-primary"
+                                            onCheckedChange={handleSwitchChange}
+                                            className="ml-4 data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300"
                                         />
-                                        <label
-                                            htmlFor="is_active"
-                                            className="text-sm font-medium"
-                                        >
-                                            Active
-                                        </label>
-                                    </div>
+                                    </label>
                                 </>
                             )}
                             {error && (
