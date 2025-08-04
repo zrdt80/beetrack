@@ -22,7 +22,13 @@ export default function RegisterPage() {
             await registerUser(form);
             navigate("/login");
         } catch (err: any) {
-            setError("Registration failed. Please try again.");
+            if (err?.response?.status === 429) {
+                setError(
+                    "Too many registration attempts. Please try again later."
+                );
+            } else {
+                setError("Registration failed. Please try again.");
+            }
         }
     };
 

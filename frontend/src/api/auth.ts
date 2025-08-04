@@ -30,7 +30,6 @@ export async function register(
         username: data.username,
         email: data.email,
         password: data.password,
-        role: "worker",
     };
 
     const res = await api.post("/users/register", payload);

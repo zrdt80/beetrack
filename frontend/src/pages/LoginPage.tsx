@@ -24,6 +24,8 @@ export default function LoginPage() {
         } catch (err: any) {
             if (err?.response?.status === 403) {
                 setError("Your account is inactive. Please contact support.");
+            } else if (err?.response?.status === 429) {
+                setError("Too many login attempts. Please try again later.");
             } else {
                 setError("Invalid credentials or server error.");
             }

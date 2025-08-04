@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
+from app.utils.limiter import limiter
 from app.utils.hashing import Hasher
 from app.services import auth
 from fastapi.security import OAuth2PasswordRequestForm
@@ -12,7 +13,8 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=schemas.UserRead)
-def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register_user(request: Request, user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     user_exists = db.query(models.User).filter(
         (models.User.username == user_data.username) |
         (models.User.email == user_data.email)
@@ -38,7 +40,9 @@ def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=schemas.Token)
+@limiter.limit("5/minute")
 def login_user(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):

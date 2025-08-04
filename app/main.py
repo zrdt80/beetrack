@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from app.utils.limiter import limiter
+from slowapi import _rate_limit_exceeded_handler
 from app.database import Base, engine
 from app.routers import users, products, hives, inspections, orders, export, stats
 from app.services.scheduler import start_scheduler
@@ -11,6 +14,9 @@ app = FastAPI(
     description="Apiary and order management system for beekeepers",
     version="1.0.0"
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 origins = ["*"]
 
