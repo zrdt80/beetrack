@@ -18,12 +18,10 @@ def run_seed(db: Session):
 
     print("🌱 Running data seed...")
 
-    # Load seed data from JSON file
     seed_file = os.path.join(os.path.dirname(__file__), "seed_data.json")
     with open(seed_file, "r", encoding="utf-8") as f:
         seed_data = json.load(f)
 
-    # Insert users
     users = []
     for user in seed_data.get("users", []):
         users.append(models.User(
@@ -34,7 +32,6 @@ def run_seed(db: Session):
         ))
     db.add_all(users)
 
-    # Insert products
     products = []
     for product in seed_data.get("products", []):
         products.append(models.Product(
@@ -45,20 +42,19 @@ def run_seed(db: Session):
         ))
     db.add_all(products)
 
-    # Insert hives
     hives = []
     for hive in seed_data.get("hives", []):
         hives.append(models.Hive(
             name=hive["name"],
             location=hive["location"],
-            status=hive["status"]
+            status=hive["status"],
+            last_inspection_date=datetime.fromisoformat(hive["last_inspection_date"]),
         ))
     db.add_all(hives)
     db.commit()
 
-    # Insert inspections (assign hive by name)
     for inspection in seed_data.get("inspections", []):
-        hive_obj = db.query(models.Hive).filter_by(name=inspection["hive_name"]).first()
+        hive_obj = db.query(models.Hive).filter_by(id=inspection["hive_id"]).first()
         db.add(models.Inspection(
             hive=hive_obj,
             date=datetime.fromisoformat(inspection["date"]),
@@ -67,7 +63,6 @@ def run_seed(db: Session):
             notes=inspection["notes"]
         ))
 
-    # Insert orders
     for order in seed_data.get("orders", []):
         db.add(models.Order(
             user_id=order["user_id"],

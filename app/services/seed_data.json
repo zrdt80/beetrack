@@ -79,76 +79,80 @@
         {
             "name": "UL-001",
             "location": "Northern apiary",
-            "status": "active"
+            "status": "active",
+            "last_inspection_date": "2024-06-13T08:20:00Z"
         },
         {
             "name": "UL-002",
             "location": "Southern apiary",
-            "status": "active"
+            "status": "active",
+            "last_inspection_date": "2024-06-14T11:00:00Z"
         },
         {
             "name": "UL-003",
             "location": "Eastern apiary",
-            "status": "inactive"
+            "status": "inactive",
+            "last_inspection_date": "2024-06-15T15:10:00Z"
         },
         {
             "name": "UL-004",
             "location": "Western apiary",
-            "status": "active"
+            "status": "active",
+            "last_inspection_date": "2024-06-16T09:30:00Z"
         }
     ],
     "inspections": [
         {
-            "hive_name": "UL-001",
+            "hive_id": 1,
             "date": "2024-06-11T12:00:00Z",
             "temperature": 33.5,
             "disease_detected": "none",
             "notes": "Condition very good."
         },
         {
-            "hive_name": "UL-002",
+            "hive_id": 2,
             "date": "2024-06-10T10:30:00Z",
             "temperature": 32.8,
             "disease_detected": "varroa",
             "notes": "Varroa detected, treatment started."
         },
         {
-            "hive_name": "UL-003",
+            "hive_id": 3,
             "date": "2024-06-09T09:15:00Z",
             "temperature": 29.0,
             "disease_detected": "none",
             "notes": "Hive inactive, no issues."
         },
         {
-            "hive_name": "UL-004",
+            "hive_id": 4,
             "date": "2024-06-12T14:45:00Z",
             "temperature": 34.2,
             "disease_detected": "none",
             "notes": "Queen spotted, healthy brood."
         },
         {
-            "hive_name": "UL-001",
+            "hive_id": 1,
             "date": "2024-06-13T08:20:00Z",
             "temperature": 33.0,
             "disease_detected": "none",
             "notes": "Honey stores increasing."
         },
         {
-            "hive_name": "UL-002",
+            "hive_id": 2,
             "date": "2024-06-14T11:00:00Z",
             "temperature": 32.5,
             "disease_detected": "none",
             "notes": "Treatment effective, no mites found."
         },
         {
-            "hive_name": "UL-004",
+            "hive_id": 3,
             "date": "2024-06-15T15:10:00Z",
             "temperature": 34.0,
             "disease_detected": "nosema",
             "notes": "Signs of nosema, monitoring."
         },
         {
-            "hive_name": "UL-003",
+            "hive_id": 4,
             "date": "2024-06-16T09:30:00Z",
             "temperature": 28.5,
             "disease_detected": "none",

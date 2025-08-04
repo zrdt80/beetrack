@@ -21,7 +21,6 @@ def create_inspection(
     new_inspection = models.Inspection(**inspection.dict())
     db.add(new_inspection)
 
-    # Zaktualizuj datę ostatniej inspekcji ula
     hive.last_inspection_date = inspection.date or datetime.utcnow()
 
     db.commit()
