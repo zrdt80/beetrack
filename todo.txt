@@ -1,4 +1,0 @@
-Dodanie logów wszędzie
-BackgroundScheduler -> Celery z Redis (bardziej skalowalny)
-Update README etc.
-Add customer role (?) -> update security
