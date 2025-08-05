@@ -22,6 +22,26 @@ Built for real-world use with FastAPI, PostgreSQL, Docker, cron jobs, Alembic, a
 
 ---
 
+## 🖼️ UI Screenshots
+
+### 🔐 Login
+
+![Login screen](screenshots/login.png)
+
+### 📋 Dashboard (admin)
+
+![Dashboard screenshot](screenshots/dashboard.png)
+
+### 📦 Orders view
+
+![Orders](screenshots/orders.png)
+
+### 📊 Stats and Reports
+
+![Stats](screenshots/stats.png)
+
+---
+
 ## 🧰 Tech Stack
 
 | Layer      | Tools                         |
