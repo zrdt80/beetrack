@@ -21,6 +21,16 @@ services:
         networks:
             - beetrack-net
 
+    frontend:
+        build:
+            context: ./frontend
+        ports:
+            - "3000:80"
+        depends_on:
+            - api
+        networks:
+            - default
+
 volumes:
     pgdata:
 

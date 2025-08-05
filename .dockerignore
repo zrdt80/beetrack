@@ -7,3 +7,6 @@ __pycache__/
 # .env
 logs/
 exports/
+node_modules/
+dist/
+.vite/
