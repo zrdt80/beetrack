@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
-type SortKey = "date" | "status";
+type SortKey = "date" | "status" | "id";
 type SortOrder = "asc" | "desc";
 
 export default function OrdersPage() {

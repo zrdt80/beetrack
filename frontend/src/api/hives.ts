@@ -15,12 +15,12 @@ export interface HiveCreate {
 }
 
 export const getHives = async (): Promise<Hive[]> => {
-    const res = await api.get("/hives/");
+    const res = await api.get<Hive[]>("/hives/");
     return res.data;
 };
 
 export const createHive = async (data: HiveCreate): Promise<Hive> => {
-    const res = await api.post("/hives/", data);
+    const res = await api.post<Hive>("/hives/", data);
     return res.data;
 };
 
@@ -28,7 +28,7 @@ export const updateHive = async (
     id: number,
     data: HiveCreate
 ): Promise<Hive> => {
-    const res = await api.put(`/hives/${id}`, data);
+    const res = await api.put<Hive>(`/hives/${id}`, data);
     return res.data;
 };
 

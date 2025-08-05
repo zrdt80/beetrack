@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
-import type { Product, ProductCreate } from "@/api/product";
+import type { Product, ProductCreate } from "@/api/products";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,8 @@ export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [form, setForm] = useState<ProductCreate>({
         name: "",
-        unit_price: "",
-        stock_quantity: "",
+        unit_price: 0,
+        stock_quantity: 0,
         description: "",
     });
     const [open, setOpen] = useState(false);
@@ -49,8 +49,8 @@ export default function ProductsPage() {
         setForm({
             name: "",
             description: "",
-            unit_price: "",
-            stock_quantity: "",
+            unit_price: 0,
+            stock_quantity: 0,
         });
         setOpen(false);
         load();

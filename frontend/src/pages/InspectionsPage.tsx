@@ -5,7 +5,7 @@ import {
     createInspection,
     deleteInspection,
 } from "@/api/inspections";
-import type { InspectionCreate } from "@/api/inspections";
+import type { Inspection, InspectionCreate } from "@/api/inspections";
 import { getHives } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
@@ -19,7 +19,7 @@ export default function InspectionsPage() {
     const { user } = useAuth();
 
     const [hive, setHive] = useState<Hive | null>(null);
-    const [inspections, setInspections] = useState([]);
+    const [inspections, setInspections] = useState<Inspection[]>([]);
     const [form, setForm] = useState<InspectionCreate>({
         date: new Date().toISOString(),
         notes: "",

@@ -169,7 +169,7 @@ export default function UsersPage() {
                                                 user.role.slice(1)}
                                         </Badge>
                                         <Button
-                                            size="md"
+                                            size="sm"
                                             variant="outline"
                                             onClick={() =>
                                                 navigate(

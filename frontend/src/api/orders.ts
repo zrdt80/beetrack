@@ -11,13 +11,13 @@ export interface Order {
     date: string;
     status: string;
     total_price: number;
-    items: {
-        product: {
+    items: [
+        {
             product_id: number;
             quantity: string;
             price_each: number;
-        };
-    }[];
+        }
+    ];
 }
 
 export interface OrderCreate {
@@ -29,17 +29,17 @@ export interface OrderUpdate {
 }
 
 export const getOrders = async (): Promise<Order[]> => {
-    const res = await api.get("/orders/");
+    const res = await api.get<Order[]>("/orders/");
     return res.data;
 };
 
 export const getAllOrders = async (): Promise<Order[]> => {
-    const res = await api.get("/orders/all/");
+    const res = await api.get<Order[]>("/orders/all/");
     return res.data;
 };
 
 export const createOrder = async (data: OrderCreate): Promise<Order> => {
-    const res = await api.post("/orders/", data);
+    const res = await api.post<Order>("/orders/", data);
     return res.data;
 };
 
@@ -47,7 +47,7 @@ export const updateOrder = async (
     id: number,
     data: OrderUpdate
 ): Promise<Order> => {
-    const res = await api.put(`/orders/${id}/`, data);
+    const res = await api.put<Order>(`/orders/${id}/`, data);
     return res.data;
 };
 

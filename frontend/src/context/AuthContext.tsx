@@ -7,7 +7,7 @@ export interface User {
     id: number;
     username: string;
     email: string;
-    role: "admin" | "worker";
+    role: string;
 }
 
 interface AuthContextType {
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const registerUser = async (registerData: RegisterForm) => {
-        const responseData = await register(registerData);
+        await register(registerData);
     };
 
     const logout = () => {

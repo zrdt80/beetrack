@@ -36,8 +36,8 @@ export default function ProductEditModal({
         try {
             await updateProduct(product.id, {
                 ...form,
-                price: Number(form.price),
-                stock: Number(form.stock),
+                unit_price: Number(form.unit_price),
+                stock_quantity: Number(form.stock_quantity),
             });
             onSuccess();
             setOpen(false);

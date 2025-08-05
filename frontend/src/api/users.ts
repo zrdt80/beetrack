@@ -20,12 +20,17 @@ export interface UpdateUserPayload {
 }
 
 export const getUser = async (userId: number): Promise<User> => {
-    const res = await api.get(`/users/${userId}/`);
+    const res = await api.get<User>(`/users/${userId}/`);
     return res.data;
 };
 
-export const updateMe = async (userData: Partial<User>): Promise<User> => {
-    const res = await api.put("/users/me", userData);
+export const updateMe = async (
+    userData: Partial<User>
+): Promise<User | null> => {
+    const res = await api.put<{ access_token: string; token_type: string }>(
+        "/users/me",
+        userData
+    );
     setAuthToken(res.data.access_token);
     localStorage.setItem("token", res.data.access_token);
     const profile = await getMe();
@@ -36,11 +41,11 @@ export const updateUser = async (
     userId: number,
     userData: Partial<User>
 ): Promise<User> => {
-    const res = await api.put(`/users/${userId}`, userData);
+    const res = await api.put<User>(`/users/${userId}`, userData);
     return res.data;
 };
 
 export const getAllUsers = async (): Promise<User[]> => {
-    const res = await api.get("/users/");
+    const res = await api.get<User[]>("/users/");
     return res.data;
 };

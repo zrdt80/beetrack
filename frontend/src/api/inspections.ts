@@ -5,6 +5,7 @@ export interface Inspection {
     hive_id: number;
     date: string;
     disease_detected: string;
+    temperature: number;
     notes?: string;
 }
 
@@ -17,12 +18,12 @@ export interface InspectionCreate {
 }
 
 export const getInspections = async (hiveId: number): Promise<Inspection[]> => {
-    const res = await api.get(`/inspections/hive/${hiveId}`);
+    const res = await api.get<Inspection[]>(`/inspections/hive/${hiveId}`);
     return res.data;
 };
 
 export const createInspection = async (data: InspectionCreate) => {
-    const res = await api.post(`/inspections`, data);
+    const res = await api.post<Inspection>(`/inspections`, data);
     return res.data;
 };
 
@@ -30,7 +31,7 @@ export const updateInspection = async (
     inspectionId: number,
     data: InspectionCreate
 ) => {
-    const res = await api.put(`/inspections/${inspectionId}`, data);
+    const res = await api.put<Inspection>(`/inspections/${inspectionId}`, data);
     return res.data;
 };
 

@@ -16,7 +16,7 @@ export default function HivesPage() {
     const refreshHives = () => {
         getHives()
             .then(setHives)
-            .catch((err) => setError("Failed to load hives."));
+            .catch((_err) => setError("Failed to load hives."));
     };
 
     useEffect(() => {

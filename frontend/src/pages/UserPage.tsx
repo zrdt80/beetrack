@@ -43,7 +43,7 @@ export default function UserPage() {
 
     useEffect(() => {
         if (id) {
-            getUser(id)
+            getUser(Number(id))
                 .then((data: User) => {
                     setUserInfo(data);
                     setForm({
@@ -99,9 +99,11 @@ export default function UserPage() {
             }
             let updated: User;
             if (isMe) {
-                updated = await updateMe(payload);
+                const result = await updateMe(payload);
+                if (!result) throw new Error("Failed to update user.");
+                updated = result;
             } else {
-                updated = await updateUser(id!, payload);
+                updated = await updateUser(Number(id!), payload);
             }
             setUserInfo(updated);
             setEditMode(false);

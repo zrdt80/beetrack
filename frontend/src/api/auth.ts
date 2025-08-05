@@ -1,4 +1,5 @@
 import api from "./axios";
+import type { User } from "./users";
 
 export interface LoginForm {
     username: string;
@@ -10,9 +11,13 @@ export const login = async (data: LoginForm) => {
     form.append("username", data.username);
     form.append("password", data.password);
 
-    const res = await api.post("/users/login", form, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    const res = await api.post<{ access_token: string; token_type: string }>(
+        "/users/login",
+        form,
+        {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        }
+    );
 
     return res.data;
 };
@@ -32,12 +37,15 @@ export async function register(
         password: data.password,
     };
 
-    const res = await api.post("/users/register", payload);
+    const res = await api.post<{ access_token: string }>(
+        "/users/register",
+        payload
+    );
 
     return res.data;
 }
 
-export const getMe = async () => {
-    const res = await api.get("/users/me");
+export const getMe = async (): Promise<User | null> => {
+    const res = await api.get<User | null>("/users/me");
     return res.data;
 };

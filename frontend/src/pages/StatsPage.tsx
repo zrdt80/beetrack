@@ -4,7 +4,6 @@ import {
     getMonthlySales,
     getMonthlyInspections,
     getYearlyTopProducts,
-    getTopProducts,
 } from "@/api/stats";
 import type { MonthlySales, MonthlyInspections, TopProduct } from "@/api/stats";
 import {
@@ -30,8 +29,10 @@ const colors = ["#82ca9d", "#8884d8", "#ffc658", "#d62728", "#2ca02c"];
 export default function StatsPage() {
     const currentYear = new Date().getFullYear();
     const [year, setYear] = useState(currentYear);
-    const [sales, setSales] = useState<MonthlySales[]>([]);
-    const [inspections, setInspections] = useState<MonthlyInspections[]>([]);
+    const [sales, setSales] = useState<MonthlySales[] | undefined>([]);
+    const [inspections, setInspections] = useState<
+        MonthlyInspections[] | undefined
+    >([]);
     const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [firstYear, setFirstYear] = useState<number>(currentYear);
@@ -50,13 +51,19 @@ export default function StatsPage() {
         const salesResults = await Promise.all(salesPromises);
         const inspectionsResults = await Promise.all(inspectionsPromises);
 
-        const validSales = salesResults.filter(Boolean) as MonthlySales[];
-        const validInspections = inspectionsResults.filter(
-            Boolean
-        ) as MonthlyInspections[];
+        const validSales = salesResults.filter(Boolean) as (
+            | MonthlySales[]
+            | undefined
+        )[];
+        const validInspections = inspectionsResults.filter(Boolean) as (
+            | MonthlyInspections[]
+            | undefined
+        )[];
 
-        setSales(validSales);
-        setInspections(validInspections);
+        setSales(validSales.flat().filter(Boolean) as MonthlySales[]);
+        setInspections(
+            validInspections.flat().filter(Boolean) as MonthlyInspections[]
+        );
 
         getYearlyTopProducts(selectedYear, 10)
             .then(setTopProducts)
@@ -68,8 +75,8 @@ export default function StatsPage() {
         fetchYearlyData(year);
     }, [year]);
 
-    const sortedSales = [...sales].sort((a, b) => a.month - b.month);
-    const sortedInspections = [...inspections].sort(
+    const sortedSales = [...(sales ?? [])].sort((a, b) => a.month - b.month);
+    const sortedInspections = [...(inspections ?? [])].sort(
         (a, b) => a.month - b.month
     );
 
@@ -225,7 +232,7 @@ export default function StatsPage() {
                                             fill="#ffc658"
                                             label={({ name, percent }) =>
                                                 `${name} (${(
-                                                    percent * 100
+                                                    (percent ?? 0) * 100
                                                 ).toFixed(0)}%)`
                                             }
                                         >
