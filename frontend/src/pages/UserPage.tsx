@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getUser, updateMe, updateUser } from "@/api/users";
 import type { User, UpdateUserPayload } from "@/api/users";
+import { formatDateTime } from "@/lib/datetime";
 import {
     Card,
     CardHeader,
@@ -304,9 +305,10 @@ export default function UserPage() {
                                 </span>
                                 <span className="text-sm">
                                     {userInfo.created_at
-                                        ? new Date(
-                                              userInfo.created_at
-                                          ).toLocaleString()
+                                        ? formatDateTime(
+                                              userInfo.created_at,
+                                              "datetime"
+                                          )
                                         : "N/A"}
                                 </span>
                             </div>

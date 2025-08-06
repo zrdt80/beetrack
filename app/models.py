@@ -3,7 +3,7 @@ from sqlalchemy import (
     DateTime, Text, Enum, Boolean
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import Base
 import enum
 
@@ -21,7 +21,7 @@ class User(Base):
     email = Column(String(120), unique=True, nullable=False)
     hashed_password = Column(String(256), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.worker, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 
     orders = relationship("Order", back_populates="user")
@@ -44,7 +44,7 @@ class Inspection(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     hive_id = Column(Integer, ForeignKey("hives.id"), nullable=False)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     notes = Column(Text)
     temperature = Column(Float)
     disease_detected = Column(String(100), default="none")
@@ -69,7 +69,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     status = Column(String(50), default="pending")
     total_price = Column(Float, default=0.0)
 
@@ -94,5 +94,5 @@ class Log(Base):
     __tablename__ = "logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     event = Column(String(255), nullable=False)

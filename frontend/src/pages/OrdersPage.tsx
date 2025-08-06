@@ -10,6 +10,8 @@ import {
 import type { Order, OrderItem } from "@/api/orders";
 import { getProducts } from "@/api/products";
 import type { Product } from "@/api/products";
+import { formatDateTime } from "@/lib/datetime";
+import TimezoneDisplay from "@/components/TimezoneDisplay";
 import { Button } from "@/components/ui/button";
 import OrderEditModal from "@/components/OrderEditModal";
 import {
@@ -300,13 +302,16 @@ export default function OrdersPage() {
                             className="cursor-pointer select-none border-b"
                             onClick={() => handleSort("date")}
                         >
-                            Date{" "}
-                            {sortKey === "date" &&
-                                (sortOrder === "asc" ? (
-                                    <ArrowUp className="inline w-4 h-4" />
-                                ) : (
-                                    <ArrowDown className="inline w-4 h-4" />
-                                ))}
+                            <div className="flex items-center gap-2">
+                                Date
+                                <TimezoneDisplay showIcon={false} />
+                                {sortKey === "date" &&
+                                    (sortOrder === "asc" ? (
+                                        <ArrowUp className="inline w-4 h-4" />
+                                    ) : (
+                                        <ArrowDown className="inline w-4 h-4" />
+                                    ))}
+                            </div>
                         </TableHead>
                         <TableHead
                             className="cursor-pointer select-none border-b"
@@ -347,7 +352,7 @@ export default function OrdersPage() {
                                 </TableCell>
                             )}
                             <TableCell className="border-r">
-                                {new Date(o.date).toLocaleString()}
+                                {formatDateTime(o.date, "datetime")}
                             </TableCell>
                             <TableCell className="border-r">
                                 {o.status}

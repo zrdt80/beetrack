@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from sqlalchemy.orm import Session
 from app import models
+from app.utils.logger import log_event
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from datetime import datetime
@@ -12,6 +13,7 @@ def export_orders_to_csv(db: Session, path: str = "exports/orders.csv"):
 
     orders = db.query(models.Order).all()
     if not orders:
+        log_event("Export failed: No orders found for CSV export")
         return None
 
     rows = []
@@ -30,6 +32,7 @@ def export_orders_to_csv(db: Session, path: str = "exports/orders.csv"):
 
     df = pd.DataFrame(rows)
     df.to_csv(path, index=False)
+    log_event(f"Orders CSV exported successfully: {len(orders)} orders, {len(rows)} items to {path}")
     return path
 
 
@@ -38,6 +41,7 @@ def export_inspections_to_pdf(db: Session, path: str = "exports/inspections.pdf"
 
     inspections = db.query(models.Inspection).all()
     if not inspections:
+        log_event("Export failed: No inspections found for PDF export")
         return None
 
     c = canvas.Canvas(path, pagesize=A4)
@@ -57,4 +61,5 @@ def export_inspections_to_pdf(db: Session, path: str = "exports/inspections.pdf"
             c.setFont("Helvetica", 12)
 
     c.save()
+    log_event(f"Inspections PDF exported successfully: {len(inspections)} inspections to {path}")
     return path

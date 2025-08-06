@@ -11,6 +11,7 @@ import OrdersPage from "@/pages/OrdersPage";
 import StatsPage from "@/pages/StatsPage";
 import ExportPage from "@/pages/ExportPage";
 import UsersPage from "@/pages/UsersPage";
+import LogsPage from "@/pages/LogsPage";
 import HelpPage from "@/pages/HelpPage";
 import UserPage from "@/pages/UserPage";
 
@@ -39,6 +40,7 @@ function App() {
                     <Route path="stats" element={<StatsPage />} />
                     <Route path="export" element={<ExportPage />} />
                     <Route path="users" element={<UsersPage />} />
+                    <Route path="logs" element={<LogsPage />} />
                     <Route path="help" element={<HelpPage />} />
                     <Route
                         path="user/:id"

@@ -9,6 +9,7 @@ import type { Inspection, InspectionCreate } from "@/api/inspections";
 import { getHives } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
+import { formatDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import InspectionEditModal from "@/components/InspectionEditModal";
@@ -154,7 +155,7 @@ export default function InspectionsPage() {
                     {inspections.map((insp) => (
                         <tr key={insp.id} className="border-t">
                             <td className="p-2">
-                                {new Date(insp.date).toLocaleDateString()}
+                                {formatDateTime(insp.date, "datetime")}
                             </td>
                             <td className="p-2">{insp.temperature}</td>
                             <td className="p-2">{insp.disease_detected}</td>

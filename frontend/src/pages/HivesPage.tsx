@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getHives, deleteHive } from "@/api/hives";
 import type { Hive } from "@/api/hives";
+import { formatDateTime } from "@/lib/datetime";
 import HiveFormModal from "../components/HiveFormModel";
 import HiveEditModal from "../components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
@@ -74,9 +75,10 @@ export default function HivesPage() {
                                         to={`/dashboard/hives/${hive.id}`}
                                     >
                                         {hive.last_inspection_date
-                                            ? new Date(
-                                                  hive.last_inspection_date
-                                              ).toLocaleDateString()
+                                            ? formatDateTime(
+                                                  hive.last_inspection_date,
+                                                  "date"
+                                              )
                                             : "N/A"}
                                     </Link>
                                 </td>
