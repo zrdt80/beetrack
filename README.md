@@ -13,7 +13,9 @@ Built for real-world use with FastAPI, PostgreSQL, Docker, cron jobs, Alembic, a
 -   🧪 **Inspections** – temperature, disease, notes
 -   📦 **Products & orders** – M:N order-product relation
 -   📊 **Stats & reports** – monthly sales, top products
--   🗓️ **Scheduler** – cron-based log archival every 7 days
+-   � **Admin logging system** – comprehensive audit trails with filtering and search
+-   🌍 **Timezone-aware** – UTC backend storage with local timezone display
+-   �🗓️ **Scheduler** – cron-based log archival every 7 days
 -   📁 **Export** – CSV and PDF (orders, inspections)
 -   🔄 **Seed data** – admin, users, hives, products etc.
 -   ☁️ **Dockerized** – production-ready deployment
@@ -122,6 +124,45 @@ docker-compose up --build
 | `/stats/top-products?limit=5`                  | Top-selling products overall                    |
 | `/export/orders/csv`                           | Download all order data as CSV                  |
 | `/export/inspections/pdf`                      | Export inspection summaries as a PDF            |
+
+---
+
+## 📝 Admin Logging System
+
+BeeTrack includes a comprehensive logging system for audit trails and system monitoring:
+
+### 🔍 Features
+
+-   **Admin-only access** – secure log management restricted to admin users
+-   **Comprehensive tracking** – logs all user actions across the system
+-   **Advanced filtering** – search by event type, date range, and keywords
+-   **Statistics dashboard** – visual overview of system activity
+-   **Bulk operations** – clear all logs or delete individual entries
+-   **Timezone-aware** – UTC storage with automatic local timezone conversion
+
+### 📊 Log Categories
+
+-   🔐 **Authentication** – login attempts, token validation
+-   👥 **User Management** – user creation, updates, role changes
+-   🐝 **Hive Operations** – hive creation, updates, inspections
+-   📦 **Order Processing** – order creation, updates, status changes
+-   🍯 **Product Management** – inventory updates, product changes
+-   📊 **Statistics** – report generation and data exports
+
+### 🌐 API Endpoints
+
+| Endpoint      | Method | Description                            |
+| ------------- | ------ | -------------------------------------- |
+| `/logs/`      | GET    | Retrieve all system logs (admin only)  |
+| `/logs/clear` | DELETE | Clear all logs (admin only)            |
+| `/logs/{id}`  | DELETE | Delete specific log entry (admin only) |
+
+### ⏰ Timezone Handling
+
+-   **Backend**: All timestamps stored in UTC for consistency
+-   **Frontend**: Automatic conversion to user's local timezone
+-   **Docker**: Containers configured with UTC timezone (`TZ=UTC`)
+-   **Display**: Smart formatting with relative time ("2 hours ago") and full timestamps
 
 ---
 
@@ -238,6 +279,9 @@ After launch:
 -   [x] React frontend with Tailwind + dashboard
 -   [x] Soft delete + user management
 -   [x] Rate limiting for key endpoints
+-   [x] Comprehensive admin logging system
+-   [x] Timezone-aware datetime handling
+-   [x] Advanced log filtering and statistics
 -   [ ] Admin CLI commands
 -   [ ] Unit tests (pytest + vitest)
 -   [ ] Deploy to Render/Fly.io
