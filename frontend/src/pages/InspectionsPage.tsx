@@ -13,6 +13,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import InspectionEditModal from "@/components/InspectionEditModal";
+import DiseaseSelector from "@/components/DiseaseSelector";
 
 export default function InspectionsPage() {
     const { id } = useParams();
@@ -115,11 +116,19 @@ export default function InspectionsPage() {
                         <label className="block mb-2 text-sm font-medium text-muted-foreground">
                             Disease Detected
                         </label>
-                        <Input
-                            name="disease_detected"
-                            placeholder="Disease"
+                        <DiseaseSelector
                             value={form.disease_detected}
-                            onChange={handleChange}
+                            onChange={(value) =>
+                                handleChange({
+                                    target: {
+                                        name: "disease_detected",
+                                        value,
+                                    },
+                                } as React.ChangeEvent<HTMLInputElement>)
+                            }
+                            placeholder="Select or type disease..."
+                            compact={true}
+                            showTips={false}
                         />
                     </div>
                     <div className="flex-1">

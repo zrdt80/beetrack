@@ -10,6 +10,7 @@ import {
     DialogDescription,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import DiseaseSelector from "./DiseaseSelector";
 
 export default function InspectionEditModal({
     inspection,
@@ -70,13 +71,23 @@ export default function InspectionEditModal({
                         value={form.temperature}
                         onChange={handleChange}
                     />
-                    <Input
-                        name="disease_detected"
-                        value={form.disease_detected}
-                        onChange={handleChange}
-                        placeholder="Disease"
-                        required
-                    />
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                            Disease Detected
+                        </label>
+                        <DiseaseSelector
+                            value={form.disease_detected}
+                            onChange={(value) =>
+                                handleChange({
+                                    target: {
+                                        name: "disease_detected",
+                                        value,
+                                    },
+                                } as React.ChangeEvent<HTMLInputElement>)
+                            }
+                            placeholder="Select or type disease..."
+                        />
+                    </div>
                     <Input
                         name="notes"
                         value={form.notes}

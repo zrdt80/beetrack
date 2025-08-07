@@ -22,6 +22,19 @@ def download_orders_csv(
     return FileResponse(path, media_type="text/csv", filename="orders.csv")
 
 
+@router.get("/orders/pdf", response_class=FileResponse)
+def download_orders_pdf(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(requires_role("admin"))
+):
+    path = export.export_orders_to_pdf(db)
+    if not path:
+        log_event(f"Export failed: No orders to export for admin {current_user.username}")
+        raise HTTPException(status_code=404, detail="No orders to export")
+    log_event(f"Orders PDF exported by admin {current_user.username}")
+    return FileResponse(path, media_type="application/pdf", filename="orders.pdf")
+
+
 @router.get("/inspections/pdf", response_class=FileResponse)
 def download_inspections_pdf(
     db: Session = Depends(get_db),

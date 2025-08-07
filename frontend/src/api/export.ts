@@ -7,6 +7,13 @@ export const exportOrdersCSV = async (): Promise<Blob> => {
     return res.data;
 };
 
+export const exportOrdersPDF = async (): Promise<Blob> => {
+    const res = await api.get<Blob>("/export/orders/pdf", {
+        responseType: "blob",
+    });
+    return res.data;
+};
+
 export const exportInspectionsPDF = async (): Promise<Blob> => {
     const res = await api.get<Blob>("/export/inspections/pdf", {
         responseType: "blob",
