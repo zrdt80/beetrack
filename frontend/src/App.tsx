@@ -16,7 +16,15 @@ import HelpPage from "@/pages/HelpPage";
 import UserPage from "@/pages/UserPage";
 
 function App() {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-lg">Loading...</div>
+            </div>
+        );
+    }
 
     return (
         <Routes>
@@ -49,7 +57,11 @@ function App() {
                 </Route>
             )}
 
-            <Route path="*" element={<Navigate to="/" />} />
+            {/* Redirect any unknown routes */}
+            <Route
+                path="*"
+                element={<Navigate to={user ? "/dashboard" : "/login"} />}
+            />
         </Routes>
     );
 }

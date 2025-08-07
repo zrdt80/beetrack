@@ -12,6 +12,7 @@ export interface User {
 
 interface AuthContextType {
     user: User | null;
+    isLoading: boolean;
     loginUser: (data: LoginForm) => Promise<void>;
     registerUser: (data: RegisterForm) => Promise<void>;
     logout: () => void;
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const loginUser = async (data: LoginForm) => {
         const tokenData = await login(data);
@@ -44,12 +46,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const token = localStorage.getItem("token");
         if (token) {
             setAuthToken(token);
-            getMe().then(setUser).catch(logout);
+            getMe()
+                .then(setUser)
+                .catch(logout)
+                .finally(() => setIsLoading(false));
+        } else {
+            setIsLoading(false);
         }
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loginUser, registerUser, logout }}>
+        <AuthContext.Provider
+            value={{ user, isLoading, loginUser, registerUser, logout }}
+        >
             {children}
         </AuthContext.Provider>
     );
