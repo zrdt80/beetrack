@@ -14,7 +14,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from datetime import datetime
 
-# Use standard fonts without emoji dependency
 UNICODE_FONT = 'Helvetica'
 log_event("Using standard Helvetica font for PDF generation")
 

@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Full-screen background setup */
+html {
+    height: 100%;
+    background-image: url("./assets/background.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
 /* Webkit browsers */
 ::-webkit-scrollbar {
     width: 12px;
@@ -50,14 +60,12 @@ a:hover {
 
 body {
     margin: 0;
-    display: flex;
-    place-items: center;
+    padding: 0;
     min-width: 320px;
     min-height: 100vh;
-    background-image: url("./assets/background.jpg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    height: 100%;
+    background: transparent;
+    overflow-x: hidden;
 }
 
 h1 {

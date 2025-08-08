@@ -6,7 +6,6 @@ from app.database import SessionLocal
 
 def log_event(event: str):
     with SessionLocal() as db:
-        # Use datetime.now(timezone.utc) instead of utcnow() for proper UTC
         log = models.Log(timestamp=datetime.now(timezone.utc), event=event)
         db.add(log)
         db.commit()

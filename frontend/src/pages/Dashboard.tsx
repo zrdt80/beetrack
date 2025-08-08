@@ -2,19 +2,50 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+    Menu,
+    Home,
+    Layers3,
+    Package,
+    ShoppingCart,
+    BarChart3,
+    Download,
+    Users,
+    FileText,
+    HelpCircle,
+    LogOut,
+    Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-    { to: "/dashboard", label: "🏠 Home", admin: false },
-    { to: "/dashboard/hives", label: "🐝 Hives", admin: false },
-    { to: "/dashboard/products", label: "📦 Products", admin: false },
-    { to: "/dashboard/orders", label: "🛒 Orders", admin: false },
-    { to: "/dashboard/stats", label: "📊 Stats", admin: true },
-    { to: "/dashboard/export", label: "📁 Export", admin: true },
-    { to: "/dashboard/users", label: "👥 Users", admin: true },
-    { to: "/dashboard/logs", label: "📋 Logs", admin: true },
-    { to: "/dashboard/help", label: "❓ Help", admin: false },
+    { to: "/dashboard", label: "Dashboard", icon: Home, admin: false },
+    { to: "/dashboard/hives", label: "Hives", icon: Layers3, admin: false },
+    {
+        to: "/dashboard/products",
+        label: "Products",
+        icon: Package,
+        admin: false,
+    },
+    {
+        to: "/dashboard/orders",
+        label: "Orders",
+        icon: ShoppingCart,
+        admin: false,
+    },
+    {
+        to: "/dashboard/stats",
+        label: "Analytics",
+        icon: BarChart3,
+        admin: true,
+    },
+    { to: "/dashboard/export", label: "Export", icon: Download, admin: true },
+    { to: "/dashboard/users", label: "Users", icon: Users, admin: true },
+    { to: "/dashboard/logs", label: "Logs", icon: FileText, admin: true },
+    { to: "/dashboard/help", label: "Help", icon: HelpCircle, admin: false },
 ];
 
 export default function Dashboard() {
@@ -31,31 +62,67 @@ export default function Dashboard() {
     );
 
     return (
-        <div className="flex min-h-screen h-screen bg-gray-100 bg-opacity-90">
-            <aside className="hidden md:flex flex-col w-80 h-full bg-white shadow-lg fixed left-0 top-0 bottom-0 z-10">
-                <div className="h-16 flex items-center justify-center font-bold text-lg border-b">
-                    Beetrack Dashboard
+        <div className="flex min-h-screen bg-transparent">
+            <aside className="hidden md:flex flex-col w-64 bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-sm fixed h-full z-10">
+                <div className="h-16 flex items-center px-6 border-b border-gray-200">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                                🐝
+                            </span>
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-semibold text-gray-900">
+                                BeeTrack
+                            </h1>
+                            <p className="text-xs text-gray-500">
+                                Apiary Management
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <nav className="flex-1 px-4 py-6 space-y-2">
-                    {filteredLinks.map((link) => (
-                        <NavLink
-                            key={link.to}
-                            to={link.to}
-                            className={({ isActive }) =>
-                                cn(
-                                    "block px-4 py-2 rounded hover:bg-gray-100 transition",
-                                    isActive && "bg-gray-200 font-semibold"
-                                )
-                            }
-                            end={link.to === "/dashboard"}
-                        >
-                            {link.label}
-                        </NavLink>
-                    ))}
+
+                <nav className="flex-1 px-4 py-6">
+                    <div className="space-y-1">
+                        {filteredLinks.map((link) => (
+                            <NavLink
+                                key={link.to}
+                                to={link.to}
+                                className={({ isActive }) =>
+                                    cn(
+                                        "group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                                        isActive
+                                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                    )
+                                }
+                                end={link.to === "/dashboard"}
+                            >
+                                <link.icon
+                                    className={cn(
+                                        "w-5 h-5 flex-shrink-0 transition-colors",
+                                        "group-hover:text-amber-600"
+                                    )}
+                                />
+                                <span className="flex-1">{link.label}</span>
+                                {link.admin && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-xs px-1.5 py-0.5"
+                                    >
+                                        Admin
+                                    </Badge>
+                                )}
+                            </NavLink>
+                        ))}
+                    </div>
                 </nav>
-                <div className="p-4 border-t flex flex-col gap-3 items-start">
+
+                <Separator />
+
+                <div className="p-4 space-y-4">
                     <div
-                        className="w-full flex items-center gap-3 cursor-pointer hover:bg-gray-100 rounded p-2 transition"
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
                         onClick={() =>
                             user?.id && navigate(`/dashboard/user/${user.id}`)
                         }
@@ -68,25 +135,30 @@ export default function Dashboard() {
                             }
                         }}
                     >
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-600">
-                            {user?.role?.[0]?.toUpperCase() ?? "U"}
-                        </div>
-                        <div>
-                            <span className="block font-medium text-gray-800">
+                        <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
+                                {user?.username?.[0]?.toUpperCase() ?? "U"}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                                 {user?.username}
-                            </span>
-                            <span className="block text-xs text-gray-500">
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
                                 {user?.email}
-                            </span>
+                            </p>
                         </div>
+                        <Settings className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
+
                     <Button
                         onClick={handleLogout}
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
-                        className="w-full mt-2"
+                        className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
                     >
-                        Logout
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
                     </Button>
                 </div>
             </aside>
@@ -94,51 +166,104 @@ export default function Dashboard() {
             <Sheet>
                 <SheetTrigger asChild>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="md:hidden absolute top-4 left-4 z-20"
+                        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-md border-gray-200"
                     >
-                        <Menu />
+                        <Menu className="w-5 h-5" />
                     </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-64">
-                    <div className="h-16 flex items-center justify-center font-bold text-lg border-b">
-                        Beetrack Dashboard
+                <SheetContent side="left" className="p-0 w-60">
+                    <div className="h-16 flex items-center px-6 border-b border-gray-200">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-bold text-sm">
+                                    🐝
+                                </span>
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-semibold text-gray-900">
+                                    BeeTrack
+                                </h1>
+                                <p className="text-xs text-gray-500">
+                                    Apiary Management
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <nav className="flex-1 px-4 py-6 space-y-2">
-                        {filteredLinks.map((link) => (
-                            <NavLink
-                                key={link.to}
-                                to={link.to}
-                                className={({ isActive }) =>
-                                    cn(
-                                        "block px-4 py-2 rounded hover:bg-gray-100 transition",
-                                        isActive && "bg-gray-200 font-semibold"
-                                    )
-                                }
-                                end={link.to === "/dashboard"}
-                            >
-                                {link.label}
-                            </NavLink>
-                        ))}
+
+                    <nav className="flex-1 px-4 py-6">
+                        <div className="space-y-1">
+                            {filteredLinks.map((link) => (
+                                <NavLink
+                                    key={link.to}
+                                    to={link.to}
+                                    className={({ isActive }) =>
+                                        cn(
+                                            "group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                                            isActive
+                                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                        )
+                                    }
+                                    end={link.to === "/dashboard"}
+                                >
+                                    <link.icon
+                                        className={cn(
+                                            "w-5 h-5 flex-shrink-0 transition-colors",
+                                            "group-hover:text-amber-600"
+                                        )}
+                                    />
+                                    <span className="flex-1">{link.label}</span>
+                                    {link.admin && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="text-xs px-1.5 py-0.5"
+                                        >
+                                            Admin
+                                        </Badge>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
                     </nav>
-                    <div className="p-4 border-t flex flex-col gap-2">
-                        <span className="text-xs text-gray-500">
-                            {user?.username} ({user?.role})
-                        </span>
+
+                    <Separator className="mx-4" />
+
+                    <div className="p-4 space-y-4">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                            <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
+                                    {user?.username?.[0]?.toUpperCase() ?? "U"}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                    {user?.username}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                    {user?.role}
+                                </p>
+                            </div>
+                        </div>
+
                         <Button
                             onClick={handleLogout}
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
+                            className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
                         >
-                            Logout
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Sign Out
                         </Button>
                     </div>
                 </SheetContent>
             </Sheet>
 
-            <main className="flex-1 ml-0 md:ml-80 p-6 overflow-auto">
-                <Outlet />
+            <main className="flex-1 md:ml-64 min-h-screen">
+                <div className="p-4 md:p-6 pt-16 md:pt-4 min-h-screen bg-white/90 backdrop-blur-sm">
+                    <Outlet />
+                </div>
             </main>
         </div>
     );

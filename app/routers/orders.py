@@ -114,7 +114,6 @@ def delete_order(
         log_event(f"Order deletion failed: order {order_id} not found or unauthorized access by {user.username}")
         raise HTTPException(status_code=403, detail="Not authorized to delete this order")
 
-    # Restore stock quantities
     restored_items = []
     for item in order.items:
         item.product.stock_quantity += item.quantity

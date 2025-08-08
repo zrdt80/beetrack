@@ -57,7 +57,6 @@ function App() {
                 </Route>
             )}
 
-            {/* Redirect any unknown routes */}
             <Route
                 path="*"
                 element={<Navigate to={user ? "/dashboard" : "/login"} />}

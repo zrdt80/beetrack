@@ -81,7 +81,6 @@ export default function ExportPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-                {/* Orders Export Card */}
                 <Card className="shadow-lg hover:shadow-xl transition-shadow">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
@@ -131,7 +130,6 @@ export default function ExportPage() {
                     </CardContent>
                 </Card>
 
-                {/* Inspections Export Card */}
                 <Card className="shadow-lg hover:shadow-xl transition-shadow">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
@@ -172,7 +170,6 @@ export default function ExportPage() {
                 </Card>
             </div>
 
-            {/* Tips Section */}
             <Card className="mt-8 border-blue-200 bg-blue-50/50">
                 <CardContent className="pt-6">
                     <div className="flex items-start gap-3">

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import InspectionEditModal from "@/components/InspectionEditModal";
 import DiseaseSelector from "@/components/DiseaseSelector";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
 export default function InspectionsPage() {
     const { id } = useParams();
@@ -69,6 +70,55 @@ export default function InspectionsPage() {
             load();
         }
     };
+
+    const columns: DataTableColumn<Inspection>[] = [
+        {
+            key: "date",
+            header: "Date",
+            sortable: true,
+            render: (inspection) => formatDateTime(inspection.date, "datetime"),
+        },
+        {
+            key: "temperature",
+            header: "Temperature (°C)",
+            sortable: true,
+            className: "text-center",
+        },
+        {
+            key: "disease_detected",
+            header: "Disease Detected",
+            render: (inspection) => inspection.disease_detected || "None",
+        },
+        {
+            key: "notes",
+            header: "Notes",
+            render: (inspection) => inspection.notes || "-",
+        },
+        ...(user?.role === "admin"
+            ? [
+                  {
+                      key: "actions" as keyof Inspection,
+                      header: "Actions",
+                      render: (inspection: Inspection) => (
+                          <div className="flex gap-2">
+                              <InspectionEditModal
+                                  inspection={inspection}
+                                  onSuccess={load}
+                              />
+                              <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(inspection.id)}
+                              >
+                                  Delete
+                              </Button>
+                          </div>
+                      ),
+                      className: "w-48",
+                  },
+              ]
+            : []),
+    ];
 
     if (!hive) return <p>Loading hive data...</p>;
 
@@ -148,49 +198,12 @@ export default function InspectionsPage() {
                 </form>
             </div>
 
-            <table className="w-full border bg-white rounded shadow-sm">
-                <thead className="bg-gray-100">
-                    <tr className="text-left">
-                        <th className="p-2">Date</th>
-                        <th className="p-2">Temperature (°C)</th>
-                        <th className="p-2">Disease detected</th>
-                        <th className="p-2">Notes</th>
-                        {user?.role === "admin" && (
-                            <th className="p-2">Actions</th>
-                        )}
-                    </tr>
-                </thead>
-                <tbody>
-                    {inspections.map((insp) => (
-                        <tr key={insp.id} className="border-t">
-                            <td className="p-2">
-                                {formatDateTime(insp.date, "datetime")}
-                            </td>
-                            <td className="p-2">{insp.temperature}</td>
-                            <td className="p-2">{insp.disease_detected}</td>
-                            <td className="p-2">{insp.notes}</td>
-                            {user?.role === "admin" && (
-                                <td className="p-2">
-                                    <div className="flex gap-2">
-                                        <InspectionEditModal
-                                            inspection={insp}
-                                            onSuccess={load}
-                                        />
-                                        <Button
-                                            variant="destructive"
-                                            onClick={() =>
-                                                handleDelete(insp.id)
-                                            }
-                                        >
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </td>
-                            )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <DataTable
+                data={inspections}
+                columns={columns}
+                emptyMessage="No inspections found for this hive."
+                className="mb-4"
+            />
         </div>
     );
 }

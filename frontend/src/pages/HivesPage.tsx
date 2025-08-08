@@ -7,6 +7,7 @@ import HiveFormModal from "../components/HiveFormModel";
 import HiveEditModal from "../components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
@@ -15,9 +16,7 @@ export default function HivesPage() {
     const { user } = useAuth();
 
     const refreshHives = () => {
-        getHives()
-            .then(setHives)
-            .catch((_err) => setError("Failed to load hives."));
+        getHives().then(setHives);
     };
 
     useEffect(() => {
@@ -33,6 +32,71 @@ export default function HivesPage() {
         };
         fetch();
     }, []);
+
+    const columns: DataTableColumn<Hive>[] = [
+        {
+            key: "name",
+            header: "Name",
+            sortable: true,
+        },
+        {
+            key: "location",
+            header: "Location",
+            sortable: true,
+        },
+        {
+            key: "status",
+            header: "Status",
+            sortable: true,
+        },
+        {
+            key: "last_inspection_date",
+            header: "Last Inspection",
+            render: (hive) => (
+                <Link
+                    className="text-blue-600 underline hover:text-blue-800"
+                    to={`/dashboard/hives/${hive.id}`}
+                >
+                    {hive.last_inspection_date
+                        ? formatDateTime(hive.last_inspection_date, "date")
+                        : "N/A"}
+                </Link>
+            ),
+        },
+        ...(user?.role === "admin"
+            ? [
+                  {
+                      key: "actions" as keyof Hive,
+                      header: "Actions",
+                      render: (hive: Hive) => (
+                          <div className="flex gap-2">
+                              <HiveEditModal
+                                  hive={hive}
+                                  onSuccess={refreshHives}
+                              />
+                              <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={async () => {
+                                      if (
+                                          confirm(
+                                              `Are you sure you want to delete ${hive.name}?`
+                                          )
+                                      ) {
+                                          await deleteHive(hive.id);
+                                          refreshHives();
+                                      }
+                                  }}
+                              >
+                                  Delete
+                              </Button>
+                          </div>
+                      ),
+                      className: "w-48",
+                  },
+              ]
+            : []),
+    ];
 
     if (loading) return <p>Loading hives...</p>;
     if (error) return <p className="text-red-500">{error}</p>;
@@ -50,70 +114,12 @@ export default function HivesPage() {
                 )}
             </div>
 
-            {hives.length === 0 ? (
-                <p>No hives found.</p>
-            ) : (
-                <table className="w-full border border-gray-300 rounded shadow-sm bg-white">
-                    <thead className="bg-gray-100">
-                        <tr className="text-left">
-                            <th className="p-2">Name</th>
-                            <th className="p-2">Location</th>
-                            <th className="p-2">Status</th>
-                            <th className="p-2">Last Inspection</th>
-                            <th className="p-2">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {hives.map((hive) => (
-                            <tr key={hive.id} className="border-t">
-                                <td className="p-2">{hive.name}</td>
-                                <td className="p-2">{hive.location}</td>
-                                <td className="p-2">{hive.status}</td>
-                                <td className="p-2">
-                                    <Link
-                                        className="text-blue-600 underline"
-                                        to={`/dashboard/hives/${hive.id}`}
-                                    >
-                                        {hive.last_inspection_date
-                                            ? formatDateTime(
-                                                  hive.last_inspection_date,
-                                                  "date"
-                                              )
-                                            : "N/A"}
-                                    </Link>
-                                </td>
-                                <td>
-                                    {user?.role === "admin" && (
-                                        <div className="flex gap-2">
-                                            <HiveEditModal
-                                                hive={hive}
-                                                onSuccess={refreshHives}
-                                            />
-                                            <Button
-                                                variant="destructive"
-                                                onClick={async () => {
-                                                    if (
-                                                        confirm(
-                                                            `Are you sure you want to delete ${hive.name}?`
-                                                        )
-                                                    ) {
-                                                        await deleteHive(
-                                                            hive.id
-                                                        );
-                                                        refreshHives();
-                                                    }
-                                                }}
-                                            >
-                                                Delete
-                                            </Button>
-                                        </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
+            <DataTable
+                data={hives}
+                columns={columns}
+                emptyMessage="No hives found."
+                className="mb-4"
+            />
         </div>
     );
 }
