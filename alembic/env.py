@@ -6,21 +6,16 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Dodaj katalog główny do sys.path (np. /beetrack)
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-# Wczytaj .env
 load_dotenv()
 
-# Teraz można bezpiecznie importować z app/
 from app.models import Base
 from app.database import DATABASE_URL
 
-# Interpret the config file for Python logging.
 config = context.config
 fileConfig(config.config_file_name)
 
-# Set the SQLAlchemy URL from env or default
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 target_metadata = Base.metadata

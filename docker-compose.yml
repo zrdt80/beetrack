@@ -2,6 +2,8 @@ services:
     db:
         image: postgres:15
         restart: unless-stopped
+        environment:
+            - TZ=UTC
         env_file:
             - .env.db
         volumes:
@@ -10,8 +12,12 @@ services:
             - beetrack-net
 
     api:
-        build: .
+        build:
+            context: .
+            dockerfile: Dockerfile
         restart: unless-stopped
+        environment:
+            - TZ=UTC
         env_file:
             - .env
         depends_on:
@@ -24,12 +30,14 @@ services:
     frontend:
         build:
             context: ./frontend
+            dockerfile: Dockerfile
+        restart: unless-stopped
         ports:
             - "3000:80"
         depends_on:
             - api
         networks:
-            - default
+            - beetrack-net
 
 volumes:
     pgdata:

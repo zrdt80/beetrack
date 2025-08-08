@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+ENV TZ=UTC
+
 WORKDIR /app
 
 COPY requirements.txt .
