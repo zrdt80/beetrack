@@ -4,6 +4,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
+import BeeTrackLogo from "@/components/BeeTrackLogo";
+import StatusBadge from "@/components/StatusBadge";
 
 export default function LoginPage() {
     const [form, setForm] = useState({ username: "", password: "" });
@@ -31,7 +33,7 @@ export default function LoginPage() {
             } else if (err?.response?.status === 429) {
                 setError("Too many login attempts. Please try again later.");
             } else {
-                setError("Invalid credentials or server error.");
+                setError("Invalid credentials. Please try again.");
             }
         } finally {
             setIsLoading(false);
@@ -39,163 +41,169 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex">
-            <div className="hidden lg:flex lg:flex-1 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/80 via-amber-500/80 to-orange-600/80" />
-                <div className="absolute inset-0 bg-black/10" />
-
-                <div className="relative z-10 flex flex-col justify-between h-full p-12 text-white">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                                <span className="text-lg font-bold text-amber-600">
-                                    B
-                                </span>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold">BeeTrack</h3>
-                            <p className="text-white/70 text-sm">
-                                Apiary Management
-                            </p>
-                        </div>
+        <div className="h-screen flex overflow-hidden">
+            <div className="hidden lg:flex lg:flex-1 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/80 to-slate-900/80">
+                    <div className="absolute inset-0 opacity-10">
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                            }}
+                        ></div>
                     </div>
+                    <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-amber-500/20 to-transparent"></div>
+                </div>
 
-                    <div className="text-center space-y-12">
+                <div className="relative w-full z-10 flex flex-col justify-between h-full p-12 text-white overflow-y-auto items-start">
+                    <BeeTrackLogo
+                        size="md"
+                        showStatus={false}
+                        showText={true}
+                    />
+
+                    <div className="text-center space-y-10 mt-12">
                         <div className="space-y-6">
-                            <h1 className="text-5xl font-bold leading-tight">
+                            <h1 className="text-5xl font-bold leading-tight tracking-tight">
                                 Welcome back to
-                                <span className="block text-white/90">
+                                <span className="block text-amber-200 bg-gradient-to-r from-amber-200 to-yellow-200 bg-clip-text text-transparent">
                                     BeeTrack
                                 </span>
                             </h1>
-                            <p className="text-lg text-white/80 max-w-md mx-auto leading-relaxed">
-                                Your free, professional platform for modern
-                                beekeeping management
+
+                            <p className="text-lg text-slate-300 max-w-md mx-auto leading-relaxed">
+                                Continue managing your apiary operations with
+                                enterprise-grade tools
                             </p>
                         </div>
 
                         <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     500+
                                 </div>
-                                <div className="text-white/70 text-sm">
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
                                     Active Users
                                 </div>
+                                <StatusBadge status="static" className="mt-2" />
                             </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     2.5k+
                                 </div>
-                                <div className="text-white/70 text-sm">
-                                    Hives Tracked
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
+                                    Managed Hives
                                 </div>
+                                <StatusBadge status="static" className="mt-2" />
                             </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     15k+
                                 </div>
-                                <div className="text-white/70 text-sm">
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
                                     Inspections
                                 </div>
+                                <StatusBadge status="static" className="mt-2" />
                             </div>
                         </div>
 
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto">
-                            <h4 className="font-semibold mb-6 text-white/95 text-lg">
-                                What you get:
+                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto border border-white/10">
+                            <h4 className="font-semibold mb-6 text-white text-lg tracking-tight">
+                                Enterprise Features
                             </h4>
                             <div className="space-y-4 text-sm">
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Complete Hive Management
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Advanced Analytics
                                         </div>
-                                        <div className="text-white/70 text-xs">
-                                            Track locations, status, and health
-                                            metrics
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Smart Inspection Reports
-                                        </div>
-                                        <div className="text-white/70 text-xs">
-                                            Digital forms with analytics and
-                                            trends
+                                        <div className="text-slate-400 text-xs">
+                                            Real-time performance metrics and
+                                            insights
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Inventory Control
-                                        </div>
-                                        <div className="text-white/70 text-xs">
-                                            Orders, products, and stock
-                                            management
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
                                             Professional Reports
                                         </div>
-                                        <div className="text-white/70 text-xs">
-                                            PDF exports and data visualization
+                                        <div className="text-slate-400 text-xs">
+                                            Detailed PDF exports for compliance
+                                            and analysis
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Disease Tracking
+                                        </div>
+                                        <div className="text-slate-400 text-xs">
+                                            Comprehensive health monitoring
+                                            system
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Order Management
+                                        </div>
+                                        <div className="text-slate-400 text-xs">
+                                            Streamlined product and customer
+                                            workflows
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto border border-white/10">
-                            <div className="text-white/90 italic mb-3">
-                                "BeeTrack has transformed how I manage my
-                                apiary. The free platform gives me everything I
-                                need to track my hives professionally."
+                        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto border border-blue-400/20">
+                            <div className="text-blue-200 font-medium mb-2 flex items-center justify-center gap-2">
+                                <span className="text-xl">🔒</span>
+                                Bank-level security
                             </div>
-                            <div className="text-white/70 text-sm">
-                                — Maria K., Professional Beekeeper
+                            <div className="text-slate-300 text-sm">
+                                Your data is protected with enterprise-grade
+                                encryption and security protocols
                             </div>
                         </div>
-                    </div>
-
-                    <div className="text-center">
-                        <p className="text-white/60 text-sm">
-                            Free • Open Source • Community Driven
-                        </p>
+                        <div className="text-center mt-12">
+                            <div className="inline-flex items-center gap-4 text-slate-400 text-sm">
+                                <span>Free Forever</span>
+                                <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+                                <span>Open Source</span>
+                                <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+                                <span>Professional Grade</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 lg:flex-none lg:w-96 xl:w-[480px] flex items-center justify-center p-8 bg-gray-50">
-                <div className="w-full max-w-sm space-y-6">
+            <div className="flex-1 lg:flex-none lg:w-96 xl:w-[480px] flex items-center justify-center p-8 bg-gray-50 overflow-y-auto">
+                <div className="w-full max-w-sm space-y-6 py-8">
                     <div className="lg:hidden text-center mb-8">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
-                            <span className="text-white font-bold text-xl">
-                                B
-                            </span>
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            BeeTrack
-                        </h1>
+                        <BeeTrackLogo
+                            size="lg"
+                            showStatus={false}
+                            showText={true}
+                            textTheme="dark"
+                            className="justify-center"
+                        />
                     </div>
 
                     <div className="text-center lg:text-left">
                         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                            Sign in to your account
+                            Welcome back
                         </h2>
                         <p className="text-gray-600">
-                            Welcome back! Please enter your details.
+                            Sign in to your BeeTrack account to continue.
                         </p>
                     </div>
 
@@ -206,13 +214,14 @@ export default function LoginPage() {
                                     htmlFor="username"
                                     className="block text-sm font-medium text-gray-700 mb-2"
                                 >
-                                    Username
+                                    Email or Username
                                 </label>
                                 <div className="relative">
                                     <Input
                                         id="username"
                                         name="username"
-                                        placeholder="Enter your username"
+                                        type="text"
+                                        placeholder="Enter your email or username"
                                         value={form.username}
                                         onChange={handleChange}
                                         required
@@ -260,6 +269,44 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        <div className="flex items-center justify-between text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer select-none group">
+                                <span className="relative flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        className="peer appearance-none h-5 w-5 border-2 border-gray-300 rounded-md bg-white checked:bg-amber-600 checked:border-amber-600 transition-colors duration-150 focus:ring-2 focus:ring-amber-400"
+                                    />
+                                    <span className="pointer-events-none absolute left-0 top-0 h-5 w-5 flex items-center justify-center">
+                                        <svg
+                                            className="opacity-0 peer-checked:opacity-100 transition-opacity duration-150"
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path
+                                                d="M4 8.5L7 11.5L12 6.5"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
+                                        </svg>
+                                    </span>
+                                </span>
+                                <span className="text-gray-700 font-medium group-hover:text-amber-700 transition-colors">
+                                    Remember me
+                                </span>
+                            </label>
+                            <a
+                                href="#"
+                                className="text-amber-600 hover:text-amber-700 font-medium hover:underline"
+                            >
+                                Forgot password?
+                            </a>
+                        </div>
+
                         {error && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                                 <p className="text-red-600 text-sm font-medium">
@@ -298,6 +345,18 @@ export default function LoginPage() {
                             </p>
                         </div>
                     </form>
+
+                    <div className="text-center">
+                        <p className="text-xs text-gray-500">
+                            Protected by enterprise-grade security.{" "}
+                            <a
+                                href="#"
+                                className="text-amber-600 hover:underline"
+                            >
+                                Learn more
+                            </a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
