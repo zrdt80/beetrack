@@ -20,6 +20,7 @@ import {
     Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import BeeTrackLogo from "@/components/BeeTrackLogo";
 
 const navLinks = [
     { to: "/dashboard", label: "Dashboard", icon: Home, admin: false },
@@ -66,19 +67,12 @@ export default function Dashboard() {
             <aside className="hidden md:flex flex-col w-64 bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-sm fixed h-full z-10">
                 <div className="h-16 flex items-center px-6 border-b border-gray-200">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">
-                                🐝
-                            </span>
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-semibold text-gray-900">
-                                BeeTrack
-                            </h1>
-                            <p className="text-xs text-gray-500">
-                                Apiary Management
-                            </p>
-                        </div>
+                        <BeeTrackLogo
+                            size="sm"
+                            showStatus={false}
+                            showText={true}
+                            textTheme="dark"
+                        />
                     </div>
                 </div>
 

@@ -12,6 +12,7 @@ import {
     User,
     ArrowRight,
 } from "lucide-react";
+import BeeTrackLogo from "@/components/BeeTrackLogo";
 
 export default function RegisterPage() {
     const [form, setForm] = useState({ username: "", email: "", password: "" });
@@ -47,140 +48,144 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen flex">
-            <div className="hidden lg:flex lg:flex-1 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/80 via-amber-500/80 to-orange-600/80" />
-                <div className="absolute inset-0 bg-black/10" />
-
-                <div className="relative z-10 flex flex-col justify-between h-full p-12 text-white">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                                <span className="text-lg font-bold text-amber-600">
-                                    B
-                                </span>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold">BeeTrack</h3>
-                            <p className="text-white/70 text-sm">
-                                Apiary Management
-                            </p>
-                        </div>
+        <div className="h-screen flex overflow-hidden">
+            <div className="hidden lg:flex lg:flex-1 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/80 to-slate-900/80">
+                    <div className="absolute inset-0 opacity-10">
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                            }}
+                        ></div>
                     </div>
+                    <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-amber-500/20 to-transparent"></div>
+                </div>
 
-                    <div className="text-center space-y-12">
+                <div className="relative w-full z-10 flex flex-col justify-between h-full p-12 text-white overflow-y-auto items-start">
+                    <BeeTrackLogo
+                        size="md"
+                        showStatus={false}
+                        showText={true}
+                        textTheme="light"
+                    />
+
+                    <div className="text-center space-y-10 mt-12">
                         <div className="space-y-6">
-                            <h1 className="text-5xl font-bold leading-tight">
-                                Join the
-                                <span className="block text-white/90">
-                                    BeeTrack Community
+                            <h1 className="text-5xl font-bold leading-tight tracking-tight">
+                                Start your journey with
+                                <span className="block text-amber-200 bg-gradient-to-r from-amber-200 to-yellow-200 bg-clip-text text-transparent">
+                                    BeeTrack
                                 </span>
                             </h1>
-                            <p className="text-lg text-white/80 max-w-md mx-auto leading-relaxed">
-                                Start your beekeeping journey with our free,
-                                open-source platform built by the community
+
+                            <p className="text-lg text-slate-300 max-w-md mx-auto leading-relaxed">
+                                Join the community of professional beekeepers
+                                using our free, open-source platform
                             </p>
                         </div>
 
                         <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     100%
                                 </div>
-                                <div className="text-white/70 text-sm">
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
                                     Free Forever
                                 </div>
                             </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     MIT
                                 </div>
-                                <div className="text-white/70 text-sm">
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
                                     Open Source
                                 </div>
                             </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-2">
+                            <div className="text-center p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <div className="text-2xl font-bold text-white mb-1">
                                     24/7
                                 </div>
-                                <div className="text-white/70 text-sm">
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">
                                     Available
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto">
-                            <h4 className="font-semibold mb-6 text-white/95 text-lg">
-                                Why choose us:
+                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto border border-white/10">
+                            <h4 className="font-semibold mb-6 text-white text-lg tracking-tight">
+                                Community-Driven Benefits
                             </h4>
                             <div className="space-y-4 text-sm">
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
                                             Completely Free
                                         </div>
-                                        <div className="text-white/70 text-xs">
-                                            No hidden costs, subscriptions, or
+                                        <div className="text-slate-400 text-xs">
+                                            No subscriptions, hidden fees, or
                                             limitations
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Open Source & Transparent
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Open Source Transparency
                                         </div>
-                                        <div className="text-white/70 text-xs">
+                                        <div className="text-slate-400 text-xs">
                                             Full source code available on GitHub
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Community Driven
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Built by Experts
                                         </div>
-                                        <div className="text-white/70 text-xs">
-                                            Built by beekeepers for beekeepers
+                                        <div className="text-slate-400 text-xs">
+                                            Created by beekeepers for beekeepers
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 text-white/85">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <div>
-                                        <div className="font-medium">
-                                            Professional Features
+                                <div className="flex items-start gap-3 text-slate-300">
+                                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0 mt-2"></div>
+                                    <div className="text-left">
+                                        <div className="font-medium text-white">
+                                            Enterprise Features
                                         </div>
-                                        <div className="text-white/70 text-xs">
-                                            Enterprise-grade tools without the
-                                            cost
+                                        <div className="text-slate-400 text-xs">
+                                            Professional tools without the
+                                            enterprise cost
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto border border-white/10">
-                            <div className="text-white/90 font-medium mb-2">
-                                🐝 Ready to start your digital beekeeping
-                                journey?
+                        <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto border border-amber-400/20">
+                            <div className="text-amber-200 font-medium mb-2 flex items-center justify-center gap-2">
+                                <span className="text-xl">🐝</span>
+                                Ready to transform your beekeeping?
                             </div>
-                            <div className="text-white/70 text-sm">
-                                Join hundreds of beekeepers who trust BeeTrack
-                                to manage their apiaries efficiently and
-                                professionally.
+                            <div className="text-slate-300 text-sm">
+                                Join hundreds of beekeepers who have modernized
+                                their apiary management with BeeTrack
                             </div>
                         </div>
-                    </div>
 
-                    <div className="text-center">
-                        <p className="text-white/60 text-sm">
-                            Free • Open Source • Community Driven
-                        </p>
+                        <div className="text-center mt-12">
+                            <div className="inline-flex items-center gap-4 text-slate-400 text-sm">
+                                <span>Free Forever</span>
+                                <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+                                <span>Open Source</span>
+                                <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+                                <span>Professional Grade</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -188,14 +193,13 @@ export default function RegisterPage() {
             <div className="flex-1 lg:flex-none lg:w-96 xl:w-[480px] flex items-center justify-center p-8 bg-gray-50">
                 <div className="w-full max-w-sm space-y-6">
                     <div className="lg:hidden text-center mb-8">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
-                            <span className="text-white font-bold text-xl">
-                                B
-                            </span>
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            BeeTrack
-                        </h1>
+                        <BeeTrackLogo
+                            size="lg"
+                            showStatus={false}
+                            showText={true}
+                            textTheme="dark"
+                            className="justify-center"
+                        />
                     </div>
 
                     <div className="text-center lg:text-left">
