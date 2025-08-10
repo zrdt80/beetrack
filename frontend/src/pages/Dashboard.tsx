@@ -18,6 +18,7 @@ import {
     HelpCircle,
     LogOut,
     Settings,
+    Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
@@ -46,6 +47,12 @@ const navLinks = [
     { to: "/dashboard/export", label: "Export", icon: Download, admin: true },
     { to: "/dashboard/users", label: "Users", icon: Users, admin: true },
     { to: "/dashboard/logs", label: "Logs", icon: FileText, admin: true },
+    {
+        to: "/dashboard/sessions",
+        label: "Sessions",
+        icon: Shield,
+        admin: false,
+    },
     { to: "/dashboard/help", label: "Help", icon: HelpCircle, admin: false },
 ];
 

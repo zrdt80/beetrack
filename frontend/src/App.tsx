@@ -14,6 +14,7 @@ import UsersPage from "@/pages/UsersPage";
 import LogsPage from "@/pages/LogsPage";
 import HelpPage from "@/pages/HelpPage";
 import UserPage from "@/pages/UserPage";
+import SessionsPage from "@/pages/SessionsPage";
 
 function App() {
     const { user, isLoading } = useAuth();
@@ -49,6 +50,7 @@ function App() {
                     <Route path="export" element={<ExportPage />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="logs" element={<LogsPage />} />
+                    <Route path="sessions" element={<SessionsPage />} />
                     <Route path="help" element={<HelpPage />} />
                     <Route
                         path="user/:id"

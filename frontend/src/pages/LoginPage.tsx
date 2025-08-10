@@ -8,7 +8,11 @@ import BeeTrackLogo from "@/components/BeeTrackLogo";
 import StatusBadge from "@/components/StatusBadge";
 
 export default function LoginPage() {
-    const [form, setForm] = useState({ username: "", password: "" });
+    const [form, setForm] = useState({
+        username: "",
+        password: "",
+        remember_me: false,
+    });
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +23,10 @@ export default function LoginPage() {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm({ ...form, remember_me: e.target.checked });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -27,13 +35,23 @@ export default function LoginPage() {
         try {
             await loginUser(form);
             navigate("/dashboard");
+
+            if (form.remember_me) {
+                console.log(
+                    "Logged in with 'Remember me' option. Session will be active for 30 days."
+                );
+            }
         } catch (err: any) {
             if (err?.response?.status === 403) {
-                setError("Your account is inactive. Please contact support.");
+                setError(
+                    "Your account is inactive. Please contact the administrator."
+                );
             } else if (err?.response?.status === 429) {
                 setError("Too many login attempts. Please try again later.");
+            } else if (err?.response?.status === 401) {
+                setError("Incorrect username or password.");
             } else {
-                setError("Invalid credentials. Please try again.");
+                setError("An error occurred during login. Please try again.");
             }
         } finally {
             setIsLoading(false);
@@ -274,6 +292,9 @@ export default function LoginPage() {
                                 <span className="relative flex items-center">
                                     <input
                                         type="checkbox"
+                                        name="remember_me"
+                                        checked={form.remember_me}
+                                        onChange={handleCheckboxChange}
                                         className="peer appearance-none h-5 w-5 border-2 border-gray-300 rounded-md bg-white checked:bg-amber-600 checked:border-amber-600 transition-colors duration-150 focus:ring-2 focus:ring-amber-400"
                                     />
                                     <span className="pointer-events-none absolute left-0 top-0 h-5 w-5 flex items-center justify-center">

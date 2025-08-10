@@ -9,9 +9,9 @@ class UserRole(str, Enum):
     worker = "worker"
 
 
-# ---------------------
+# --------------------
 # --- USER SCHEMAS ---
-# ---------------------
+# --------------------
 
 class UserBase(BaseModel):
     username: str
@@ -52,13 +52,61 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
 class TokenData(BaseModel):
     username: Optional[str] = None
+    session_id: Optional[int] = None
 
 
-# ---------------------
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    remember_me: bool = False
+
+
+# -----------------------
+# --- SESSION SCHEMAS ---
+# -----------------------
+
+class UserSessionBase(BaseModel):
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_info: Optional[str] = None
+
+
+class UserSessionCreate(UserSessionBase):
+    user_id: int
+    refresh_token: str
+    expires_at: datetime
+
+
+class UserSessionRead(UserSessionBase):
+    id: int
+    created_at: datetime
+    last_activity: datetime
+    expires_at: datetime
+    is_valid: bool
+
+    class Config:
+        orm_mode = True
+
+
+class UserSessionUpdate(BaseModel):
+    last_activity: Optional[datetime] = None
+    is_valid: Optional[bool] = None
+
+    class Config:
+        orm_mode = True
+
+
+# --------------------
 # --- HIVE SCHEMAS ---
-# ---------------------
+# --------------------
 
 class HiveBase(BaseModel):
     name: str
@@ -78,9 +126,9 @@ class HiveRead(HiveBase):
         orm_mode = True
 
 
-# -----------------------------
+# --------------------------
 # --- INSPECTION SCHEMAS ---
-# -----------------------------
+# --------------------------
 
 class InspectionBase(BaseModel):
     date: Optional[datetime] = None
@@ -101,9 +149,9 @@ class InspectionRead(InspectionBase):
         orm_mode = True
 
 
-# ----------------------
-# --- PRODUCT SCHEMAS --
-# ----------------------
+# -----------------------
+# --- PRODUCT SCHEMAS ---
+# -----------------------
 
 class ProductBase(BaseModel):
     name: str
@@ -132,9 +180,9 @@ class ProductRead(ProductBase):
         orm_mode = True
 
 
-# ----------------------
+# ---------------------
 # --- ORDER SCHEMAS ---
-# ----------------------
+# ---------------------
 
 class OrderItemCreate(BaseModel):
     product_id: int

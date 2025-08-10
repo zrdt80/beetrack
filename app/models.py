@@ -25,6 +25,24 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
     orders = relationship("Order", back_populates="user")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete")
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    refresh_token = Column(String(256), unique=True, nullable=False)
+    user_agent = Column(String(256))
+    ip_address = Column(String(50))
+    device_info = Column(String(256))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=False)
+    last_activity = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    is_valid = Column(Boolean, default=True)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Hive(Base):
