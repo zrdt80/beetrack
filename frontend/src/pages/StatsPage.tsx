@@ -23,12 +23,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 const colors = ["#82ca9d", "#8884d8", "#ffc658", "#d62728", "#2ca02c"];
 
 export default function StatsPage() {
     const currentYear = new Date().getFullYear();
     const [year, setYear] = useState(currentYear);
+
+    useDocumentTitle("Statistics");
+
     const [sales, setSales] = useState<MonthlySales[] | undefined>([]);
     const [inspections, setInspections] = useState<
         MonthlyInspections[] | undefined

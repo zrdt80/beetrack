@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import ProductEditModal from "@/components/ProductEditModal";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function ProductsPage() {
     const { user } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
+
+    useDocumentTitle("Products");
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -73,13 +76,13 @@ export default function ProductsPage() {
         {
             key: "unit_price",
             header: "Price",
-            render: (product) => `${Number(product.unit_price).toFixed(2)} zł`,
+            render: (product) => `${Number(product.unit_price).toFixed(2)} USD`,
             className: "text-right",
         },
         {
             key: "stock_quantity",
             header: "Stock",
-            render: (product) => `${product.stock_quantity} szt.`,
+            render: (product) => `${product.stock_quantity} pcs.`,
             className: "text-right",
         },
         ...(user?.role === "admin"
@@ -154,7 +157,7 @@ export default function ProductsPage() {
                                 <Input
                                     type="number"
                                     step="0.01"
-                                    placeholder="Unit price (zł)"
+                                    placeholder="Unit price (USD)"
                                     value={formData.unit_price}
                                     onChange={(e) =>
                                         setFormData({

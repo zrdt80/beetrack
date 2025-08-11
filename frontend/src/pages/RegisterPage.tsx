@@ -13,12 +13,15 @@ import {
     ArrowRight,
 } from "lucide-react";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function RegisterPage() {
     const [form, setForm] = useState({ username: "", email: "", password: "" });
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    useDocumentTitle("Register");
     const { registerUser } = useAuth();
     const navigate = useNavigate();
 

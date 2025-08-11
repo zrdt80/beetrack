@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
 import StatusBadge from "@/components/StatusBadge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function LoginPage() {
     const [form, setForm] = useState({
@@ -18,6 +19,8 @@ export default function LoginPage() {
     const [sessionRevoked, setSessionRevoked] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    useDocumentTitle("Login");
     const { loginUser } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -25,7 +28,6 @@ export default function LoginPage() {
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const reason = searchParams.get("reason");
-        console.log("Reason value:", reason);
         if (reason === "session_revoked") {
             setSessionRevoked(true);
         }
@@ -349,14 +351,6 @@ export default function LoginPage() {
                                 Forgot password?
                             </a>
                         </div>
-
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                <p className="text-red-600 text-sm font-medium">
-                                    {error}
-                                </p>
-                            </div>
-                        )}
 
                         <Button
                             type="submit"

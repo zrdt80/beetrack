@@ -13,11 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[] | null>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+
+    useDocumentTitle("User Management");
 
     const load = async () => {
         setLoading(true);

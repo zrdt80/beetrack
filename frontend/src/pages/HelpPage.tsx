@@ -28,6 +28,7 @@ import {
     Package,
     Home,
 } from "lucide-react";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 const faqData = [
     {
@@ -149,6 +150,8 @@ const quickGuides = [
 
 export default function HelpPage() {
     const [searchQuery, setSearchQuery] = useState("");
+
+    useDocumentTitle("Help Center");
 
     const filteredFAQs = faqData
         .map((category) => ({

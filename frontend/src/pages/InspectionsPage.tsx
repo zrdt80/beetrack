@@ -9,6 +9,7 @@ import type { Inspection, InspectionCreate } from "@/api/inspections";
 import { getHives } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 import { formatDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,8 @@ export default function InspectionsPage() {
         disease_detected: "",
         hive_id: hiveId,
     });
+
+    useDocumentTitle(hive ? `Inspections: ${hive.name}` : "Inspections");
 
     const load = async () => {
         const hives = await getHives();
@@ -82,7 +85,6 @@ export default function InspectionsPage() {
             key: "temperature",
             header: "Temperature (°C)",
             sortable: true,
-            className: "text-center",
         },
         {
             key: "disease_detected",

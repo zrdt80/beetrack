@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function UserPage() {
     const { id } = useParams<{ id: string }>();
@@ -60,6 +61,8 @@ export default function UserPage() {
             setLoading(false);
         }
     }, [id]);
+
+    useDocumentTitle(userInfo ? `User: ${userInfo.username}` : "User Profile");
 
     const canEdit = isMe || user?.role === "admin";
 

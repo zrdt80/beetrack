@@ -25,6 +25,7 @@ import {
     Calendar,
     Filter,
 } from "lucide-react";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 import {
     Table,
     TableBody,
@@ -89,6 +90,8 @@ export default function LogsPage() {
     const [search, setSearch] = useState("");
     const [levelFilter, setLevelFilter] = useState<LogLevel>("all");
     const [dateFilter, setDateFilter] = useState("");
+
+    useDocumentTitle("System Logs");
 
     const loadLogs = async () => {
         setLoading(true);

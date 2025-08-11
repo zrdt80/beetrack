@@ -19,11 +19,14 @@ import {
     Package,
     ClipboardList,
 } from "lucide-react";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function ExportPage() {
     const [loading, setLoading] = useState<
         "orders-csv" | "orders-pdf" | "inspections-pdf" | null
     >(null);
+
+    useDocumentTitle("Export Data");
 
     const download = (blob: Blob, filename: string) => {
         const url = window.URL.createObjectURL(blob);

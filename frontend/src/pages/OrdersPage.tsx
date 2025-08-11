@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/datetime";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import { Button } from "@/components/ui/button";
 import OrderEditModal from "@/components/OrderEditModal";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 import {
     Table,
     TableBody,
@@ -38,6 +39,8 @@ export default function OrdersPage() {
     const { user } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+
+    useDocumentTitle("Orders");
     const [selected, setSelected] = useState<OrderItem[]>([]);
     const [sortKey, setSortKey] = useState<SortKey>("date");
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc");

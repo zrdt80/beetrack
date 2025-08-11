@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Trash2, ShieldAlert, Clock, Shield, LogOut } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "@/lib/datetime";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function SessionsPage() {
     const {
@@ -24,6 +25,8 @@ export default function SessionsPage() {
     const [loading, setLoading] = useState<number | null>(null);
     const [revokeAllLoading, setRevokeAllLoading] = useState(false);
     const [fetchAttempted, setFetchAttempted] = useState(false);
+
+    useDocumentTitle("Active Sessions");
 
     useEffect(() => {
         if (!fetchAttempted) {

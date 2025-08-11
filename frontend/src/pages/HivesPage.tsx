@@ -8,12 +8,15 @@ import HiveEditModal from "../components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+
+    useDocumentTitle("Hives");
 
     const refreshHives = () => {
         getHives().then(setHives);

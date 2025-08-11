@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import StatusBadge from "@/components/StatusBadge";
+import useDocumentTitle from "@/hooks/useDocumentTitle";
 import {
     Home,
     Activity,
@@ -83,6 +84,9 @@ const quickActions = [
 
 export default function DashboardHome() {
     const { user } = useAuth();
+
+    useDocumentTitle("Dashboard");
+
     const [stats, setStats] = useState<DashboardStats>({
         totalHives: 0,
         activeHives: 0,
