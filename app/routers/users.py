@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, Query
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
@@ -8,7 +8,8 @@ from app.services import auth
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime, timezone
 from app.utils.logger import log_event
-from typing import List
+from typing import List, Optional
+from jose import jwt
 
 router = APIRouter()
 
@@ -190,13 +191,29 @@ def revoke_session(
 @router.delete("/sessions")
 def revoke_all_sessions(
     current_user: models.User = Depends(auth.get_current_user),
-    current_session_id: int = None,
-    keep_current: bool = True,
+    current_session_id: Optional[int] = Query(None),
+    keep_current: bool = Query(True),
+    token: str = Depends(auth.oauth2_scheme),
     db: Session = Depends(get_db)
 ):
+    try:
+        if current_session_id is not None:
+            current_session_id = int(current_session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID format")
+    
+    if keep_current and current_session_id is None and token:
+        try:
+            payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+            session_id = payload.get("session_id")
+            if session_id:
+                current_session_id = session_id
+        except Exception as e:
+            log_event(f"Error decoding token: {str(e)}")
+    
     if keep_current and current_session_id:
         auth.invalidate_all_user_sessions(db, current_user.id, current_session_id)
-        log_event(f"All sessions except current revoked for user: {current_user.username}")
+        log_event(f"All sessions except current revoked for user: {current_user.username}, kept session ID: {current_session_id}")
         return {"message": "All other sessions revoked successfully"}
     else:
         auth.invalidate_all_user_sessions(db, current_user.id)

@@ -30,6 +30,25 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest: any = error.config;
 
+        if (
+            error.response?.status === 401 &&
+            error.response?.headers["x-session-revoked"] === "true"
+        ) {
+            console.log("Session revoked detected in interceptor");
+            console.log("Headers:", error.response?.headers);
+
+            localStorage.removeItem("access_token");
+            sessionStorage.removeItem("access_token");
+            setAuthToken(null);
+
+            const loginPageUrl = new URL("/login", window.location.origin);
+            loginPageUrl.searchParams.append("reason", "session_revoked");
+            console.log("Redirecting to:", loginPageUrl.toString());
+
+            window.location.href = loginPageUrl.toString();
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (!isRefreshing) {
                 isRefreshing = true;

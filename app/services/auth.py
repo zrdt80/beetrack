@@ -11,6 +11,7 @@ from app.utils.logger import log_event
 import os
 import secrets
 import uuid
+from typing import Optional
 
 SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ALGORITHM = "HS256"
@@ -18,6 +19,20 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login", auto_error=False)
+
+
+def get_token_data(username: str, token: Optional[str] = None) -> Optional[TokenData]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username_from_token: str = payload.get("sub")
+        if username_from_token != username:
+            return None
+        session_id: int = payload.get("session_id")
+        return TokenData(username=username, session_id=session_id)
+    except JWTError:
+        return None
 
 
 def authenticate_user(db: Session, username: str, password: str):
@@ -149,16 +164,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if token_data.session_id:
         session = db.query(models.UserSession).filter(
             models.UserSession.id == token_data.session_id,
-            models.UserSession.user_id == user.id,
-            models.UserSession.is_valid == True
+            models.UserSession.user_id == user.id
         ).first()
         
-        if not session:
-            log_event(f"Token validation failed: invalid session for user {token_data.username}")
-            raise credentials_exception
-        
-        session.last_activity = datetime.now(timezone.utc)
-        db.commit()
+        if session:
+            if session.is_valid:
+                session.last_activity = datetime.now(timezone.utc)
+                db.commit()
+            else:
+                log_event(f"Session {session.id} for user {token_data.username} has been revoked. User logged out.")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session has been revoked",
+                    headers={"WWW-Authenticate": "Bearer", "X-Session-Revoked": "true"},
+                )
     
     return user
 

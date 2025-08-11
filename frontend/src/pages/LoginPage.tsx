@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
 import StatusBadge from "@/components/StatusBadge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
     const [form, setForm] = useState({
@@ -14,10 +15,21 @@ export default function LoginPage() {
         remember_me: false,
     });
     const [error, setError] = useState<string | null>(null);
+    const [sessionRevoked, setSessionRevoked] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const { loginUser } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const reason = searchParams.get("reason");
+        console.log("Reason value:", reason);
+        if (reason === "session_revoked") {
+            setSessionRevoked(true);
+        }
+    }, [location.search]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,12 +47,6 @@ export default function LoginPage() {
         try {
             await loginUser(form);
             navigate("/dashboard");
-
-            if (form.remember_me) {
-                console.log(
-                    "Logged in with 'Remember me' option. Session will be active for 30 days."
-                );
-            }
         } catch (err: any) {
             if (err?.response?.status === 403) {
                 setError(
@@ -224,6 +230,22 @@ export default function LoginPage() {
                             Sign in to your BeeTrack account to continue.
                         </p>
                     </div>
+
+                    {sessionRevoked && (
+                        <Alert variant="default" className="mb-4">
+                            <AlertTitle>Session Revoked</AlertTitle>
+                            <AlertDescription>
+                                Your session has been revoked. Please sign in
+                                again to continue.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {error && (
+                        <Alert variant="destructive" className="mb-4">
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-4">

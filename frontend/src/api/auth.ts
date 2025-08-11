@@ -82,9 +82,25 @@ export const revokeSession = async (
 export const revokeAllSessions = async (
     keepCurrent: boolean = true
 ): Promise<{ message: string }> => {
-    const res = await api.delete<{ message: string }>(
-        `/users/sessions?keep_current=${keepCurrent}`
-    );
+    const token =
+        localStorage.getItem("access_token") ||
+        sessionStorage.getItem("access_token");
+    let currentSessionId = null;
+
+    if (token && keepCurrent) {
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            currentSessionId = payload.session_id;
+        } catch (e) {
+            console.error("Error decoding token:", e);
+        }
+    }
+
+    const url = currentSessionId
+        ? `/users/sessions?keep_current=${keepCurrent}&current_session_id=${currentSessionId}`
+        : `/users/sessions?keep_current=${keepCurrent}`;
+
+    const res = await api.delete<{ message: string }>(url);
     return res.data;
 };
 
