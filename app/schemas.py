@@ -7,6 +7,7 @@ from typing import Optional, List
 class UserRole(str, Enum):
     admin = "admin"
     worker = "worker"
+    user = "user"
 
 
 # --------------------
@@ -16,7 +17,7 @@ class UserRole(str, Enum):
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-    role: UserRole = UserRole.worker
+    role: UserRole = UserRole.user
     created_at: datetime = None
     is_active: bool = True
 

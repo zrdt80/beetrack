@@ -16,13 +16,13 @@
             "username": "john_doe",
             "email": "john@beetrack.net",
             "password": "john123",
-            "role": "worker"
+            "role": "user"
         },
         {
             "username": "jane_smith",
             "email": "jane@beetrack.net",
             "password": "jane123",
-            "role": "worker"
+            "role": "user"
         }
     ],
     "products": [

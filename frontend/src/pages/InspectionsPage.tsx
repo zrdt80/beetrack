@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     getInspections,
     createInspection,
@@ -21,6 +21,13 @@ export default function InspectionsPage() {
     const { id } = useParams();
     const hiveId = Number(id);
     const { user } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (user?.role === "user") {
+            navigate("/dashboard");
+        }
+    }, [user, navigate]);
 
     const [hive, setHive] = useState<Hive | null>(null);
     const [inspections, setInspections] = useState<Inspection[]>([]);

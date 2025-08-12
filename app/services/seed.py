@@ -6,13 +6,32 @@ from app.utils.logger import log_event
 from datetime import datetime
 import json
 import os
+from app.database import Base, engine
+
+def ensure_tables_exist():
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        
+        if "users" not in existing_tables:
+            print("⚠️ Tables don't exist. Creating tables directly with SQLAlchemy...")
+            log_event("Creating tables with SQLAlchemy (alembic migrations may have failed)")
+            Base.metadata.create_all(bind=engine)
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Error checking/creating tables: {e}")
+        log_event(f"Error in ensure_tables_exist: {str(e)}")
+        return False
 
 def run_seed(db: Session):
     inspector = inspect(db.bind)
     if "users" not in inspector.get_table_names():
-        print("⚠️ Table 'users' does not exist – seed skipped.")
-        log_event("Seed skipped: users table does not exist")
-        return
+        created = ensure_tables_exist()
+        if not created:
+            print("⚠️ Table 'users' does not exist – seed skipped.")
+            log_event("Seed skipped: users table does not exist")
+            return
 
     if db.query(models.User).first():
         print("ℹ️ Seeding skipped – users already exist.")

@@ -24,36 +24,76 @@ import { cn } from "@/lib/utils";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
 
 const navLinks = [
-    { to: "/dashboard", label: "Dashboard", icon: Home, admin: false },
-    { to: "/dashboard/hives", label: "Hives", icon: Layers3, admin: false },
+    {
+        to: "/dashboard",
+        label: "Dashboard",
+        icon: Home,
+        admin: false,
+        workerOnly: false,
+    },
+    {
+        to: "/dashboard/hives",
+        label: "Hives",
+        icon: Layers3,
+        admin: false,
+        workerOnly: true,
+    },
     {
         to: "/dashboard/products",
         label: "Products",
         icon: Package,
         admin: false,
+        workerOnly: false,
     },
     {
         to: "/dashboard/orders",
         label: "Orders",
         icon: ShoppingCart,
         admin: false,
+        workerOnly: false,
     },
     {
         to: "/dashboard/stats",
         label: "Analytics",
         icon: BarChart3,
         admin: true,
+        workerOnly: false,
     },
-    { to: "/dashboard/export", label: "Export", icon: Download, admin: true },
-    { to: "/dashboard/users", label: "Users", icon: Users, admin: true },
-    { to: "/dashboard/logs", label: "Logs", icon: FileText, admin: true },
+    {
+        to: "/dashboard/export",
+        label: "Export",
+        icon: Download,
+        admin: true,
+        workerOnly: false,
+    },
+    {
+        to: "/dashboard/users",
+        label: "Users",
+        icon: Users,
+        admin: true,
+        workerOnly: false,
+    },
+    {
+        to: "/dashboard/logs",
+        label: "Logs",
+        icon: FileText,
+        admin: true,
+        workerOnly: false,
+    },
     {
         to: "/dashboard/sessions",
         label: "Sessions",
         icon: Shield,
         admin: false,
+        workerOnly: false,
     },
-    { to: "/dashboard/help", label: "Help", icon: HelpCircle, admin: false },
+    {
+        to: "/dashboard/help",
+        label: "Help",
+        icon: HelpCircle,
+        admin: false,
+        workerOnly: false,
+    },
 ];
 
 export default function Dashboard() {
@@ -66,7 +106,11 @@ export default function Dashboard() {
     };
 
     const filteredLinks = navLinks.filter(
-        (link) => !link.admin || user?.role === "admin"
+        (link) =>
+            (!link.admin || user?.role === "admin") &&
+            (!link.workerOnly ||
+                user?.role === "admin" ||
+                user?.role === "worker")
     );
 
     return (

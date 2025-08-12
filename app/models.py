@@ -11,6 +11,7 @@ import enum
 class UserRole(str, enum.Enum):
     admin = "admin"
     worker = "worker"
+    user = "user"
 
 
 class User(Base):
@@ -20,7 +21,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(120), unique=True, nullable=False)
     hashed_password = Column(String(256), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.worker, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 

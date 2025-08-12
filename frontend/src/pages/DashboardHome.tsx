@@ -26,6 +26,9 @@ import {
     FileText,
     Plus,
     ChevronRight,
+    ShoppingCart,
+    HelpCircle,
+    Award,
 } from "lucide-react";
 import { getHives } from "@/api/hives";
 import { getProducts } from "@/api/products";
@@ -113,6 +116,37 @@ const userQuickActions = [
     },
 ];
 
+const customerQuickActions = [
+    {
+        title: "Browse Products",
+        description: "View available honey products",
+        icon: Package,
+        link: "/dashboard/products",
+        color: "bg-yellow-50 text-yellow-600 border-yellow-200",
+    },
+    {
+        title: "Place Order",
+        description: "Order honey products",
+        icon: ShoppingCart,
+        link: "/dashboard/orders",
+        color: "bg-blue-50 text-blue-600 border-blue-200",
+    },
+    {
+        title: "My Orders",
+        description: "View your order history",
+        icon: BarChart3,
+        link: "/dashboard/orders",
+        color: "bg-purple-50 text-purple-600 border-purple-200",
+    },
+    {
+        title: "Help & Support",
+        description: "Get assistance",
+        icon: HelpCircle,
+        link: "/dashboard/help",
+        color: "bg-green-50 text-green-600 border-green-200",
+    },
+];
+
 export default function DashboardHome() {
     const { user } = useAuth();
 
@@ -173,7 +207,8 @@ export default function DashboardHome() {
                                   link: `/dashboard/orders`,
                               })),
                           ].slice(0, 4)
-                        : [
+                        : user?.role === "worker"
+                        ? [
                               ...hives.slice(0, 3).map((hive) => ({
                                   type: "hive" as const,
                                   title: `Hive: ${hive.name}`,
@@ -187,6 +222,15 @@ export default function DashboardHome() {
                                   link: `/dashboard/hives/${hive.id}`,
                               })),
                               ...orders.slice(0, 3).map((order) => ({
+                                  type: "order" as const,
+                                  title: `Order #${order.id}`,
+                                  subtitle: `Status: ${order.status}`,
+                                  time: formatDateTime(order.date, "date"),
+                                  link: `/dashboard/orders`,
+                              })),
+                          ].slice(0, 6)
+                        : [
+                              ...orders.slice(0, 6).map((order) => ({
                                   type: "order" as const,
                                   title: `Order #${order.id}`,
                                   subtitle: `Status: ${order.status}`,
@@ -247,7 +291,9 @@ export default function DashboardHome() {
                                         variant={
                                             user?.role === "admin"
                                                 ? "destructive"
-                                                : "secondary"
+                                                : user?.role === "worker"
+                                                ? "secondary"
+                                                : "outline"
                                         }
                                     >
                                         {user?.role}
@@ -272,46 +318,103 @@ export default function DashboardHome() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Total Hives
-                                </p>
-                                <p className="text-2xl font-bold">
-                                    {stats.totalHives}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {stats.activeHives} active
-                                </p>
-                            </div>
-                            <Home className="w-8 h-8 text-blue-500" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Products
-                                </p>
-                                <p className="text-2xl font-bold">
-                                    {stats.totalProducts}
-                                </p>
-                                {stats.lowStockProducts > 0 && (
-                                    <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-                                        <AlertTriangle className="w-3 h-3" />
-                                        {stats.lowStockProducts} low stock
+                {user?.role !== "user" && (
+                    <Card className="border-l-4 border-l-blue-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Total Hives
                                     </p>
-                                )}
+                                    <p className="text-2xl font-bold">
+                                        {stats.totalHives}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {stats.activeHives} active
+                                    </p>
+                                </div>
+                                <Home className="w-8 h-8 text-blue-500" />
                             </div>
-                            <Package className="w-8 h-8 text-green-500" />
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {user?.role !== "user" ? (
+                    <Card className="border-l-4 border-l-green-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Products
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {stats.totalProducts}
+                                    </p>
+                                    {stats.lowStockProducts > 0 && (
+                                        <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                                            <AlertTriangle className="w-3 h-3" />
+                                            {stats.lowStockProducts} low stock
+                                        </p>
+                                    )}
+                                </div>
+                                <Package className="w-8 h-8 text-green-500" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <>
+                        <Card className="border-l-4 border-l-green-500">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-sm font-medium text-muted-foreground">
+                                                Latest Promotions
+                                            </p>
+                                            <StatusBadge
+                                                status="placeholder"
+                                                showIcon={false}
+                                                className="text-xs"
+                                            />
+                                        </div>
+                                        <p className="text-2xl font-bold">
+                                            Summer Sale
+                                        </p>
+                                        <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                            Up to 15% off all honey products
+                                        </p>
+                                    </div>
+                                    <TrendingUp className="w-8 h-8 text-green-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-blue-500">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-sm font-medium text-muted-foreground">
+                                                Customer Rewards
+                                            </p>
+                                            <StatusBadge
+                                                status="placeholder"
+                                                showIcon={false}
+                                                className="text-xs"
+                                            />
+                                        </div>
+                                        <p className="text-2xl font-bold">
+                                            Loyalty Points
+                                        </p>
+                                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                            Earn points with every purchase
+                                        </p>
+                                    </div>
+                                    <Award className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
 
                 {user?.role === "admin" ? (
                     <Card className="border-l-4 border-l-yellow-500">
@@ -327,6 +430,32 @@ export default function DashboardHome() {
                                     <p className="text-xs text-muted-foreground mt-1">
                                         {stats.pendingOrders} pending
                                     </p>
+                                </div>
+                                <BarChart3 className="w-8 h-8 text-yellow-500" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : user?.role === "worker" ? (
+                    <Card className="border-l-4 border-l-yellow-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        My Orders
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {stats.totalOrders}
+                                    </p>
+                                    {stats.pendingOrders > 0 ? (
+                                        <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {stats.pendingOrders} pending
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                            All completed
+                                        </p>
+                                    )}
                                 </div>
                                 <BarChart3 className="w-8 h-8 text-yellow-500" />
                             </div>
@@ -354,37 +483,65 @@ export default function DashboardHome() {
                                         </p>
                                     )}
                                 </div>
-                                <BarChart3 className="w-8 h-8 text-yellow-500" />
+                                <ShoppingCart className="w-8 h-8 text-yellow-500" />
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <p className="text-sm font-medium text-muted-foreground">
-                                        Health Status
+                {user?.role !== "user" ? (
+                    <Card className="border-l-4 border-l-purple-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium text-muted-foreground">
+                                            Health Status
+                                        </p>
+                                        <StatusBadge
+                                            status="placeholder"
+                                            showIcon={false}
+                                            className="text-xs"
+                                        />
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        Good
                                     </p>
-                                    <StatusBadge
-                                        status="placeholder"
-                                        showIcon={false}
-                                        className="text-xs"
-                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        No critical issues
+                                    </p>
                                 </div>
-                                <p className="text-2xl font-bold text-green-600">
-                                    Good
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    No critical issues
-                                </p>
+                                <TrendingUp className="w-8 h-8 text-purple-500" />
                             </div>
-                            <TrendingUp className="w-8 h-8 text-purple-500" />
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-l-4 border-l-purple-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium text-muted-foreground">
+                                            Shipping Status
+                                        </p>
+                                        <StatusBadge
+                                            status="placeholder"
+                                            showIcon={false}
+                                            className="text-xs"
+                                        />
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        Available
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Fast delivery on all products
+                                    </p>
+                                </div>
+                                <TrendingUp className="w-8 h-8 text-purple-500" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
@@ -405,7 +562,9 @@ export default function DashboardHome() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {(user?.role === "admin"
                                     ? quickActions
-                                    : userQuickActions
+                                    : user?.role === "worker"
+                                    ? userQuickActions
+                                    : customerQuickActions
                                 ).map((action, index) => (
                                     <Link key={index} to={action.link}>
                                         <Card
@@ -496,55 +655,61 @@ export default function DashboardHome() {
                 </div>
 
                 <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Calendar className="w-5 h-5" />
-                                Today's Conditions
-                            </CardTitle>
-                            <div className="flex justify-center gap-2">
-                                <TimezoneDisplay
-                                    showIcon={true}
-                                    className="text-xs"
-                                />
-                                <StatusBadge
-                                    status="static"
-                                    showIcon={true}
-                                    className="text-xs"
-                                />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center space-y-4">
-                                <div className="text-3xl">☀️</div>
-                                <div>
-                                    <p className="text-2xl font-bold">22°C</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Perfect for inspections
-                                    </p>
+                    {user?.role !== "user" && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Calendar className="w-5 h-5" />
+                                    Today's Conditions
+                                </CardTitle>
+                                <div className="flex justify-center gap-2">
+                                    <TimezoneDisplay
+                                        showIcon={true}
+                                        className="text-xs"
+                                    />
+                                    <StatusBadge
+                                        status="static"
+                                        showIcon={true}
+                                        className="text-xs"
+                                    />
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                    <p>Humidity: 65%</p>
-                                    <p>Wind: 5 km/h</p>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-center space-y-4">
+                                    <div className="text-3xl">☀️</div>
+                                    <div>
+                                        <p className="text-2xl font-bold">
+                                            22°C
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Perfect for inspections
+                                        </p>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        <p>Humidity: 65%</p>
+                                        <p>Wind: 5 km/h</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card>
                         <CardHeader>
                             <CardTitle>Quick Navigation</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <Link to="/dashboard/hives">
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start"
-                                >
-                                    <Home className="w-4 h-4 mr-2" />
-                                    Manage Hives
-                                </Button>
-                            </Link>
+                            {user?.role !== "user" && (
+                                <Link to="/dashboard/hives">
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                    >
+                                        <Home className="w-4 h-4 mr-2" />
+                                        Manage Hives
+                                    </Button>
+                                </Link>
+                            )}
                             {user?.role === "admin" ? (
                                 <>
                                     <Link to="/dashboard/stats">
@@ -566,7 +731,7 @@ export default function DashboardHome() {
                                         </Button>
                                     </Link>
                                 </>
-                            ) : (
+                            ) : user?.role === "worker" ? (
                                 <>
                                     <Link to="/dashboard/orders">
                                         <Button
@@ -584,6 +749,27 @@ export default function DashboardHome() {
                                         >
                                             <Activity className="w-4 h-4 mr-2" />
                                             Inspections
+                                        </Button>
+                                    </Link>
+                                </>
+                            ) : (
+                                <>
+                                    <Link to="/dashboard/products">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <Package className="w-4 h-4 mr-2" />
+                                            Browse Products
+                                        </Button>
+                                    </Link>
+                                    <Link to="/dashboard/orders">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <ShoppingCart className="w-4 h-4 mr-2" />
+                                            My Orders
                                         </Button>
                                     </Link>
                                 </>
@@ -615,7 +801,9 @@ export default function DashboardHome() {
                             <p className="text-sm text-muted-foreground">
                                 {user?.role === "admin"
                                     ? "Regular inspections every 1-2 weeks during active season help catch issues early and ensure healthy hives."
-                                    : "When recording inspections, take photos of any unusual findings to help with identification of potential issues."}
+                                    : user?.role === "worker"
+                                    ? "When recording inspections, take photos of any unusual findings to help with identification of potential issues."
+                                    : "Looking for premium honey products? You can easily browse our catalog and place orders directly from your dashboard."}
                             </p>
                         </CardContent>
                     </Card>

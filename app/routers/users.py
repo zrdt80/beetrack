@@ -30,7 +30,7 @@ def register_user(request: Request, user_data: schemas.UserCreate, db: Session =
         username=user_data.username,
         email=user_data.email,
         hashed_password=hashed_pw,
-        role=models.UserRole.worker
+        role=models.UserRole.user
     )
     db.add(user)
     db.commit()

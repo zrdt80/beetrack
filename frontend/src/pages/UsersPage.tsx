@@ -87,8 +87,8 @@ export default function UsersPage() {
                                         e.target.value as
                                             | "all"
                                             | "admin"
-                                            | "user"
                                             | "worker"
+                                            | "user"
                                     )
                                 }
                                 className="px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-gray-800"
@@ -96,6 +96,7 @@ export default function UsersPage() {
                                 <option value="all">All Roles</option>
                                 <option value="admin">Admin</option>
                                 <option value="worker">Worker</option>
+                                <option value="user">User</option>
                             </select>
                             <select
                                 value={activeFilter}

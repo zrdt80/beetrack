@@ -215,11 +215,14 @@ export default function UserPage() {
                                                 <SelectValue placeholder="Select a role" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="user">
+                                                    User
+                                                </SelectItem>
                                                 <SelectItem value="worker">
-                                                    worker
+                                                    Worker
                                                 </SelectItem>
                                                 <SelectItem value="admin">
-                                                    admin
+                                                    Admin
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>

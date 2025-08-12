@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getHives, deleteHive } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { formatDateTime } from "@/lib/datetime";
@@ -15,8 +15,15 @@ export default function HivesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     useDocumentTitle("Hives");
+
+    useEffect(() => {
+        if (user?.role === "user") {
+            navigate("/dashboard");
+        }
+    }, [user, navigate]);
 
     const refreshHives = () => {
         getHives().then(setHives);
