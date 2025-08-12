@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { getHives } from "@/api/hives";
 import { getProducts } from "@/api/products";
-import { getAllOrders } from "@/api/orders";
+import { getAllOrders, getOrders } from "@/api/orders";
 import type { Hive } from "@/api/hives";
 import type { Product } from "@/api/products";
 import type { Order } from "@/api/orders";
@@ -82,6 +82,37 @@ const quickActions = [
     },
 ];
 
+const userQuickActions = [
+    {
+        title: "View My Hives",
+        description: "Check your assigned hives",
+        icon: Home,
+        link: "/dashboard/hives",
+        color: "bg-blue-50 text-blue-600 border-blue-200",
+    },
+    {
+        title: "Record Inspection",
+        description: "Log hive inspection results",
+        icon: Activity,
+        link: "/dashboard/hives",
+        color: "bg-green-50 text-green-600 border-green-200",
+    },
+    {
+        title: "Check Products",
+        description: "View available products",
+        icon: Package,
+        link: "/dashboard/products",
+        color: "bg-yellow-50 text-yellow-600 border-yellow-200",
+    },
+    {
+        title: "My Orders",
+        description: "View your order history",
+        icon: BarChart3,
+        link: "/dashboard/orders",
+        color: "bg-purple-50 text-purple-600 border-purple-200",
+    },
+];
+
 export default function DashboardHome() {
     const { user } = useAuth();
 
@@ -106,7 +137,7 @@ export default function DashboardHome() {
                     getProducts().catch(() => [] as Product[]),
                     user?.role === "admin"
                         ? getAllOrders().catch(() => [] as Order[])
-                        : Promise.resolve([] as Order[]),
+                        : getOrders().catch(() => [] as Order[]),
                 ]);
 
                 const activeHives = hives.filter(
@@ -119,25 +150,50 @@ export default function DashboardHome() {
                     (o) => o.status === "pending"
                 ).length;
 
-                const recentActivity = [
-                    ...hives.slice(0, 2).map((hive) => ({
-                        type: "hive" as const,
-                        title: `Hive: ${hive.name}`,
-                        subtitle: `Location: ${hive.location}`,
-                        time: hive.last_inspection_date
-                            ? formatDateTime(hive.last_inspection_date, "date")
-                            : "No inspections",
-                        link: `/dashboard/hives/${hive.id}`,
-                    })),
-                    ...orders.slice(0, 2).map((order) => ({
-                        type: "order" as const,
-                        title: `Order #${order.id}`,
-                        subtitle: `Status: ${order.status}`,
-                        time: formatDateTime(order.date, "date"),
-                        link: `/dashboard/orders`,
-                    })),
-                ].slice(0, 4);
-
+                const recentActivity =
+                    user?.role === "admin"
+                        ? [
+                              ...hives.slice(0, 2).map((hive) => ({
+                                  type: "hive" as const,
+                                  title: `Hive: ${hive.name}`,
+                                  subtitle: `Location: ${hive.location}`,
+                                  time: hive.last_inspection_date
+                                      ? formatDateTime(
+                                            hive.last_inspection_date,
+                                            "date"
+                                        )
+                                      : "No inspections",
+                                  link: `/dashboard/hives/${hive.id}`,
+                              })),
+                              ...orders.slice(0, 2).map((order) => ({
+                                  type: "order" as const,
+                                  title: `Order #${order.id}`,
+                                  subtitle: `Status: ${order.status}`,
+                                  time: formatDateTime(order.date, "date"),
+                                  link: `/dashboard/orders`,
+                              })),
+                          ].slice(0, 4)
+                        : [
+                              ...hives.slice(0, 3).map((hive) => ({
+                                  type: "hive" as const,
+                                  title: `Hive: ${hive.name}`,
+                                  subtitle: `Location: ${hive.location}`,
+                                  time: hive.last_inspection_date
+                                      ? formatDateTime(
+                                            hive.last_inspection_date,
+                                            "date"
+                                        )
+                                      : "No inspections",
+                                  link: `/dashboard/hives/${hive.id}`,
+                              })),
+                              ...orders.slice(0, 3).map((order) => ({
+                                  type: "order" as const,
+                                  title: `Order #${order.id}`,
+                                  subtitle: `Status: ${order.status}`,
+                                  time: formatDateTime(order.date, "date"),
+                                  link: `/dashboard/orders`,
+                              })),
+                          ].slice(0, 6);
                 setStats({
                     totalHives: hives.length,
                     activeHives,
@@ -257,24 +313,52 @@ export default function DashboardHome() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-yellow-500">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Orders
-                                </p>
-                                <p className="text-2xl font-bold">
-                                    {stats.totalOrders}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {stats.pendingOrders} pending
-                                </p>
+                {user?.role === "admin" ? (
+                    <Card className="border-l-4 border-l-yellow-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Orders
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {stats.totalOrders}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {stats.pendingOrders} pending
+                                    </p>
+                                </div>
+                                <BarChart3 className="w-8 h-8 text-yellow-500" />
                             </div>
-                            <BarChart3 className="w-8 h-8 text-yellow-500" />
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-l-4 border-l-yellow-500">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        My Orders
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {stats.totalOrders}
+                                    </p>
+                                    {stats.pendingOrders > 0 ? (
+                                        <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {stats.pendingOrders} pending
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                            All completed
+                                        </p>
+                                    )}
+                                </div>
+                                <BarChart3 className="w-8 h-8 text-yellow-500" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card className="border-l-4 border-l-purple-500">
                     <CardContent className="pt-6">
@@ -312,12 +396,17 @@ export default function DashboardHome() {
                                 Quick Actions
                             </CardTitle>
                             <CardDescription>
-                                Common tasks to manage your apiary
+                                {user?.role === "admin"
+                                    ? "Common tasks to manage your apiary"
+                                    : "Most frequently used actions"}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {quickActions.map((action, index) => (
+                                {(user?.role === "admin"
+                                    ? quickActions
+                                    : userQuickActions
+                                ).map((action, index) => (
                                     <Link key={index} to={action.link}>
                                         <Card
                                             className={`hover:shadow-md transition-shadow cursor-pointer border-2 ${action.color}`}
@@ -456,24 +545,49 @@ export default function DashboardHome() {
                                     Manage Hives
                                 </Button>
                             </Link>
-                            <Link to="/dashboard/stats">
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start"
-                                >
-                                    <BarChart3 className="w-4 h-4 mr-2" />
-                                    View Statistics
-                                </Button>
-                            </Link>
-                            <Link to="/dashboard/export">
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start"
-                                >
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Export Reports
-                                </Button>
-                            </Link>
+                            {user?.role === "admin" ? (
+                                <>
+                                    <Link to="/dashboard/stats">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <BarChart3 className="w-4 h-4 mr-2" />
+                                            View Statistics
+                                        </Button>
+                                    </Link>
+                                    <Link to="/dashboard/export">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <FileText className="w-4 h-4 mr-2" />
+                                            Export Reports
+                                        </Button>
+                                    </Link>
+                                </>
+                            ) : (
+                                <>
+                                    <Link to="/dashboard/orders">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <BarChart3 className="w-4 h-4 mr-2" />
+                                            My Orders
+                                        </Button>
+                                    </Link>
+                                    <Link to="/dashboard/inspections">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <Activity className="w-4 h-4 mr-2" />
+                                            Inspections
+                                        </Button>
+                                    </Link>
+                                </>
+                            )}
                             <Link to="/dashboard/help">
                                 <Button
                                     variant="outline"
@@ -499,9 +613,9 @@ export default function DashboardHome() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground">
-                                Regular inspections every 1-2 weeks during
-                                active season help catch issues early and ensure
-                                healthy hives.
+                                {user?.role === "admin"
+                                    ? "Regular inspections every 1-2 weeks during active season help catch issues early and ensure healthy hives."
+                                    : "When recording inspections, take photos of any unusual findings to help with identification of potential issues."}
                             </p>
                         </CardContent>
                     </Card>
