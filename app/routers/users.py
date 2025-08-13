@@ -48,19 +48,20 @@ def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    user = auth.authenticate_user(db, form_data.username, form_data.password)
+    email = form_data.username
+    user = auth.authenticate_user(db, email, form_data.password)
     if not user:
-        log_event(f"Login failed: {form_data.username} not found or incorrect password")
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+        log_event(f"Login failed: email {email} not found or incorrect password")
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     if not user.is_active:
-        log_event(f"Login failed: {form_data.username} is not active")
+        log_event(f"Login failed: user with email {email} is not active")
         raise HTTPException(status_code=403, detail="User account is not active")
 
     access_token = auth.create_access_token(
-        data={"sub": user.username}
+        data={"sub": user.email}
     )
-    log_event(f"User logged in: {form_data.username}")
+    log_event(f"User logged in: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -72,13 +73,13 @@ def login_with_remember(
     response: Response,
     db: Session = Depends(get_db)
 ):
-    user = auth.authenticate_user(db, login_data.username, login_data.password)
+    user = auth.authenticate_user(db, login_data.email, login_data.password)
     if not user:
-        log_event(f"Login failed: {login_data.username} not found or incorrect password")
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+        log_event(f"Login failed: email {login_data.email} not found or incorrect password")
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     if not user.is_active:
-        log_event(f"Login failed: {login_data.username} is not active")
+        log_event(f"Login failed: user with email {login_data.email} is not active")
         raise HTTPException(status_code=403, detail="User account is not active")
 
     user_agent = request.headers.get("user-agent", "")
@@ -96,7 +97,7 @@ def login_with_remember(
         )
         
         access_token = auth.create_access_token(
-            data={"sub": user.username, "session_id": session.id}
+            data={"sub": user.email, "session_id": session.id}
         )
         
         response.set_cookie(
@@ -109,7 +110,7 @@ def login_with_remember(
             path="/"
         )
         
-        log_event(f"User logged in with remember-me: {login_data.username}, suspicious: {is_suspicious}")
+        log_event(f"User logged in with remember-me: {user.username}, suspicious: {is_suspicious}")
         
         return {
             "access_token": access_token,
@@ -118,9 +119,9 @@ def login_with_remember(
         }
     else:
         access_token = auth.create_access_token(
-            data={"sub": user.username}
+            data={"sub": user.email}
         )
-        log_event(f"User logged in without remember-me: {login_data.username}")
+        log_event(f"User logged in without remember-me: {user.username}")
         
         return {
             "access_token": access_token,
@@ -149,7 +150,7 @@ def refresh_token(request: Request, response: Response, refresh_token: str = Coo
     db.commit()
     
     access_token = auth.create_access_token(
-        data={"sub": session.user.username, "session_id": session.id}
+        data={"sub": session.user.email, "session_id": session.id}
     )
     
     log_event(f"Token refreshed for user: {session.user.username}")
@@ -264,7 +265,7 @@ def update_me(
         raise HTTPException(status_code=404, detail="User not found")
     
     access_token = auth.create_access_token(
-        data={"sub": current_user.username},
+        data={"sub": current_user.email},
         expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 

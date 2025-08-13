@@ -11,7 +11,7 @@ import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function LoginPage() {
     const [form, setForm] = useState({
-        username: "",
+        email: "",
         password: "",
         remember_me: false,
     });
@@ -57,7 +57,7 @@ export default function LoginPage() {
             } else if (err?.response?.status === 429) {
                 setError("Too many login attempts. Please try again later.");
             } else if (err?.response?.status === 401) {
-                setError("Incorrect username or password.");
+                setError("Incorrect email or password.");
             } else {
                 setError("An error occurred during login. Please try again.");
             }
@@ -253,18 +253,18 @@ export default function LoginPage() {
                         <div className="space-y-4">
                             <div>
                                 <label
-                                    htmlFor="username"
+                                    htmlFor="email"
                                     className="block text-sm font-medium text-gray-700 mb-2"
                                 >
-                                    Email or Username
+                                    Email Address
                                 </label>
                                 <div className="relative">
                                     <Input
-                                        id="username"
-                                        name="username"
-                                        type="text"
-                                        placeholder="Enter your email or username"
-                                        value={form.username}
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        placeholder="Enter your email address"
+                                        value={form.email}
                                         onChange={handleChange}
                                         required
                                         className="pl-10 h-12 bg-white border-gray-300 focus:border-amber-500 focus:ring-amber-500"

@@ -49,7 +49,15 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const isLoginAttempt =
+            originalRequest?.url?.includes("/users/login") ||
+            originalRequest?.url?.includes("/users/login-with-remember");
+
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry &&
+            !isLoginAttempt
+        ) {
             if (!isRefreshing) {
                 isRefreshing = true;
                 originalRequest._retry = true;
@@ -84,7 +92,9 @@ api.interceptors.response.use(
 
                     refreshSubscribers = [];
 
-                    window.location.href = "/login";
+                    if (!isLoginAttempt) {
+                        window.location.href = "/login";
+                    }
 
                     return Promise.reject(refreshError);
                 }

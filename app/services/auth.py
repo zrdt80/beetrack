@@ -21,29 +21,34 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login", auto_error=False)
 
 
-def get_token_data(username: str, token: Optional[str] = None) -> Optional[TokenData]:
+def get_token_data(email: str, token: Optional[str] = None) -> Optional[TokenData]:
     if not token:
         return None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username_from_token: str = payload.get("sub")
-        if username_from_token != username:
+        email_from_token: str = payload.get("sub")
+        if email_from_token != email:
             return None
         session_id: int = payload.get("session_id")
-        return TokenData(username=username, session_id=session_id)
+        db = next(get_db())
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            return None
+        return TokenData(username=user.username, email=user.email, session_id=session_id)
     except JWTError:
         return None
 
 
-def authenticate_user(db: Session, username: str, password: str):
-    user = db.query(models.User).filter(models.User.username == username).first()
+def authenticate_user(db: Session, email: str, password: str):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    
     if not user:
-        log_event(f"Authentication failed: user {username} not found")
+        log_event(f"Authentication failed: user with email {email} not found")
         return None
     if not Hasher.verify_password(password, user.hashed_password):
-        log_event(f"Authentication failed: incorrect password for user {username}")
+        log_event(f"Authentication failed: incorrect password for email {email}")
         return None
-    log_event(f"Authentication successful: user {username}")
+    log_event(f"Authentication successful: user {user.username}")
     return user
 
 
@@ -95,7 +100,7 @@ def refresh_access_token(db: Session, refresh_token: str):
     session.last_activity = datetime.now(timezone.utc)
     db.commit()
     
-    return create_access_token(data={"sub": session.user.username, "session_id": session.id})
+    return create_access_token(data={"sub": session.user.email, "session_id": session.id})
 
 
 def invalidate_session(db: Session, session_id: int):
@@ -144,23 +149,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        email: str = payload.get("sub")
         session_id: int = payload.get("session_id")
         
-        if not username:
-            log_event("Token validation failed: missing username in token")
+        if not email:
+            log_event("Token validation failed: missing email in token")
             raise credentials_exception
             
-        token_data = TokenData(username=username, session_id=session_id)
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            log_event(f"Token validation failed: user with email {email} not found")
+            raise credentials_exception
+            
+        token_data = TokenData(username=user.username, session_id=session_id)
     except JWTError:
         log_event("Token validation failed: JWT decode error")
         raise credentials_exception
 
-    user = db.query(models.User).filter(models.User.username == token_data.username).first()
-    if not user:
-        log_event(f"Token validation failed: user {token_data.username} not found")
-        raise credentials_exception
-    
     if token_data.session_id:
         session = db.query(models.UserSession).filter(
             models.UserSession.id == token_data.session_id,

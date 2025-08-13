@@ -2,7 +2,7 @@ import api from "./axios";
 import type { User } from "./users";
 
 export interface LoginForm {
-    username: string;
+    email: string;
     password: string;
     remember_me?: boolean;
 }
@@ -32,7 +32,7 @@ export interface UserSession {
 export const login = async (data: LoginForm): Promise<TokenPair> => {
     if (!data.remember_me) {
         const form = new URLSearchParams();
-        form.append("username", data.username);
+        form.append("username", data.email);
         form.append("password", data.password);
 
         const res = await api.post<Token>("/users/login", form, {
@@ -46,7 +46,7 @@ export const login = async (data: LoginForm): Promise<TokenPair> => {
         };
     } else {
         const res = await api.post<TokenPair>("/users/login-with-remember", {
-            username: data.username,
+            email: data.email,
             password: data.password,
             remember_me: data.remember_me,
         });

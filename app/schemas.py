@@ -61,11 +61,12 @@ class TokenPair(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+    email: Optional[EmailStr] = None
     session_id: Optional[int] = None
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: EmailStr
     password: str
     remember_me: bool = False
 
