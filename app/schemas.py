@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, constr, field_validator
+from typing import Annotated
 from enum import Enum
 from datetime import datetime
 from typing import Optional, List
@@ -15,15 +16,26 @@ class UserRole(str, Enum):
 # --------------------
 
 class UserBase(BaseModel):
-    username: str
+    username: Annotated[str, constr(min_length=3, max_length=50, pattern=r"^[A-Za-z0-9_.-]+$")]
     email: EmailStr
     role: UserRole = UserRole.user
     created_at: datetime = None
     is_active: bool = True
 
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, v: str) -> str:
+        v = v.strip()
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
+
 
 class UserCreate(UserBase):
-    password: constr(min_length=6)
+    password: Annotated[str, constr(min_length=8)]
 
 
 class UserRead(UserBase):
@@ -36,7 +48,7 @@ class UserRead(UserBase):
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[constr(min_length=6)] = None
+    password: Optional[Annotated[str, constr(min_length=8)]] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
 

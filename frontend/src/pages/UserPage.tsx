@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import PasswordField from "@/components/PasswordField";
+import { evaluatePassword } from "@/lib/password";
 
 export default function UserPage() {
     const { id } = useParams<{ id: string }>();
@@ -42,6 +44,8 @@ export default function UserPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isMe = user?.id == id;
+    const passwordEval = evaluatePassword(form.password || "");
+    const passwordValid = !form.password || passwordEval.isValid;
 
     useEffect(() => {
         if (id) {
@@ -189,16 +193,20 @@ export default function UserPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">
-                                    New Password
-                                </label>
-                                <Input
-                                    name="password"
-                                    type="password"
+                                <PasswordField
                                     value={form.password}
-                                    onChange={handleInputChange}
+                                    onChange={(v) =>
+                                        setForm((f) => ({ ...f, password: v }))
+                                    }
+                                    label="New Password"
                                     placeholder="Leave blank to keep current"
+                                    required={false}
                                 />
+                                {!passwordValid && form.password && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                        Password does not meet requirements.
+                                    </p>
+                                )}
                             </div>
                             {user?.role === "admin" && !isMe && (
                                 <>

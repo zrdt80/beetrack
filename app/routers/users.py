@@ -1,29 +1,53 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app import models, schemas
 from app.database import get_db
 from app.utils.limiter import limiter
 from app.utils.hashing import Hasher
+from app.utils.password import validate_password_strength, is_password_breached, PasswordPolicyError
 from app.services import auth
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime, timezone
 from app.utils.logger import log_event
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from jose import jwt
+from time import time
 
 router = APIRouter()
+
+_registration_attempts: Dict[str, Tuple[int, float]] = {}
+_REG_WINDOW_SECONDS = 60 * 5
+_REG_MAX_ATTEMPTS = 5
 
 
 @router.post("/register", response_model=schemas.UserRead)
 @limiter.limit("3/minute")
 def register_user(request: Request, user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+    key = f"{user_data.email}:{request.client.host}" if request.client else user_data.email
+    count, first_ts = _registration_attempts.get(key, (0, time()))
+    now = time()
+    if now - first_ts > _REG_WINDOW_SECONDS:
+        count, first_ts = 0, now
+    count += 1
+    _registration_attempts[key] = (count, first_ts)
+    if count > _REG_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many attempts. Please try again later.")
+    try:
+        validate_password_strength(user_data.password)
+    except PasswordPolicyError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if is_password_breached(user_data.password):
+        raise HTTPException(status_code=422, detail="This password has appeared in a data breach. Choose a different one.")
+
     user_exists = db.query(models.User).filter(
         (models.User.username == user_data.username) |
         (models.User.email == user_data.email)
     ).first()
     if user_exists:
         log_event(f"User registration failed: {user_data.username} already exists")
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(status_code=400, detail="Account with provided credentials already exists")
 
     hashed_pw = Hasher.hash_password(user_data.password)
     user = models.User(
@@ -33,7 +57,12 @@ def register_user(request: Request, user_data: schemas.UserCreate, db: Session =
         role=models.UserRole.user
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        log_event(f"User registration race-condition conflict: {user_data.username}")
+        raise HTTPException(status_code=400, detail="Account with provided credentials already exists")
     db.refresh(user)
 
     log_event(f"User registration successful: {user_data.username}")
@@ -251,6 +280,12 @@ def update_me(
     update_data = user_data.dict(exclude_unset=True)
 
     if "password" in update_data:
+        try:
+            validate_password_strength(update_data["password"])
+        except PasswordPolicyError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        if is_password_breached(update_data["password"]):
+            raise HTTPException(status_code=422, detail="This password has appeared in a data breach. Choose a different one.")
         update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
 
     for key, value in update_data.items():
@@ -288,6 +323,12 @@ def update_user(
 
     update_data = user_data.dict(exclude_unset=True)
     if "password" in update_data:
+        try:
+            validate_password_strength(update_data["password"])
+        except PasswordPolicyError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        if is_password_breached(update_data["password"]):
+            raise HTTPException(status_code=422, detail="This password has appeared in a data breach. Choose a different one.")
         update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
 
     for key, value in update_data.items():

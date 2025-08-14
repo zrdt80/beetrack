@@ -1,17 +1,11 @@
 import { useState } from "react";
+import PasswordField from "@/components/PasswordField";
+import { evaluatePassword } from "@/lib/password";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Eye,
-    EyeOff,
-    Loader2,
-    Mail,
-    Lock,
-    User,
-    ArrowRight,
-} from "lucide-react";
+import { Loader2, Mail, User, ArrowRight } from "lucide-react";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 
@@ -19,11 +13,10 @@ export default function RegisterPage() {
     const [form, setForm] = useState({ username: "", email: "", password: "" });
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-
-    useDocumentTitle("Register");
     const { registerUser } = useAuth();
     const navigate = useNavigate();
+    const evaluation = evaluatePassword(form.password);
+    const allPasswordValid = evaluation.isValid;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,13 +28,24 @@ export default function RegisterPage() {
         setIsLoading(true);
 
         try {
-            await registerUser(form);
+            const payload = {
+                username: form.username.trim(),
+                email: form.email.trim(),
+                password: form.password,
+            };
+            await registerUser(payload);
             navigate("/login");
         } catch (err: any) {
-            if (err?.response?.status === 429) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail;
+            if (status === 429) {
                 setError(
                     "Too many registration attempts. Please try again later."
                 );
+            } else if (status === 400) {
+                setError(detail || "Account already exists or invalid data.");
+            } else if (status === 422) {
+                setError(detail || "Password does not meet requirements.");
             } else {
                 setError("Registration failed. Please try again.");
             }
@@ -49,6 +53,8 @@ export default function RegisterPage() {
             setIsLoading(false);
         }
     };
+
+    useDocumentTitle("Register");
 
     return (
         <div className="h-screen flex overflow-hidden">
@@ -260,43 +266,14 @@ export default function RegisterPage() {
                             </div>
 
                             <div>
-                                <label
-                                    htmlFor="password"
-                                    className="block text-sm font-medium text-gray-700 mb-2"
-                                >
-                                    Password
-                                </label>
-                                <div className="relative">
-                                    <Input
-                                        id="password"
-                                        name="password"
-                                        type={
-                                            showPassword ? "text" : "password"
-                                        }
-                                        placeholder="Create a password"
-                                        value={form.password}
-                                        onChange={handleChange}
-                                        required
-                                        className="pl-10 pr-10 h-12 bg-white border-gray-300 focus:border-amber-500 focus:ring-amber-500"
-                                    />
-                                    <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setShowPassword(!showPassword)
-                                        }
-                                        className="absolute right-1 top-1 text-gray-400 hover:text-gray-600 bg-white"
-                                    >
-                                        {showPassword ? (
-                                            <EyeOff className="w-5 h-5" />
-                                        ) : (
-                                            <Eye className="w-5 h-5" />
-                                        )}
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Must be at least 6 characters long
-                                </p>
+                                <PasswordField
+                                    value={form.password}
+                                    onChange={(v) =>
+                                        setForm((f) => ({ ...f, password: v }))
+                                    }
+                                    label="Password"
+                                    required
+                                />
                             </div>
                         </div>
 
@@ -310,7 +287,12 @@ export default function RegisterPage() {
 
                         <Button
                             type="submit"
-                            disabled={isLoading}
+                            disabled={
+                                isLoading ||
+                                !allPasswordValid ||
+                                !form.username ||
+                                !form.email
+                            }
                             className="w-full h-12 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-base rounded-lg transition-colors disabled:opacity-50"
                         >
                             {isLoading ? (
