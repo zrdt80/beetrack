@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
-import type { Product } from "@/api/products";
+import type { Product, ProductPage } from "@/api/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +19,10 @@ import useDocumentTitle from "@/hooks/useDocumentTitle";
 export default function ProductsPage() {
     const { user } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
+    const [page, setPage] = useState(1);
+    const [size] = useState(20);
+    const [totalPages, setTotalPages] = useState(1);
+    const [loading, setLoading] = useState(false);
 
     useDocumentTitle("Products");
     const [formData, setFormData] = useState({
@@ -29,13 +33,20 @@ export default function ProductsPage() {
     });
     const [open, setOpen] = useState(false);
 
-    const load = async () => {
-        const p = await getProducts();
-        setProducts(p);
+    const load = async (p: number = page) => {
+        setLoading(true);
+        try {
+            const res: ProductPage = await getProducts(p, size);
+            setProducts(res.items);
+            setPage(res.meta.page);
+            setTotalPages(res.meta.pages || 1);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        load();
+        load(1);
     }, []);
 
     const handleSubmit = async () => {
@@ -191,9 +202,30 @@ export default function ProductsPage() {
             <DataTable
                 data={products}
                 columns={columns}
-                emptyMessage="No products found."
+                emptyMessage={loading ? "Loading..." : "No products found."}
                 className="mb-4"
             />
+            <div className="flex items-center gap-4 mt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1 || loading}
+                    onClick={() => page > 1 && load(page - 1)}
+                >
+                    Prev
+                </Button>
+                <span className="text-sm">
+                    Page {page} / {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages || loading}
+                    onClick={() => page < totalPages && load(page + 1)}
+                >
+                    Next
+                </Button>
+            </div>
         </div>
     );
 }

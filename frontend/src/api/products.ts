@@ -16,8 +16,27 @@ export interface ProductCreate {
     stock_quantity: number;
 }
 
-export const getProducts = async (): Promise<Product[]> => {
-    const res = await api.get<Product[]>("/products/");
+export interface PageMeta {
+    page: number;
+    size: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+}
+
+export interface ProductPage {
+    meta: PageMeta;
+    items: Product[];
+}
+
+export const getProducts = async (
+    page: number = 1,
+    size: number = 20
+): Promise<ProductPage> => {
+    const res = await api.get<ProductPage>(
+        `/products/?page=${page}&size=${size}`
+    );
     return res.data;
 };
 

@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
 from app.services.auth import get_current_user, requires_role
 from app.utils.logger import log_event
-from typing import List
 from datetime import datetime, timezone
 
 router = APIRouter()
@@ -55,24 +54,54 @@ def create_order(
     return order
 
 
-@router.get("/", response_model=List[schemas.OrderRead])
+@router.get("/", response_model=schemas.OrderPage)
 def get_user_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
-    orders = db.query(models.Order).filter(models.Order.user_id == user.id).all()
-    log_event(f"User orders requested by {user.username}, found {len(orders)} orders")
-    return orders
+    query = db.query(models.Order).filter(models.Order.user_id == user.id).order_by(models.Order.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(f"User orders requested by {user.username} page={page} size={size} total={total}")
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 
-@router.get("/all", response_model=List[schemas.OrderRead])
+@router.get("/all", response_model=schemas.OrderPage)
 def get_all_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    orders = db.query(models.Order).all()
-    log_event(f"All orders requested by admin {current_user.username}, found {len(orders)} orders")
-    return orders
+    query = db.query(models.Order).order_by(models.Order.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(f"All orders requested by admin {current_user.username} page={page} size={size} total={total}")
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 
 @router.put("/{order_id}", response_model=schemas.OrderRead)

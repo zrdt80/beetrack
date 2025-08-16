@@ -14,8 +14,30 @@ export interface HiveCreate {
     status?: string;
 }
 
-export const getHives = async (): Promise<Hive[]> => {
-    const res = await api.get<Hive[]>("/hives/");
+export interface PageMeta {
+    page: number;
+    size: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+}
+
+export interface HivePage {
+    meta: PageMeta;
+    items: Hive[];
+}
+
+export const getHives = async (
+    page: number = 1,
+    size: number = 20
+): Promise<HivePage> => {
+    const res = await api.get<HivePage>(`/hives/?page=${page}&size=${size}`);
+    return res.data;
+};
+
+export const getHive = async (id: number): Promise<Hive> => {
+    const res = await api.get<Hive>(`/hives/${id}`);
     return res.data;
 };
 

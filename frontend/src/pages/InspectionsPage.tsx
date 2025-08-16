@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     getInspections,
     createInspection,
     deleteInspection,
+    type InspectionPage,
+    type Inspection,
+    type InspectionCreate,
 } from "@/api/inspections";
-import type { Inspection, InspectionCreate } from "@/api/inspections";
-import { getHives } from "@/api/hives";
+import { getHives, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
@@ -38,20 +40,69 @@ export default function InspectionsPage() {
         disease_detected: "",
         hive_id: hiveId,
     });
+    const [page, setPage] = useState(1);
+    const [size] = useState(20);
+    const [hasNext, setHasNext] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
 
     useDocumentTitle(hive ? `Inspections: ${hive.name}` : "Inspections");
 
-    const load = async () => {
-        const hives = await getHives();
-        const target = hives.find((h) => h.id === hiveId);
-        if (target) setHive(target);
-        const insp = await getInspections(hiveId);
-        setInspections(insp);
+    const load = async (reset: boolean = false) => {
+        if (reset) {
+            setPage(1);
+            setHasNext(false);
+            setInspections([]);
+        }
+        const targetPage = reset ? 1 : page;
+        if (targetPage === 1) setLoading(true);
+        else setLoadingMore(true);
+        try {
+            const hivesRes: HivePage = await getHives();
+            const target = hivesRes.items.find((h) => h.id === hiveId);
+            if (target) setHive(target);
+            const inspRes: InspectionPage = await getInspections(
+                hiveId,
+                targetPage,
+                size
+            );
+            setHasNext(inspRes.meta.has_next);
+            setInspections((prev) =>
+                targetPage === 1 ? inspRes.items : [...prev, ...inspRes.items]
+            );
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
     };
 
     useEffect(() => {
-        load();
+        load(true);
     }, [hiveId]);
+
+    useEffect(() => {
+        if (!hasNext) return;
+        if (!sentinelRef.current) return;
+        if (observerRef.current) observerRef.current.disconnect();
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const first = entries[0];
+                if (first.isIntersecting && hasNext && !loadingMore) {
+                    const next = page + 1;
+                    setPage(next);
+                    getInspections(hiveId, next, size).then((inspRes) => {
+                        setHasNext(inspRes.meta.has_next);
+                        setInspections((prev) => [...prev, ...inspRes.items]);
+                    });
+                }
+            },
+            { threshold: 1.0 }
+        );
+        observerRef.current.observe(sentinelRef.current);
+        return () => observerRef.current?.disconnect();
+    }, [page, hasNext, loadingMore, hiveId, size]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -210,9 +261,41 @@ export default function InspectionsPage() {
             <DataTable
                 data={inspections}
                 columns={columns}
-                emptyMessage="No inspections found for this hive."
+                emptyMessage={
+                    loading
+                        ? "Loading inspections..."
+                        : "No inspections found for this hive."
+                }
                 className="mb-4"
             />
+            <div
+                ref={sentinelRef}
+                className="text-center text-sm text-gray-500 py-2"
+            >
+                {loadingMore && hasNext && "Loading more..."}
+                {!loadingMore && hasNext && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            const next = page + 1;
+                            setPage(next);
+                            getInspections(hiveId, next, size).then(
+                                (inspRes) => {
+                                    setHasNext(inspRes.meta.has_next);
+                                    setInspections((prev) => [
+                                        ...prev,
+                                        ...inspRes.items,
+                                    ]);
+                                }
+                            );
+                        }}
+                    >
+                        Load More
+                    </Button>
+                )}
+                {!hasNext && inspections.length > 0 && "End of results"}
+            </div>
         </div>
     );
 }

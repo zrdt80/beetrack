@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { getAllUsers } from "@/api/users";
-import type { User } from "@/api/users";
+import { useEffect, useState, useRef } from "react";
+import { getUsersPage, type UserPage, type User } from "@/api/users";
 import {
     Card,
     CardHeader,
@@ -18,20 +17,65 @@ import useDocumentTitle from "@/hooks/useDocumentTitle";
 export default function UsersPage() {
     const [users, setUsers] = useState<User[] | null>(null);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [size] = useState(25);
+    const [hasNext, setHasNext] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
 
     useDocumentTitle("User Management");
 
-    const load = async () => {
-        setLoading(true);
-        const data = await getAllUsers();
-        setUsers(data);
-        setLoading(false);
+    const load = async (reset: boolean = false) => {
+        if (reset) {
+            setPage(1);
+            setUsers(null);
+        }
+        const targetPage = reset ? 1 : page;
+        if (targetPage === 1) setLoading(true);
+        else setLoadingMore(true);
+        try {
+            const data: UserPage = await getUsersPage(targetPage, size);
+            setHasNext(data.meta.has_next);
+            setUsers((prev) =>
+                targetPage === 1 || !prev
+                    ? data.items
+                    : [...prev, ...data.items]
+            );
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
     };
 
     useEffect(() => {
-        load();
+        load(true);
     }, []);
+
+    useEffect(() => {
+        if (!sentinelRef.current) return;
+        if (observerRef.current) observerRef.current.disconnect();
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const first = entries[0];
+                if (first.isIntersecting && hasNext && !loadingMore) {
+                    const next = page + 1;
+                    setPage(next);
+                    getUsersPage(next, size).then((data) => {
+                        setHasNext(data.meta.has_next);
+                        setUsers((prev) =>
+                            prev ? [...prev, ...data.items] : data.items
+                        );
+                    });
+                }
+            },
+            { threshold: 1.0 }
+        );
+        observerRef.current.observe(sentinelRef.current);
+        return () => observerRef.current?.disconnect();
+    }, [page, hasNext, loadingMore, size]);
+
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState<
         "all" | "admin" | "user" | "worker"
@@ -186,6 +230,40 @@ export default function UsersPage() {
                                     </div>
                                 </div>
                             ))}
+                            <div
+                                ref={sentinelRef}
+                                className="text-center text-sm text-gray-500 py-2"
+                            >
+                                {loadingMore && hasNext && "Loading more..."}
+                                {!loadingMore && hasNext && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            const next = page + 1;
+                                            setPage(next);
+                                            getUsersPage(next, size).then(
+                                                (d) => {
+                                                    setHasNext(d.meta.has_next);
+                                                    setUsers((prev) =>
+                                                        prev
+                                                            ? [
+                                                                  ...prev,
+                                                                  ...d.items,
+                                                              ]
+                                                            : d.items
+                                                    );
+                                                }
+                                            );
+                                        }}
+                                    >
+                                        Load More
+                                    </Button>
+                                )}
+                                {!hasNext &&
+                                    filteredUsers.length > 0 &&
+                                    "End of results"}
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-6">

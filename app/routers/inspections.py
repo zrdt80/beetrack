@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
@@ -31,22 +31,57 @@ def create_inspection(
     return new_inspection
 
 
-@router.get("/", response_model=list[schemas.InspectionRead])
-def list_inspections(db: Session = Depends(get_db)):
-    inspections = db.query(models.Inspection).all()
-    log_event(f"Inspections list requested, found {len(inspections)} inspections")
-    return inspections
+@router.get("/", response_model=schemas.InspectionPage)
+def list_inspections(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Inspection).order_by(models.Inspection.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(f"Inspections list requested page={page} size={size} total={total}")
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 
-@router.get("/hive/{hive_id}", response_model=list[schemas.InspectionRead])
-def get_inspections_for_hive(hive_id: int, db: Session = Depends(get_db)):
+@router.get("/hive/{hive_id}", response_model=schemas.InspectionPage)
+def get_inspections_for_hive(
+    hive_id: int,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
     hive = db.query(models.Hive).get(hive_id)
     if not hive:
         log_event(f"Inspections request failed: hive {hive_id} not found")
         raise HTTPException(status_code=404, detail="Hive not found")
-    inspections = db.query(models.Inspection).filter(models.Inspection.hive_id == hive_id).all()
-    log_event(f"Inspections requested for hive {hive.name} (ID: {hive_id}), found {len(inspections)} inspections")
-    return inspections
+    query = db.query(models.Inspection).filter(models.Inspection.hive_id == hive_id).order_by(models.Inspection.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(f"Inspections requested for hive {hive.name} (ID: {hive_id}) page={page} size={size} total={total}")
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 
 @router.put("/{inspection_id}", response_model=schemas.InspectionRead)

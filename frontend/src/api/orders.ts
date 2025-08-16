@@ -28,13 +28,35 @@ export interface OrderUpdate {
     status: string;
 }
 
-export const getOrders = async (): Promise<Order[]> => {
-    const res = await api.get<Order[]>("/orders/");
+export interface PageMeta {
+    page: number;
+    size: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+}
+
+export interface OrderPage {
+    meta: PageMeta;
+    items: Order[];
+}
+
+export const getOrders = async (
+    page: number = 1,
+    size: number = 20
+): Promise<OrderPage> => {
+    const res = await api.get<OrderPage>(`/orders/?page=${page}&size=${size}`);
     return res.data;
 };
 
-export const getAllOrders = async (): Promise<Order[]> => {
-    const res = await api.get<Order[]>("/orders/all/");
+export const getAllOrders = async (
+    page: number = 1,
+    size: number = 20
+): Promise<OrderPage> => {
+    const res = await api.get<OrderPage>(
+        `/orders/all?page=${page}&size=${size}`
+    );
     return res.data;
 };
 

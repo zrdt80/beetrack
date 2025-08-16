@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, constr, field_validator
-from typing import Annotated
+from typing import Annotated, Any
 from enum import Enum
 from datetime import datetime
 from typing import Optional, List
@@ -233,3 +233,69 @@ class OrderStatusUpdate(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# --------------------------
+# --- PAGINATION SCHEMAS ---
+# --------------------------
+
+class PageMeta(BaseModel):
+    page: int
+    size: int
+    total: int
+    pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class Page(BaseModel):
+    meta: PageMeta
+    items: list[Any]
+
+
+class HivePage(Page):
+    items: list[HiveRead]
+
+
+class ProductPage(Page):
+    items: list[ProductRead]
+
+
+class InspectionPage(Page):
+    items: list[InspectionRead]
+
+
+class OrderPage(Page):
+    items: list[OrderRead]
+
+class UserPage(Page):
+    items: list[UserRead]
+
+
+class CursorMeta(BaseModel):
+    limit: int
+    has_next: bool
+    next_cursor: int | None = None
+
+
+class LogEntry(BaseModel):
+    id: int
+    timestamp: datetime
+    event: str
+    level: str | None = None
+
+    class Config:
+        orm_mode = True
+
+
+class LogCursorPage(BaseModel):
+    meta: CursorMeta
+    items: list[LogEntry]
+
+
+class LogStats(BaseModel):
+    total: int
+    success: int
+    error: int
+    warning: int
+    info: int

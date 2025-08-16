@@ -6,10 +6,11 @@ import {
     getAllOrders,
     createOrder,
     deleteOrder,
+    type OrderPage,
+    type Order,
+    type OrderItem,
 } from "@/api/orders";
-import type { Order, OrderItem } from "@/api/orders";
-import { getProducts } from "@/api/products";
-import type { Product } from "@/api/products";
+import { getProducts, type ProductPage, type Product } from "@/api/products";
 import { formatDateTime } from "@/lib/datetime";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,8 @@ export default function OrdersPage() {
     const { user } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [orderPage, setOrderPage] = useState(1);
+    const [orderPages, setOrderPages] = useState(1);
 
     useDocumentTitle("Orders");
     const [selected, setSelected] = useState<OrderItem[]>([]);
@@ -46,13 +49,17 @@ export default function OrdersPage() {
     const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
     const [statusFilter, setStatusFilter] = useState<string>("");
 
-    const load = async () => {
-        const [o, p] = await Promise.all([
-            user?.role === "admin" ? getAllOrders() : getOrders(),
-            getProducts(),
+    const load = async (oPage: number = orderPage) => {
+        const [oRes, pRes] = await Promise.all([
+            (user?.role === "admin"
+                ? getAllOrders(oPage, 20)
+                : getOrders(oPage, 20)) as Promise<OrderPage>,
+            getProducts(1, 100) as Promise<ProductPage>,
         ]);
-        setOrders(o);
-        setProducts(p);
+        setOrders(oRes.items);
+        setOrderPage(oRes.meta.page);
+        setOrderPages(oRes.meta.pages || 1);
+        setProducts(pRes.items);
     };
 
     const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
@@ -388,6 +395,29 @@ export default function OrdersPage() {
                     ))}
                 </TableBody>
             </Table>
+            <div className="flex items-center gap-4 mt-4">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={orderPage <= 1}
+                    onClick={() => orderPage > 1 && load(orderPage - 1)}
+                >
+                    Prev
+                </Button>
+                <span className="text-sm">
+                    Page {orderPage} / {orderPages}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={orderPage >= orderPages}
+                    onClick={() =>
+                        orderPage < orderPages && load(orderPage + 1)
+                    }
+                >
+                    Next
+                </Button>
+            </div>
         </div>
     );
 }

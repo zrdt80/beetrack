@@ -115,3 +115,4 @@ class Log(Base):
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     event = Column(String(255), nullable=False)
+    level = Column(String(20), nullable=False, default="info", index=True)

@@ -17,8 +17,28 @@ export interface InspectionCreate {
     disease_detected: string;
 }
 
-export const getInspections = async (hiveId: number): Promise<Inspection[]> => {
-    const res = await api.get<Inspection[]>(`/inspections/hive/${hiveId}`);
+export interface PageMeta {
+    page: number;
+    size: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+}
+
+export interface InspectionPage {
+    meta: PageMeta;
+    items: Inspection[];
+}
+
+export const getInspections = async (
+    hiveId: number,
+    page: number = 1,
+    size: number = 20
+): Promise<InspectionPage> => {
+    const res = await api.get<InspectionPage>(
+        `/inspections/hive/${hiveId}?page=${page}&size=${size}`
+    );
     return res.data;
 };
 

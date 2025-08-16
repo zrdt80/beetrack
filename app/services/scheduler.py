@@ -1,7 +1,7 @@
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app import models
@@ -35,8 +35,23 @@ def archive_logs():
         db.close()
 
 
+def purge_old_logs(days: int = 30):
+    db: Session = SessionLocal()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        deleted = db.query(models.Log).filter(models.Log.timestamp < cutoff).delete()
+        db.commit()
+        if deleted:
+            log_event(f"Scheduler: Purged {deleted} logs older than {days} days")
+    except Exception as e:
+        log_event(f"Scheduler: Log purge failed - {str(e)}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
     scheduler = BackgroundScheduler()
     scheduler.add_job(archive_logs, CronTrigger(day="*/7", hour=0, minute=0))
+    scheduler.add_job(purge_old_logs, CronTrigger(hour=1, minute=0))  # daily purge
     scheduler.start()
     log_event("Scheduler started: log archiving job scheduled for every 7 days")

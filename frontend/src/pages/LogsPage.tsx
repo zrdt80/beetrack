@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
-import { getLogs, clearLogs } from "@/api/logs";
-import type { Log } from "@/api/logs";
+import { useEffect, useRef, useState } from "react";
+import {
+    getLogs,
+    clearLogs,
+    getLogStats,
+    type LogCursorPage,
+    type Log,
+    type LogStats,
+} from "@/api/logs";
 import { formatDateTime } from "@/lib/datetime";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import {
@@ -62,48 +68,71 @@ const getLogIcon = (event: string) => {
     return <Info className="w-4 h-4 text-blue-500" />;
 };
 
-const getLogLevel = (event: string): LogLevel => {
-    const eventLower = event.toLowerCase();
-    if (eventLower.includes("failed") || eventLower.includes("error")) {
-        return "error";
-    }
-    if (
-        eventLower.includes("successful") ||
-        eventLower.includes("created") ||
-        eventLower.includes("updated")
-    ) {
-        return "success";
-    }
-    if (eventLower.includes("warning") || eventLower.includes("skipped")) {
-        return "warning";
-    }
-    return "info";
-};
-
 const formatTimestamp = (timestamp: string) => {
     return formatDateTime(timestamp, "full");
 };
 
 export default function LogsPage() {
     const [logs, setLogs] = useState<Log[] | null>(null);
+    const [cursor, setCursor] = useState<number | undefined>(undefined);
+    const [hasNext, setHasNext] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [stats, setStats] = useState<LogStats | null>(null);
     const [search, setSearch] = useState("");
     const [levelFilter, setLevelFilter] = useState<LogLevel>("all");
     const [dateFilter, setDateFilter] = useState("");
+    const [debouncedQ, setDebouncedQ] = useState("");
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const h = setTimeout(() => setDebouncedQ(search.trim()), 400);
+        return () => clearTimeout(h);
+    }, [search]);
 
     useDocumentTitle("System Logs");
 
-    const loadLogs = async () => {
-        setLoading(true);
+    const loadLogs = async (after?: number, append: boolean = false) => {
+        if (append) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+        }
         try {
-            const data = await getLogs();
-            setLogs(data);
+            const data: LogCursorPage = await getLogs(50, after, {
+                q: debouncedQ || undefined,
+                level: levelFilter,
+            });
+            setHasNext(data.meta.has_next);
+            setCursor(data.meta.next_cursor);
+            setLogs((prev) =>
+                append && prev ? [...prev, ...data.items] : data.items
+            );
+            if (!append) {
+                try {
+                    const s = await getLogStats();
+                    setStats(s);
+                } catch (e) {
+                    console.error("Failed to load log stats", e);
+                }
+            }
         } catch (error) {
             console.error("Failed to load logs:", error);
         } finally {
-            setLoading(false);
+            if (append) {
+                setLoadingMore(false);
+            } else {
+                setLoading(false);
+            }
         }
     };
+
+    useEffect(() => {
+        setCursor(undefined);
+        loadLogs();
+    }, [debouncedQ, levelFilter]);
 
     const handleClearLogs = async () => {
         if (
@@ -128,34 +157,44 @@ export default function LogsPage() {
     }, []);
 
     const filteredLogs = logs
-        ? logs.filter((log) => {
-              const matchesSearch = log.event
-                  .toLowerCase()
-                  .includes(search.toLowerCase());
-              const logLevel = getLogLevel(log.event);
-              const matchesLevel =
-                  levelFilter === "all" || logLevel === levelFilter;
-              const matchesDate =
-                  !dateFilter || log.timestamp.includes(dateFilter);
-
-              return matchesSearch && matchesLevel && matchesDate;
-          })
+        ? logs.filter(
+              (log) => !dateFilter || log.timestamp.includes(dateFilter)
+          )
         : [];
 
-    const logCounts = {
-        total: logs?.length || 0,
-        success:
-            logs?.filter((log) => getLogLevel(log.event) === "success")
-                .length || 0,
-        error:
-            logs?.filter((log) => getLogLevel(log.event) === "error").length ||
-            0,
-        warning:
-            logs?.filter((log) => getLogLevel(log.event) === "warning")
-                .length || 0,
-        info:
-            logs?.filter((log) => getLogLevel(log.event) === "info").length ||
-            0,
+    useEffect(() => {
+        if (!sentinelRef.current) return;
+        if (observerRef.current) observerRef.current.disconnect();
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const first = entries[0];
+                if (
+                    first.isIntersecting &&
+                    hasNext &&
+                    !loadingMore &&
+                    !loading
+                ) {
+                    loadLogs(cursor, true);
+                }
+            },
+            {
+                root: scrollContainerRef.current,
+                rootMargin: "0px",
+                threshold: 1.0,
+            }
+        );
+        observerRef.current.observe(sentinelRef.current);
+        return () => {
+            observerRef.current?.disconnect();
+        };
+    }, [cursor, hasNext, loadingMore, loading, debouncedQ, levelFilter]);
+
+    const logCounts = stats || {
+        total: 0,
+        success: 0,
+        error: 0,
+        warning: 0,
+        info: 0,
     };
 
     return (
@@ -297,16 +336,26 @@ export default function LogsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                        <span>Activity Logs ({filteredLogs.length})</span>
-                        <Button variant="outline" size="sm" onClick={loadLogs}>
+                        <span>
+                            Activity Logs ({filteredLogs.length}
+                            {hasNext ? "+" : ""})
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => loadLogs()}
+                        >
                             Refresh
                         </Button>
                     </CardTitle>
                 </CardHeader>
                 <Separator />
                 <CardContent className="p-0">
-                    <div className="max-h-[70vh] overflow-auto">
-                        {loading ? (
+                    <div
+                        ref={scrollContainerRef}
+                        className="max-h-[70vh] overflow-auto"
+                    >
+                        {loading && !logs ? (
                             <div className="space-y-2 p-6">
                                 {[...Array(10)].map((_, i) => (
                                     <Skeleton key={i} className="h-12 w-full" />
@@ -344,6 +393,19 @@ export default function LogsPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableCell colSpan={3}>
+                                            <div
+                                                ref={sentinelRef}
+                                                className="flex justify-center py-2 text-sm text-gray-500"
+                                            >
+                                                {loadingMore &&
+                                                    hasNext &&
+                                                    "Loading more..."}
+                                                {!hasNext && "End of results"}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                 </TableBody>
                             </Table>
                         ) : (

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
-from app.services.auth import get_current_user, requires_role
+from app.services.auth import requires_role
 from app.utils.logger import log_event
 
 router = APIRouter()
@@ -27,11 +27,28 @@ def create_product(
     return new_product
 
 
-@router.get("/", response_model=list[schemas.ProductRead])
-def list_products(db: Session = Depends(get_db)):
-    products = db.query(models.Product).all()
-    log_event(f"Products list requested, found {len(products)} products")
-    return products
+@router.get("/", response_model=schemas.ProductPage)
+def list_products(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Product).order_by(models.Product.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(f"Products list requested page={page} size={size} total={total}")
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 
 @router.get("/{product_id}", response_model=schemas.ProductRead)

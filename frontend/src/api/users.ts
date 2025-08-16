@@ -19,6 +19,19 @@ export interface UpdateUserPayload {
     is_active?: boolean;
 }
 
+export interface PageMeta {
+    page: number;
+    size: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+}
+export interface UserPage {
+    meta: PageMeta;
+    items: User[];
+}
+
 export const getUser = async (userId: number): Promise<User> => {
     const res = await api.get<User>(`/users/${userId}/`);
     return res.data;
@@ -47,5 +60,13 @@ export const updateUser = async (
 
 export const getAllUsers = async (): Promise<User[]> => {
     const res = await api.get<User[]>("/users/");
+    return res.data;
+};
+
+export const getUsersPage = async (
+    page: number = 1,
+    size: number = 25
+): Promise<UserPage> => {
+    const res = await api.get<UserPage>(`/users/?page=${page}&size=${size}`);
     return res.data;
 };

@@ -343,13 +343,31 @@ def update_user(
     return user
 
 
-@router.get("/", response_model=list[schemas.UserRead])
+@router.get("/", response_model=schemas.UserPage)
 def list_users(
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(auth.requires_role("admin"))
 ):
-    log_event(f"User list requested by admin: {_.username}")
-    return db.query(models.User).all()
+    query = db.query(models.User).order_by(models.User.id)
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    log_event(
+        f"User list requested by admin: {current_admin.username} page={page} size={size} total={total}"
+    )
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
 
 @router.get("/{user_id}", response_model=schemas.UserRead)
 def get_user(

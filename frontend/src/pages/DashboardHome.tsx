@@ -30,9 +30,9 @@ import {
     HelpCircle,
     Award,
 } from "lucide-react";
-import { getHives } from "@/api/hives";
-import { getProducts } from "@/api/products";
-import { getAllOrders, getOrders } from "@/api/orders";
+import { getHives, type HivePage } from "@/api/hives";
+import { getProducts, type ProductPage } from "@/api/products";
+import { getAllOrders, getOrders, type OrderPage } from "@/api/orders";
 import type { Hive } from "@/api/hives";
 import type { Product } from "@/api/products";
 import type { Order } from "@/api/orders";
@@ -166,13 +166,29 @@ export default function DashboardHome() {
     useEffect(() => {
         const loadDashboardData = async () => {
             try {
-                const [hives, products, orders] = await Promise.all([
+                const results = await Promise.all([
                     getHives().catch(() => [] as Hive[]),
                     getProducts().catch(() => [] as Product[]),
-                    user?.role === "admin"
-                        ? getAllOrders().catch(() => [] as Order[])
-                        : getOrders().catch(() => [] as Order[]),
+                    (user?.role === "admin"
+                        ? getAllOrders()
+                        : getOrders()
+                    ).catch(() => [] as Order[]),
                 ]);
+                const [hivesPage, productsPage, ordersPage] = results as [
+                    HivePage | Hive[],
+                    ProductPage | Product[],
+                    OrderPage | Order[]
+                ];
+
+                const hives: Hive[] = Array.isArray(hivesPage)
+                    ? hivesPage
+                    : hivesPage.items;
+                const products: Product[] = Array.isArray(productsPage)
+                    ? productsPage
+                    : productsPage.items;
+                const orders: Order[] = Array.isArray(ordersPage)
+                    ? ordersPage
+                    : ordersPage.items;
 
                 const activeHives = hives.filter(
                     (h) => h.status === "active"

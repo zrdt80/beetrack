@@ -13,363 +13,757 @@
             "role": "worker"
         },
         {
-            "username": "john_doe",
+            "username": "qa",
+            "email": "qa@beetrack.net",
+            "password": "qa123",
+            "role": "worker"
+        },
+        {
+            "username": "analyst",
+            "email": "analyst@beetrack.net",
+            "password": "analyst123",
+            "role": "user"
+        },
+        {
+            "username": "john",
             "email": "john@beetrack.net",
             "password": "john123",
             "role": "user"
         },
         {
-            "username": "jane_smith",
-            "email": "jane@beetrack.net",
-            "password": "jane123",
+            "username": "manager",
+            "email": "manager@beetrack.net",
+            "password": "manager123",
+            "role": "admin"
+        },
+        {
+            "username": "operator1",
+            "email": "operator1@beetrack.net",
+            "password": "operator123",
+            "role": "worker"
+        },
+        {
+            "username": "operator2",
+            "email": "operator2@beetrack.net",
+            "password": "operator123",
+            "role": "worker"
+        },
+        {
+            "username": "fieldtech",
+            "email": "fieldtech@beetrack.net",
+            "password": "fieldtech123",
+            "role": "worker"
+        },
+        {
+            "username": "auditor",
+            "email": "auditor@beetrack.net",
+            "password": "auditor123",
             "role": "user"
+        },
+        {
+            "username": "researcher",
+            "email": "researcher@beetrack.net",
+            "password": "research123",
+            "role": "user"
+        },
+        {
+            "username": "biologist",
+            "email": "biologist@beetrack.net",
+            "password": "biologist123",
+            "role": "user"
+        },
+        {
+            "username": "logistics",
+            "email": "logistics@beetrack.net",
+            "password": "logistics123",
+            "role": "user"
+        },
+        {
+            "username": "sales1",
+            "email": "sales1@beetrack.net",
+            "password": "sales123",
+            "role": "user"
+        },
+        {
+            "username": "sales2",
+            "email": "sales2@beetrack.net",
+            "password": "sales123",
+            "role": "user"
+        },
+        {
+            "username": "support1",
+            "email": "support1@beetrack.net",
+            "password": "support123",
+            "role": "user"
+        },
+        {
+            "username": "support2",
+            "email": "support2@beetrack.net",
+            "password": "support123",
+            "role": "user"
+        },
+        {
+            "username": "guest",
+            "email": "guest@beetrack.net",
+            "password": "guest123",
+            "role": "user"
+        },
+        {
+            "username": "owner",
+            "email": "owner@beetrack.net",
+            "password": "owner123",
+            "role": "admin"
+        },
+        {
+            "username": "beekeeper1",
+            "email": "beekeeper1@beetrack.net",
+            "password": "beekeeper123",
+            "role": "worker"
+        },
+        {
+            "username": "beekeeper2",
+            "email": "beekeeper2@beetrack.net",
+            "password": "beekeeper123",
+            "role": "worker"
+        },
+        {
+            "username": "beekeeper3",
+            "email": "beekeeper3@beetrack.net",
+            "password": "beekeeper123",
+            "role": "worker"
         }
     ],
     "products": [
         {
-            "name": "Linden Honey",
-            "description": "Delicate, light linden honey",
+            "name": "Starter Honey",
+            "description": "Baseline product",
             "unit_price": 25.0,
             "stock_quantity": 100
         },
         {
-            "name": "Buckwheat Honey",
-            "description": "Dark, intense buckwheat honey",
-            "unit_price": 30.0,
+            "name": "Premium Honey",
+            "description": "Higher tier product",
+            "unit_price": 40.0,
+            "stock_quantity": 50
+        },
+        {
+            "name": "Royal Jelly",
+            "description": "Nutrient rich supplement",
+            "unit_price": 65.0,
+            "stock_quantity": 35
+        },
+        {
+            "name": "Propolis Extract",
+            "description": "Resinous mixture",
+            "unit_price": 18.0,
             "stock_quantity": 80
         },
         {
-            "name": "Rapeseed Honey",
-            "description": "Creamy, mild rapeseed honey",
+            "name": "Beeswax Blocks",
+            "description": "Filtered beeswax",
+            "unit_price": 12.5,
+            "stock_quantity": 150
+        },
+        {
+            "name": "Pollen Pack",
+            "description": "Dried bee pollen",
             "unit_price": 22.0,
+            "stock_quantity": 60
+        },
+        {
+            "name": "Comb Honey",
+            "description": "Raw comb sections",
+            "unit_price": 30.0,
+            "stock_quantity": 40
+        },
+        {
+            "name": "Organic Honey",
+            "description": "Certified organic honey",
+            "unit_price": 45.0,
+            "stock_quantity": 55
+        },
+        {
+            "name": "Wildflower Honey",
+            "description": "Mixed floral sources",
+            "unit_price": 28.0,
             "stock_quantity": 120
         },
         {
-            "name": "Forest Honey",
-            "description": "Rich, aromatic forest honey",
+            "name": "Manuka Honey",
+            "description": "High potency honey",
+            "unit_price": 75.0,
+            "stock_quantity": 25
+        },
+        {
+            "name": "Bee Bread",
+            "description": "Fermented pollen",
+            "unit_price": 50.0,
+            "stock_quantity": 30
+        },
+        {
+            "name": "Bee Venom Serum",
+            "description": "Cosmetic grade serum",
+            "unit_price": 95.0,
+            "stock_quantity": 15
+        },
+        {
+            "name": "Honey Soap Bar",
+            "description": "Moisturizing soap",
+            "unit_price": 8.0,
+            "stock_quantity": 200
+        },
+        {
+            "name": "Beeswax Candles Pack",
+            "description": "Set of 6 pure beeswax candles",
             "unit_price": 35.0,
+            "stock_quantity": 70
+        },
+        {
+            "name": "Cinnamon Honey Spread",
+            "description": "Honey blended with cinnamon",
+            "unit_price": 32.0,
+            "stock_quantity": 65
+        },
+        {
+            "name": "Cocoa Honey Spread",
+            "description": "Honey blended with cocoa",
+            "unit_price": 34.0,
+            "stock_quantity": 50
+        },
+        {
+            "name": "Lavender Honey",
+            "description": "Infused with natural lavender",
+            "unit_price": 36.0,
+            "stock_quantity": 75
+        },
+        {
+            "name": "Eucalyptus Honey",
+            "description": "Distinct herbal notes",
+            "unit_price": 38.0,
             "stock_quantity": 60
         },
         {
             "name": "Acacia Honey",
-            "description": "Light, sweet acacia honey",
-            "unit_price": 28.0,
-            "stock_quantity": 90
+            "description": "Light and delicate flavor",
+            "unit_price": 42.0,
+            "stock_quantity": 58
         },
         {
-            "name": "Heather Honey",
-            "description": "Strong, aromatic heather honey",
-            "unit_price": 32.0,
+            "name": "Orange Blossom Honey",
+            "description": "Citrus floral aroma",
+            "unit_price": 37.0,
+            "stock_quantity": 82
+        },
+        {
+            "name": "Buckwheat Honey",
+            "description": "Dark, robust taste",
+            "unit_price": 39.0,
+            "stock_quantity": 50
+        },
+        {
+            "name": "Clover Honey",
+            "description": "Classic mild sweetness",
+            "unit_price": 26.0,
+            "stock_quantity": 140
+        },
+        {
+            "name": "Blueberry Honey",
+            "description": "Hints of ripe berries",
+            "unit_price": 33.0,
             "stock_quantity": 70
         },
         {
-            "name": "Sunflower Honey",
-            "description": "Bright, floral sunflower honey",
-            "unit_price": 24.0,
+            "name": "Raspberry Honey",
+            "description": "Fruity undertones",
+            "unit_price": 34.0,
+            "stock_quantity": 68
+        },
+        {
+            "name": "Sage Honey",
+            "description": "Smooth and slow to crystallize",
+            "unit_price": 41.0,
+            "stock_quantity": 44
+        },
+        {
+            "name": "Thyme Honey",
+            "description": "Aromatic herbal profile",
+            "unit_price": 43.0,
+            "stock_quantity": 46
+        },
+        {
+            "name": "Ginger Honey",
+            "description": "Honey infused with ginger extract",
+            "unit_price": 35.0,
+            "stock_quantity": 64
+        },
+        {
+            "name": "Turmeric Honey",
+            "description": "Anti-inflammatory blend",
+            "unit_price": 36.5,
+            "stock_quantity": 55
+        },
+        {
+            "name": "Honey Sticks Pack",
+            "description": "Box of 50 single-serve sticks",
+            "unit_price": 29.0,
             "stock_quantity": 110
         },
         {
-            "name": "Wildflower Honey",
-            "description": "Mixed wildflower honey, seasonal",
+            "name": "Creamed Honey",
+            "description": "Smooth spreadable texture",
+            "unit_price": 31.0,
+            "stock_quantity": 72
+        },
+        {
+            "name": "Raw Honeycomb Gift Box",
+            "description": "Premium cut comb in display box",
+            "unit_price": 52.0,
+            "stock_quantity": 28
+        },
+        {
+            "name": "Honey Mustard",
+            "description": "Gourmet condiment blend",
+            "unit_price": 14.0,
+            "stock_quantity": 90
+        },
+        {
+            "name": "Honey BBQ Sauce",
+            "description": "Sweet smoky sauce",
+            "unit_price": 16.0,
+            "stock_quantity": 85
+        },
+        {
+            "name": "Honey Marinade",
+            "description": "Cooking marinade with herbs",
+            "unit_price": 15.0,
+            "stock_quantity": 77
+        },
+        {
+            "name": "Honey Vinegar",
+            "description": "Fermented honey vinegar",
+            "unit_price": 19.0,
+            "stock_quantity": 48
+        },
+        {
+            "name": "Honey Candy Drops",
+            "description": "Individually wrapped candies",
+            "unit_price": 11.0,
+            "stock_quantity": 160
+        },
+        {
+            "name": "Honey Lozenges",
+            "description": "Soothing throat lozenges",
+            "unit_price": 13.0,
+            "stock_quantity": 140
+        },
+        {
+            "name": "Bee Pollen Granules",
+            "description": "Granulated pollen supplement",
             "unit_price": 27.0,
-            "stock_quantity": 95
+            "stock_quantity": 52
+        },
+        {
+            "name": "Royal Jelly Capsules",
+            "description": "Encapsulated royal jelly",
+            "unit_price": 58.0,
+            "stock_quantity": 32
+        },
+        {
+            "name": "Propolis Tincture",
+            "description": "Alcohol-based propolis extract",
+            "unit_price": 24.0,
+            "stock_quantity": 66
+        },
+        {
+            "name": "Propolis Throat Spray",
+            "description": "Soothing propolis spray",
+            "unit_price": 20.0,
+            "stock_quantity": 54
+        },
+        {
+            "name": "Beeswax Pellets",
+            "description": "Pastilles for crafting",
+            "unit_price": 13.5,
+            "stock_quantity": 130
+        },
+        {
+            "name": "Beeswax Wrap Pack",
+            "description": "Reusable food wraps (3 sizes)",
+            "unit_price": 28.0,
+            "stock_quantity": 62
+        },
+        {
+            "name": "Honey Lip Balm",
+            "description": "Moisturizing beeswax lip balm",
+            "unit_price": 5.0,
+            "stock_quantity": 300
+        },
+        {
+            "name": "Bee Balm Skin Cream",
+            "description": "Nourishing skin moisturizer",
+            "unit_price": 22.0,
+            "stock_quantity": 58
+        },
+        {
+            "name": "Honey Face Mask",
+            "description": "Hydrating cosmetic mask",
+            "unit_price": 26.0,
+            "stock_quantity": 47
+        },
+        {
+            "name": "Beeswax Furniture Polish",
+            "description": "Natural wood conditioner",
+            "unit_price": 18.0,
+            "stock_quantity": 80
+        },
+        {
+            "name": "Honey Energy Gel",
+            "description": "Single-serve athletic gel",
+            "unit_price": 2.5,
+            "stock_quantity": 500
+        },
+        {
+            "name": "Honey Granola",
+            "description": "Honey glazed oat mix",
+            "unit_price": 9.5,
+            "stock_quantity": 120
+        },
+        {
+            "name": "Honey Gift Sampler",
+            "description": "Set of 6 mini honey varietals",
+            "unit_price": 48.0,
+            "stock_quantity": 34
+        },
+        {
+            "name": "Beekeeping Starter Kit",
+            "description": "Basic tools for new keepers",
+            "unit_price": 120.0,
+            "stock_quantity": 20
         }
     ],
     "hives": [
         {
             "name": "Hive-001",
-            "location": "Northern apiary",
+            "location": "Apiary Alpha",
             "status": "active",
-            "last_inspection_date": "2025-06-13T08:20:00Z"
+            "last_inspection_date": "2025-07-01T08:00:00Z"
         },
         {
             "name": "Hive-002",
-            "location": "Southern apiary",
+            "location": "Apiary Alpha",
             "status": "active",
-            "last_inspection_date": "2025-06-14T11:00:00Z"
+            "last_inspection_date": "2025-07-02T09:00:00Z"
         },
         {
             "name": "Hive-003",
-            "location": "Eastern apiary",
-            "status": "inactive",
-            "last_inspection_date": "2025-06-15T15:10:00Z"
+            "location": "Apiary Beta",
+            "status": "active",
+            "last_inspection_date": "2025-07-03T10:00:00Z"
         },
         {
             "name": "Hive-004",
-            "location": "Western apiary",
+            "location": "Apiary Beta",
             "status": "active",
-            "last_inspection_date": "2025-06-16T09:30:00Z"
+            "last_inspection_date": "2025-07-04T11:00:00Z"
+        },
+        {
+            "name": "Hive-005",
+            "location": "Apiary Gamma",
+            "status": "active",
+            "last_inspection_date": "2025-07-05T12:00:00Z"
+        },
+        {
+            "name": "Hive-006",
+            "location": "Apiary Gamma",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-06T13:00:00Z"
+        },
+        {
+            "name": "Hive-007",
+            "location": "Apiary Delta",
+            "status": "active",
+            "last_inspection_date": "2025-07-07T14:00:00Z"
+        },
+        {
+            "name": "Hive-008",
+            "location": "Apiary Delta",
+            "status": "active",
+            "last_inspection_date": "2025-07-08T15:00:00Z"
+        },
+        {
+            "name": "Hive-009",
+            "location": "Apiary Epsilon",
+            "status": "active",
+            "last_inspection_date": "2025-07-09T16:00:00Z"
+        },
+        {
+            "name": "Hive-010",
+            "location": "Apiary Epsilon",
+            "status": "active",
+            "last_inspection_date": "2025-07-10T17:00:00Z"
+        },
+        {
+            "name": "Hive-011",
+            "location": "Apiary Alpha",
+            "status": "active",
+            "last_inspection_date": "2025-07-11T08:00:00Z"
+        },
+        {
+            "name": "Hive-012",
+            "location": "Apiary Alpha",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-12T08:30:00Z"
+        },
+        {
+            "name": "Hive-013",
+            "location": "Apiary Beta",
+            "status": "active",
+            "last_inspection_date": "2025-07-13T09:00:00Z"
+        },
+        {
+            "name": "Hive-014",
+            "location": "Apiary Beta",
+            "status": "active",
+            "last_inspection_date": "2025-07-14T09:30:00Z"
+        },
+        {
+            "name": "Hive-015",
+            "location": "Apiary Gamma",
+            "status": "active",
+            "last_inspection_date": "2025-07-15T10:00:00Z"
+        },
+        {
+            "name": "Hive-016",
+            "location": "Apiary Gamma",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-16T10:30:00Z"
+        },
+        {
+            "name": "Hive-017",
+            "location": "Apiary Delta",
+            "status": "active",
+            "last_inspection_date": "2025-07-17T11:00:00Z"
+        },
+        {
+            "name": "Hive-018",
+            "location": "Apiary Delta",
+            "status": "active",
+            "last_inspection_date": "2025-07-18T11:30:00Z"
+        },
+        {
+            "name": "Hive-019",
+            "location": "Apiary Epsilon",
+            "status": "active",
+            "last_inspection_date": "2025-07-19T12:00:00Z"
+        },
+        {
+            "name": "Hive-020",
+            "location": "Apiary Epsilon",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-20T12:30:00Z"
+        },
+        {
+            "name": "Hive-021",
+            "location": "Apiary Zeta",
+            "status": "active",
+            "last_inspection_date": "2025-07-21T13:00:00Z"
+        },
+        {
+            "name": "Hive-022",
+            "location": "Apiary Zeta",
+            "status": "active",
+            "last_inspection_date": "2025-07-22T13:30:00Z"
+        },
+        {
+            "name": "Hive-023",
+            "location": "Apiary Eta",
+            "status": "active",
+            "last_inspection_date": "2025-07-23T14:00:00Z"
+        },
+        {
+            "name": "Hive-024",
+            "location": "Apiary Eta",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-24T14:30:00Z"
+        },
+        {
+            "name": "Hive-025",
+            "location": "Apiary Theta",
+            "status": "active",
+            "last_inspection_date": "2025-07-25T15:00:00Z"
+        },
+        {
+            "name": "Hive-026",
+            "location": "Apiary Theta",
+            "status": "active",
+            "last_inspection_date": "2025-07-26T15:30:00Z"
+        },
+        {
+            "name": "Hive-027",
+            "location": "Apiary Iota",
+            "status": "active",
+            "last_inspection_date": "2025-07-27T16:00:00Z"
+        },
+        {
+            "name": "Hive-028",
+            "location": "Apiary Iota",
+            "status": "maintenance",
+            "last_inspection_date": "2025-07-28T16:30:00Z"
+        },
+        {
+            "name": "Hive-029",
+            "location": "Apiary Kappa",
+            "status": "active",
+            "last_inspection_date": "2025-07-29T17:00:00Z"
+        },
+        {
+            "name": "Hive-030",
+            "location": "Apiary Kappa",
+            "status": "active",
+            "last_inspection_date": "2025-07-30T17:30:00Z"
         }
     ],
     "inspections": [
         {
             "hive_id": 1,
-            "date": "2025-06-11T12:00:00Z",
-            "temperature": 33.5,
+            "date": "2025-07-01T08:00:00Z",
+            "temperature": 33.2,
             "disease_detected": "none",
-            "notes": "Condition very good."
-        },
-        {
-            "hive_id": 2,
-            "date": "2025-06-10T10:30:00Z",
-            "temperature": 32.8,
-            "disease_detected": "varroa",
-            "notes": "Varroa detected, treatment started."
-        },
-        {
-            "hive_id": 3,
-            "date": "2025-06-09T09:15:00Z",
-            "temperature": 29.0,
-            "disease_detected": "none",
-            "notes": "Hive inactive, no issues."
-        },
-        {
-            "hive_id": 4,
-            "date": "2025-06-12T14:45:00Z",
-            "temperature": 34.2,
-            "disease_detected": "none",
-            "notes": "Queen spotted, healthy brood."
+            "notes": "Baseline healthy"
         },
         {
             "hive_id": 1,
-            "date": "2025-06-13T08:20:00Z",
+            "date": "2025-07-02T08:05:00Z",
+            "temperature": 33.1,
+            "disease_detected": "none",
+            "notes": "Stable"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-03T08:10:00Z",
+            "temperature": 33.4,
+            "disease_detected": "none",
+            "notes": "Normal brood"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-04T08:15:00Z",
+            "temperature": 33.3,
+            "disease_detected": "varroa",
+            "notes": "Low mite count"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-05T08:20:00Z",
             "temperature": 33.0,
             "disease_detected": "none",
-            "notes": "Honey stores increasing."
+            "notes": "Activity peak"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-06T08:25:00Z",
+            "temperature": 33.5,
+            "disease_detected": "none",
+            "notes": "Foraging high"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-07T08:30:00Z",
+            "temperature": 33.6,
+            "disease_detected": "nosema",
+            "notes": "Spore trace"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-08T08:35:00Z",
+            "temperature": 33.2,
+            "disease_detected": "none",
+            "notes": "Recovering"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-09T08:40:00Z",
+            "temperature": 33.1,
+            "disease_detected": "none",
+            "notes": "Queen observed"
+        },
+        {
+            "hive_id": 1,
+            "date": "2025-07-10T08:45:00Z",
+            "temperature": 33.3,
+            "disease_detected": "none",
+            "notes": "Steady"
         },
         {
             "hive_id": 2,
-            "date": "2025-06-14T11:00:00Z",
-            "temperature": 32.5,
+            "date": "2025-07-01T09:00:00Z",
+            "temperature": 32.8,
             "disease_detected": "none",
-            "notes": "Treatment effective, no mites found."
+            "notes": "Baseline"
         },
         {
-            "hive_id": 3,
-            "date": "2025-06-15T15:10:00Z",
-            "temperature": 34.0,
-            "disease_detected": "nosema",
-            "notes": "Signs of nosema, monitoring."
+            "hive_id": 2,
+            "date": "2025-07-02T09:05:00Z",
+            "temperature": 32.9,
+            "disease_detected": "none",
+            "notes": "Slight drift"
         },
         {
-            "hive_id": 4,
-            "date": "2025-06-16T09:30:00Z",
-            "temperature": 28.5,
+            "hive_id": 2,
+            "date": "2025-07-03T09:10:00Z",
+            "temperature": 33.0,
             "disease_detected": "none",
-            "notes": "Hive still inactive."
+            "notes": "Brood ok"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-04T09:15:00Z",
+            "temperature": 33.1,
+            "disease_detected": "none",
+            "notes": "Nectar flow"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-05T09:20:00Z",
+            "temperature": 33.2,
+            "disease_detected": "foulbrood",
+            "notes": "Sample isolated"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-06T09:25:00Z",
+            "temperature": 33.0,
+            "disease_detected": "none",
+            "notes": "Monitoring"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-07T09:30:00Z",
+            "temperature": 33.1,
+            "disease_detected": "none",
+            "notes": "Normal"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-08T09:35:00Z",
+            "temperature": 33.3,
+            "disease_detected": "none",
+            "notes": "Stable"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-09T09:40:00Z",
+            "temperature": 33.2,
+            "disease_detected": "none",
+            "notes": "Slight humidity"
+        },
+        {
+            "hive_id": 2,
+            "date": "2025-07-10T09:45:00Z",
+            "temperature": 33.4,
+            "disease_detected": "none",
+            "notes": "Healthy pattern"
         }
     ],
-    "orders": [
-        {
-            "id": 1,
-            "user_id": 1,
-            "date": "2025-01-12T09:00:00Z",
-            "status": "completed",
-            "total_price": 115.0,
-            "items": [
-                { "product_id": 1, "quantity": 2, "price_each": 25.0 },
-                { "product_id": 2, "quantity": 3, "price_each": 30.0 }
-            ]
-        },
-        {
-            "id": 2,
-            "user_id": 3,
-            "date": "2025-02-13T13:30:00Z",
-            "status": "pending",
-            "total_price": 72.0,
-            "items": [
-                { "product_id": 3, "quantity": 2, "price_each": 22.0 },
-                { "product_id": 5, "quantity": 1, "price_each": 28.0 }
-            ]
-        },
-        {
-            "id": 3,
-            "user_id": 4,
-            "date": "2025-03-14T16:45:00Z",
-            "status": "completed",
-            "total_price": 67.0,
-            "items": [
-                { "product_id": 4, "quantity": 1, "price_each": 35.0 },
-                { "product_id": 6, "quantity": 1, "price_each": 32.0 }
-            ]
-        },
-        {
-            "id": 4,
-            "user_id": 3,
-            "date": "2025-04-15T10:10:00Z",
-            "status": "cancelled",
-            "total_price": 99.0,
-            "items": [
-                { "product_id": 7, "quantity": 3, "price_each": 24.0 },
-                { "product_id": 8, "quantity": 1, "price_each": 27.0 }
-            ]
-        },
-        {
-            "id": 5,
-            "user_id": 2,
-            "date": "2025-05-05T11:20:00Z",
-            "status": "completed",
-            "total_price": 50.0,
-            "items": [
-                { "product_id": 2, "quantity": 1, "price_each": 30.0 },
-                { "product_id": 3, "quantity": 1, "price_each": 20.0 }
-            ]
-        },
-        {
-            "id": 6,
-            "user_id": 1,
-            "date": "2025-06-18T14:00:00Z",
-            "status": "pending",
-            "total_price": 60.0,
-            "items": [
-                { "product_id": 5, "quantity": 2, "price_each": 28.0 },
-                { "product_id": 1, "quantity": 1, "price_each": 25.0 }
-            ]
-        },
-        {
-            "id": 7,
-            "user_id": 4,
-            "date": "2025-07-22T15:30:00Z",
-            "status": "completed",
-            "total_price": 80.0,
-            "items": [
-                { "product_id": 6, "quantity": 2, "price_each": 32.0 },
-                { "product_id": 8, "quantity": 1, "price_each": 16.0 }
-            ]
-        },
-        {
-            "id": 8,
-            "user_id": 2,
-            "date": "2025-08-09T10:45:00Z",
-            "status": "completed",
-            "total_price": 54.0,
-            "items": [
-                { "product_id": 7, "quantity": 2, "price_each": 24.0 },
-                { "product_id": 4, "quantity": 1, "price_each": 6.0 }
-            ]
-        },
-        {
-            "id": 9,
-            "user_id": 3,
-            "date": "2025-09-12T12:10:00Z",
-            "status": "pending",
-            "total_price": 75.0,
-            "items": [
-                { "product_id": 3, "quantity": 3, "price_each": 22.0 },
-                { "product_id": 5, "quantity": 1, "price_each": 9.0 }
-            ]
-        },
-        {
-            "id": 10,
-            "user_id": 1,
-            "date": "2025-10-03T09:25:00Z",
-            "status": "completed",
-            "total_price": 90.0,
-            "items": [
-                { "product_id": 2, "quantity": 2, "price_each": 30.0 },
-                { "product_id": 8, "quantity": 1, "price_each": 30.0 }
-            ]
-        },
-        {
-            "id": 11,
-            "user_id": 4,
-            "date": "2025-11-14T17:40:00Z",
-            "status": "completed",
-            "total_price": 65.0,
-            "items": [
-                { "product_id": 1, "quantity": 1, "price_each": 25.0 },
-                { "product_id": 6, "quantity": 2, "price_each": 20.0 }
-            ]
-        },
-        {
-            "id": 12,
-            "user_id": 2,
-            "date": "2025-12-21T13:55:00Z",
-            "status": "pending",
-            "total_price": 48.0,
-            "items": [{ "product_id": 4, "quantity": 2, "price_each": 24.0 }]
-        },
-        {
-            "id": 13,
-            "user_id": 3,
-            "date": "2025-01-28T08:30:00Z",
-            "status": "completed",
-            "total_price": 44.0,
-            "items": [
-                { "product_id": 5, "quantity": 1, "price_each": 28.0 },
-                { "product_id": 7, "quantity": 1, "price_each": 16.0 }
-            ]
-        },
-        {
-            "id": 14,
-            "user_id": 1,
-            "date": "2025-02-19T11:15:00Z",
-            "status": "cancelled",
-            "total_price": 36.0,
-            "items": [{ "product_id": 8, "quantity": 2, "price_each": 18.0 }]
-        },
-        {
-            "id": 15,
-            "user_id": 4,
-            "date": "2025-03-07T16:00:00Z",
-            "status": "completed",
-            "total_price": 58.0,
-            "items": [
-                { "product_id": 2, "quantity": 1, "price_each": 30.0 },
-                { "product_id": 3, "quantity": 2, "price_each": 14.0 }
-            ]
-        },
-        {
-            "id": 16,
-            "user_id": 2,
-            "date": "2025-04-23T10:50:00Z",
-            "status": "completed",
-            "total_price": 70.0,
-            "items": [
-                { "product_id": 6, "quantity": 2, "price_each": 32.0 },
-                { "product_id": 1, "quantity": 1, "price_each": 6.0 }
-            ]
-        },
-        {
-            "id": 17,
-            "user_id": 3,
-            "date": "2025-05-15T14:35:00Z",
-            "status": "pending",
-            "total_price": 62.0,
-            "items": [{ "product_id": 4, "quantity": 2, "price_each": 31.0 }]
-        },
-        {
-            "id": 18,
-            "user_id": 1,
-            "date": "2025-06-29T09:10:00Z",
-            "status": "completed",
-            "total_price": 80.0,
-            "items": [
-                { "product_id": 7, "quantity": 2, "price_each": 24.0 },
-                { "product_id": 5, "quantity": 1, "price_each": 32.0 }
-            ]
-        },
-        {
-            "id": 19,
-            "user_id": 2,
-            "date": "2025-07-11T12:20:00Z",
-            "status": "completed",
-            "total_price": 55.0,
-            "items": [
-                { "product_id": 8, "quantity": 1, "price_each": 27.0 },
-                { "product_id": 2, "quantity": 1, "price_each": 28.0 }
-            ]
-        },
-        {
-            "id": 20,
-            "user_id": 4,
-            "date": "2025-08-17T15:45:00Z",
-            "status": "pending",
-            "total_price": 92.0,
-            "items": [
-                { "product_id": 3, "quantity": 2, "price_each": 22.0 },
-                { "product_id": 6, "quantity": 2, "price_each": 24.0 }
-            ]
-        }
-    ]
+    "orders": []
 }

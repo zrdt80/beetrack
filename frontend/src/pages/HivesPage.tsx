@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getHives, deleteHive } from "@/api/hives";
+import { getHives, deleteHive, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { formatDateTime } from "@/lib/datetime";
 import HiveFormModal from "../components/HiveFormModel";
@@ -12,6 +12,9 @@ import useDocumentTitle from "@/hooks/useDocumentTitle";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
+    const [page, setPage] = useState(1);
+    const [size] = useState(20);
+    const [pages, setPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
@@ -25,15 +28,21 @@ export default function HivesPage() {
         }
     }, [user, navigate]);
 
-    const refreshHives = () => {
-        getHives().then(setHives);
+    const refreshHives = (p: number = page) => {
+        getHives(p, size).then((res: HivePage) => {
+            setHives(res.items);
+            setPage(res.meta.page);
+            setPages(res.meta.pages || 1);
+        });
     };
 
     useEffect(() => {
         const fetch = async () => {
             try {
-                const data = await getHives();
-                setHives(data);
+                const res = await getHives();
+                setHives(res.items);
+                setPage(res.meta.page);
+                setPages(res.meta.pages || 1);
             } catch (err) {
                 setError("Failed to load hives.");
             } finally {
@@ -118,7 +127,7 @@ export default function HivesPage() {
                 {user?.role === "admin" && (
                     <HiveFormModal
                         onSuccess={() => {
-                            getHives().then(setHives);
+                            refreshHives(1);
                         }}
                     />
                 )}
@@ -130,6 +139,27 @@ export default function HivesPage() {
                 emptyMessage="No hives found."
                 className="mb-4"
             />
+            <div className="flex items-center gap-4 mt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => page > 1 && refreshHives(page - 1)}
+                >
+                    Prev
+                </Button>
+                <span className="text-sm">
+                    Page {page} / {pages}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= pages}
+                    onClick={() => page < pages && refreshHives(page + 1)}
+                >
+                    Next
+                </Button>
+            </div>
         </div>
     );
 }
