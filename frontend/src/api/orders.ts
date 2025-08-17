@@ -44,19 +44,57 @@ export interface OrderPage {
 
 export const getOrders = async (
     page: number = 1,
-    size: number = 20
+    size: number = 20,
+    sort_key: "id" | "date" | "status" = "date",
+    sort_order: "asc" | "desc" = "desc",
+    status_filter?: string | null,
+    statuses?: string[] | null,
+    product_search?: string | null
 ): Promise<OrderPage> => {
-    const res = await api.get<OrderPage>(`/orders/?page=${page}&size=${size}`);
+    const params = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+        sort_key,
+        sort_order,
+    });
+    if (status_filter && status_filter !== "all") {
+        params.append("status_filter", status_filter);
+    }
+    if (statuses && statuses.length) {
+        params.append("statuses", statuses.join(","));
+    }
+    if (product_search) {
+        params.append("product_search", product_search);
+    }
+    const res = await api.get<OrderPage>(`/orders/?${params.toString()}`);
     return res.data;
 };
 
 export const getAllOrders = async (
     page: number = 1,
-    size: number = 20
+    size: number = 20,
+    sort_key: "id" | "date" | "status" = "date",
+    sort_order: "asc" | "desc" = "desc",
+    status_filter?: string | null,
+    statuses?: string[] | null,
+    product_search?: string | null
 ): Promise<OrderPage> => {
-    const res = await api.get<OrderPage>(
-        `/orders/all?page=${page}&size=${size}`
-    );
+    const params = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+        sort_key,
+        sort_order,
+    });
+    if (status_filter && status_filter !== "all") {
+        params.append("status_filter", status_filter);
+    }
+    if (statuses && statuses.length) {
+        params.append("statuses", statuses.join(","));
+    }
+    if (product_search) {
+        params.append("product_search", product_search);
+    }
+    const res = await api.get<OrderPage>(`/orders/all?${params.toString()}`);
     return res.data;
 };
 

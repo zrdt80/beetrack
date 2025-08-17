@@ -58,14 +58,46 @@ def create_order(
 def get_user_orders(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    sort_key: str = Query("date", pattern="^(id|date|status)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    status_filter: str | None = Query(None, description="(Deprecated) single status filter"),
+    statuses: str | None = Query(None, description="Comma separated list of statuses to include"),
+    product_search: str | None = Query(None, min_length=1, description="Search term for product names in order items"),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
-    query = db.query(models.Order).filter(models.Order.user_id == user.id).order_by(models.Order.id)
+    query = db.query(models.Order).filter(models.Order.user_id == user.id)
+
+    if status_filter and not statuses:
+        statuses = status_filter
+
+    if statuses:
+        status_list = [s.strip() for s in statuses.split(',') if s.strip()]
+        if status_list:
+            query = query.filter(models.Order.status.in_(status_list))
+
+    if product_search:
+        term = f"%{product_search.lower()}%"
+        query = query.join(models.Order.items).join(models.OrderItem.product).filter(models.Product.name.ilike(term)).distinct()
+
+    if sort_key == "id":
+        sort_column = models.Order.id
+    elif sort_key == "status":
+        sort_column = models.Order.status
+    else:
+        sort_column = models.Order.date
+
+    if sort_order == "desc":
+        sort_column = sort_column.desc()
+
+    query = query.order_by(sort_column)
+
     total = query.order_by(None).count()
     items = query.limit(size).offset((page - 1) * size).all()
     pages = (total + size - 1) // size if size else 0
-    log_event(f"User orders requested by {user.username} page={page} size={size} total={total}")
+    log_event(
+        f"User orders requested by {user.username} page={page} size={size} total={total} sort={sort_key}:{sort_order}"
+    )
     return {
         "meta": {
             "page": page,
@@ -83,14 +115,45 @@ def get_user_orders(
 def get_all_orders(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    sort_key: str = Query("date", pattern="^(id|date|status)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    status_filter: str | None = Query(None, description="(Deprecated) single status filter"),
+    statuses: str | None = Query(None, description="Comma separated list of statuses to include"),
+    product_search: str | None = Query(None, min_length=1, description="Search term for product names in order items"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    query = db.query(models.Order).order_by(models.Order.id)
+    query = db.query(models.Order)
+
+    if status_filter and not statuses:
+        statuses = status_filter
+
+    if statuses:
+        status_list = [s.strip() for s in statuses.split(',') if s.strip()]
+        if status_list:
+            query = query.filter(models.Order.status.in_(status_list))
+
+    if product_search:
+        term = f"%{product_search.lower()}%"
+        query = query.join(models.Order.items).join(models.OrderItem.product).filter(models.Product.name.ilike(term)).distinct()
+
+    if sort_key == "id":
+        sort_column = models.Order.id
+    elif sort_key == "status":
+        sort_column = models.Order.status
+    else:
+        sort_column = models.Order.date
+
+    if sort_order == "desc":
+        sort_column = sort_column.desc()
+
+    query = query.order_by(sort_column)
     total = query.order_by(None).count()
     items = query.limit(size).offset((page - 1) * size).all()
     pages = (total + size - 1) // size if size else 0
-    log_event(f"All orders requested by admin {current_user.username} page={page} size={size} total={total}")
+    log_event(
+        f"All orders requested by admin {current_user.username} page={page} size={size} total={total} sort={sort_key}:{sort_order}"
+    )
     return {
         "meta": {
             "page": page,
