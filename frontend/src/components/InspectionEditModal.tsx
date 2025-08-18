@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { updateInspection } from "@/api/inspections";
+import { utcIsoToLocalInput, localInputToUtcIso } from "@/lib/datetime";
 import type { Inspection, InspectionCreate } from "@/api/inspections";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,13 +29,24 @@ export default function InspectionEditModal({
     });
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setForm({
+            ...form,
+            [name]: name === "date" ? localInputToUtcIso(value) : value,
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setValidationError(null);
+        const selected = new Date(form.date);
+        if (selected.getTime() > Date.now()) {
+            setValidationError("Date cannot be in the future.");
+            return;
+        }
         try {
             await updateInspection(inspection.id, form);
             setOpen(false);
@@ -60,7 +72,8 @@ export default function InspectionEditModal({
                     <Input
                         name="date"
                         type="datetime-local"
-                        value={form.date.slice(0, 16)}
+                        value={utcIsoToLocalInput(form.date)}
+                        max={utcIsoToLocalInput(new Date().toISOString())}
                         onChange={handleChange}
                         required
                     />
@@ -94,6 +107,11 @@ export default function InspectionEditModal({
                         onChange={handleChange}
                         placeholder="Notes"
                     />
+                    {validationError && (
+                        <p className="text-red-500 text-sm">
+                            {validationError}
+                        </p>
+                    )}
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                     <Button type="submit">Save</Button>
                 </form>

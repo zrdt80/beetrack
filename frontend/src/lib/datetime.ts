@@ -159,3 +159,34 @@ export const debugDateTime = (utcString: string): void => {
     console.log("Local time:", date.toString());
     console.log("ISO string:", date.toISOString());
 };
+
+export const nowLocalDateTimeInput = (): string => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+export const localInputToUtcIso = (localValue: string): string => {
+    if (!localValue) return new Date().toISOString();
+    const [datePart, timePart] = localValue.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart.split(":").map(Number);
+    const localDate = new Date(year, month - 1, day, hour, minute, 0);
+    return localDate.toISOString();
+};
+
+export const utcIsoToLocalInput = (utcIso: string): string => {
+    if (!utcIso) return nowLocalDateTimeInput();
+    const date = new Date(utcIso);
+    if (isNaN(date.getTime())) return nowLocalDateTimeInput();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};

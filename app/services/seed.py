@@ -6,6 +6,7 @@ import random
 import os
 
 from app import models
+from sqlalchemy import func
 from app.utils.hashing import Hasher
 from app.utils.logger import log_event
 from app.database import Base, engine
@@ -215,11 +216,11 @@ def _seed_hives(db: Session, seed_data: dict):
             name=hive["name"],
             location=hive["location"],
             status=hive["status"],
-            last_inspection_date=datetime.fromisoformat(hive["last_inspection_date"]),
+            last_inspection_date=None,
         ))
     db.add_all(hives_payload)
     db.commit()
-    log_event(f"Seeded {len(hives_payload)} hives")
+    log_event(f"Seeded {len(hives_payload)} hives (last_inspection_date deferred)")
 
 
 def _seed_inspections(db: Session, seed_data: dict):
@@ -234,7 +235,22 @@ def _seed_inspections(db: Session, seed_data: dict):
             notes=inspection["notes"]
         ))
         inspections_count += 1
-    log_event(f"Seeded {inspections_count} inspections")
+    db.commit()
+    log_event(f"Seeded {inspections_count} inspections (committed)")
+
+
+def _recalculate_last_inspection_dates(db: Session):
+    results = (
+        db.query(models.Inspection.hive_id, func.max(models.Inspection.date))
+        .group_by(models.Inspection.hive_id)
+        .all()
+    )
+    max_map = {hid: dt for hid, dt in results}
+    hives = db.query(models.Hive).all()
+    for hive in hives:
+        hive.last_inspection_date = max_map.get(hive.id)
+    db.commit()
+    log_event("Recalculated last_inspection_date for all hives during seed")
 
 
 def _seed_orders(db: Session, seed_data: dict):
@@ -290,7 +306,31 @@ def run_seed(db: Session):
     _seed_products(db, seed_data)
     _seed_hives(db, seed_data)
     _seed_inspections(db, seed_data)
+    _recalculate_last_inspection_dates(db)
     _seed_orders(db, seed_data)
 
     print("✅ Data seeding completed.")
     log_event("Data seeding completed successfully")
+
+
+def backfill_last_inspection_dates(db: Session):
+    try:
+        results = (
+            db.query(models.Inspection.hive_id, func.max(models.Inspection.date))
+            .group_by(models.Inspection.hive_id)
+            .all()
+        )
+        max_map = {hid: dt for hid, dt in results}
+        updated = 0
+        for hive in db.query(models.Hive).all():
+            new_dt = max_map.get(hive.id)
+            if hive.last_inspection_date != new_dt:
+                hive.last_inspection_date = new_dt
+                updated += 1
+        db.commit()
+        log_event(f"Backfill last_inspection_date updated {updated} hives")
+        print(f"Backfill complete: updated {updated} hives")
+    except Exception as e:
+        db.rollback()
+        log_event(f"Backfill error: {e}")
+        print(f"Backfill error: {e}")

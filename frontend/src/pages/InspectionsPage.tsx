@@ -12,10 +12,16 @@ import { getHives, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
-import { formatDateTime } from "@/lib/datetime";
+import {
+    formatDateTime,
+    nowLocalDateTimeInput,
+    localInputToUtcIso,
+    utcIsoToLocalInput,
+} from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import InspectionEditModal from "@/components/InspectionEditModal";
+import TimezoneDisplay from "@/components/TimezoneDisplay";
 import DiseaseSelector from "@/components/DiseaseSelector";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
@@ -34,7 +40,7 @@ export default function InspectionsPage() {
     const [hive, setHive] = useState<Hive | null>(null);
     const [inspections, setInspections] = useState<Inspection[]>([]);
     const [form, setForm] = useState<InspectionCreate>({
-        date: new Date().toISOString(),
+        date: localInputToUtcIso(nowLocalDateTimeInput()),
         notes: "",
         temperature: 35,
         disease_detected: "",
@@ -45,6 +51,7 @@ export default function InspectionsPage() {
     const [hasNext, setHasNext] = useState(false);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -108,16 +115,28 @@ export default function InspectionsPage() {
         const { name, value } = e.target;
         setForm((prev) => ({
             ...prev,
-            [name]: name === "temperature" ? Number(value) : value,
+            [name]:
+                name === "temperature"
+                    ? Number(value)
+                    : name === "date"
+                    ? localInputToUtcIso(value)
+                    : value,
         }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await createInspection({ ...form, hive_id: hiveId });
-        load();
+        setFormError(null);
+        const selected = new Date(form.date);
+        if (selected.getTime() > Date.now()) {
+            setFormError("Inspection date cannot be in the future.");
+            return;
+        }
+        const created = await createInspection({ ...form, hive_id: hiveId });
+        setInspections((prev) => [created, ...prev]);
+        load(true);
         setForm({
-            date: new Date().toISOString(),
+            date: localInputToUtcIso(nowLocalDateTimeInput()),
             temperature: 0,
             disease_detected: "",
             notes: "",
@@ -127,8 +146,9 @@ export default function InspectionsPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Delete this inspection?")) {
+            setInspections((prev) => prev.filter((i) => i.id !== id));
             await deleteInspection(id);
-            load();
+            load(true);
         }
     };
 
@@ -192,9 +212,15 @@ export default function InspectionsPage() {
             </p>
 
             <div className="mb-8 rounded-xl border bg-card p-8 shadow-md">
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <span className="text-primary">New Inspection</span>
-                </h2>
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        <span className="text-primary">New Inspection</span>
+                    </h2>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="text-gray-500">Local timezone:</span>
+                        <TimezoneDisplay />
+                    </div>
+                </div>
                 <form
                     onSubmit={handleSubmit}
                     className="flex flex-col md:flex-row gap-4 items-end mb-2"
@@ -206,7 +232,8 @@ export default function InspectionsPage() {
                         <Input
                             name="date"
                             type="datetime-local"
-                            value={form.date.slice(0, 16)}
+                            value={utcIsoToLocalInput(form.date)}
+                            max={utcIsoToLocalInput(new Date().toISOString())}
                             onChange={handleChange}
                         />
                     </div>
@@ -255,6 +282,11 @@ export default function InspectionsPage() {
                     <Button type="submit" className="h-12 mt-6 md:mt-0">
                         Add Inspection
                     </Button>
+                    {formError && (
+                        <div className="text-red-500 text-sm mt-2 w-full md:w-auto">
+                            {formError}
+                        </div>
+                    )}
                 </form>
             </div>
 
