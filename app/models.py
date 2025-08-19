@@ -27,6 +27,12 @@ class User(Base):
 
     orders = relationship("Order", back_populates="user")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete")
+    role_change_requests = relationship(
+        "RoleChangeRequest",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="RoleChangeRequest.user_id",
+    )
 
 
 class UserSession(Base):
@@ -116,3 +122,28 @@ class Log(Base):
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     event = Column(String(255), nullable=False)
     level = Column(String(20), nullable=False, default="info", index=True)
+
+
+class RoleRequestStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    canceled = "canceled"
+
+
+class RoleChangeRequest(Base):
+    __tablename__ = "role_change_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    from_role = Column(Enum(UserRole), nullable=False)
+    to_role = Column(Enum(UserRole), nullable=False)
+    status = Column(Enum(RoleRequestStatus), default=RoleRequestStatus.pending, nullable=False, index=True)
+    reason = Column(String(500), nullable=True)
+    admin_comment = Column(String(500), nullable=True)
+    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    decided_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id], back_populates="role_change_requests")
+    admin = relationship("User", foreign_keys=[decided_by], viewonly=True)

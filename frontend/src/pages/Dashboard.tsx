@@ -19,9 +19,11 @@ import {
     LogOut,
     Settings,
     Shield,
+    Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
+import { useRoleRequestPolling } from "@/hooks/useRoleRequestPolling";
 
 const navLinks = [
     {
@@ -94,24 +96,39 @@ const navLinks = [
         admin: false,
         workerOnly: false,
     },
+    {
+        to: "/dashboard/role-requests",
+        label: "Role Requests",
+        icon: Bell,
+        admin: false,
+        workerOnly: false,
+    },
 ];
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const { summary } = useRoleRequestPolling({ active: !!user });
 
     const handleLogout = () => {
         logout();
         navigate("/login");
     };
 
-    const filteredLinks = navLinks.filter(
-        (link) =>
-            (!link.admin || user?.role === "admin") &&
-            (!link.workerOnly ||
-                user?.role === "admin" ||
-                user?.role === "worker")
-    );
+    const filteredLinks = navLinks
+        .filter(
+            (link) =>
+                (!link.admin || user?.role === "admin") &&
+                (!link.workerOnly ||
+                    user?.role === "admin" ||
+                    user?.role === "worker")
+        )
+        .map((l) =>
+            l.to === "/dashboard/role-requests" &&
+            (user?.role === "admin" || user?.role === "superadmin")
+                ? { ...l, label: "Role Moderation" }
+                : l
+        );
 
     return (
         <div className="flex min-h-screen bg-transparent">
@@ -150,13 +167,35 @@ export default function Dashboard() {
                                     )}
                                 />
                                 <span className="flex-1">{link.label}</span>
-                                {link.admin && (
-                                    <Badge
-                                        variant="secondary"
-                                        className="text-xs px-1.5 py-0.5"
-                                    >
-                                        Admin
-                                    </Badge>
+                                {link.to === "/dashboard/role-requests" ? (
+                                    summary?.pending ? (
+                                        <Badge
+                                            variant="outline"
+                                            className="text-xs px-1.5 py-0.5 bg-amber-100 border-amber-300 text-amber-700"
+                                        >
+                                            {summary.pending}
+                                        </Badge>
+                                    ) : (
+                                        user &&
+                                        (user.role === "admin" ||
+                                            user.role === "superadmin") && (
+                                            <Badge
+                                                variant="secondary"
+                                                className="text-xs px-1.5 py-0.5"
+                                            >
+                                                Admin
+                                            </Badge>
+                                        )
+                                    )
+                                ) : (
+                                    link.admin && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="text-xs px-1.5 py-0.5"
+                                        >
+                                            Admin
+                                        </Badge>
+                                    )
                                 )}
                             </NavLink>
                         ))}
@@ -175,8 +214,9 @@ export default function Dashboard() {
                         role="button"
                         onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
-                                user?.id &&
+                                if (user?.id) {
                                     navigate(`/dashboard/user/${user.id}`);
+                                }
                             }
                         }}
                     >
@@ -253,13 +293,35 @@ export default function Dashboard() {
                                         )}
                                     />
                                     <span className="flex-1">{link.label}</span>
-                                    {link.admin && (
-                                        <Badge
-                                            variant="secondary"
-                                            className="text-xs px-1.5 py-0.5"
-                                        >
-                                            Admin
-                                        </Badge>
+                                    {link.to === "/dashboard/role-requests" ? (
+                                        summary?.pending ? (
+                                            <Badge
+                                                variant="outline"
+                                                className="text-xs px-1.5 py-0.5 bg-amber-100 border-amber-300 text-amber-700"
+                                            >
+                                                {summary.pending}
+                                            </Badge>
+                                        ) : (
+                                            user &&
+                                            (user.role === "admin" ||
+                                                user.role === "superadmin") && (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="text-xs px-1.5 py-0.5"
+                                                >
+                                                    Admin
+                                                </Badge>
+                                            )
+                                        )
+                                    ) : (
+                                        link.admin && (
+                                            <Badge
+                                                variant="secondary"
+                                                className="text-xs px-1.5 py-0.5"
+                                            >
+                                                Admin
+                                            </Badge>
+                                        )
                                     )}
                                 </NavLink>
                             ))}

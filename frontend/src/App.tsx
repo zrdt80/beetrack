@@ -15,6 +15,8 @@ import LogsPage from "@/pages/LogsPage";
 import HelpPage from "@/pages/HelpPage";
 import UserPage from "@/pages/UserPage";
 import SessionsPage from "@/pages/SessionsPage";
+import RoleRequestsPage from "@/pages/RoleRequestsPage";
+import RoleRequestsAdminPage from "@/pages/RoleRequestsAdminPage";
 
 function App() {
     const { user, isLoading } = useAuth();
@@ -51,6 +53,22 @@ function App() {
                     <Route path="users" element={<UsersPage />} />
                     <Route path="logs" element={<LogsPage />} />
                     <Route path="sessions" element={<SessionsPage />} />
+                    <Route
+                        path="role-requests"
+                        element={
+                            user.role === "admin" ? (
+                                <RoleRequestsAdminPage />
+                            ) : (
+                                <RoleRequestsPage />
+                            )
+                        }
+                    />
+                    <Route
+                        path="role-requests/admin"
+                        element={
+                            <Navigate to="/dashboard/role-requests" replace />
+                        }
+                    />
                     <Route path="help" element={<HelpPage />} />
                     <Route
                         path="user/:id"

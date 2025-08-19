@@ -5,9 +5,9 @@ from app.database import SessionLocal
 
 
 LEVEL_RULES = [
-    ("error", ["failed", "error"]),
-    ("success", ["successful", "created", "updated"]),
-    ("warning", ["warning", "skipped"]),
+    ("error", ["failed", "error", "rejected"]),
+    ("success", ["successful", "created", "updated", "approved"]),
+    ("warning", ["warning", "skipped", "canceled"]),
 ]
 
 

@@ -299,3 +299,76 @@ class LogStats(BaseModel):
     error: int
     warning: int
     info: int
+
+
+# ------------------------------
+# --- ROLE CHANGE REQUESTS -----
+# ------------------------------
+
+class RoleRequestStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    canceled = "canceled"
+
+
+class RoleRequestBase(BaseModel):
+    to_role: UserRole
+    reason: str | None = None
+
+
+class RoleRequestCreate(RoleRequestBase):
+    pass
+
+
+class RoleRequestRead(BaseModel):
+    id: int
+    user_id: int
+    from_role: UserRole
+    to_role: UserRole
+    status: RoleRequestStatus
+    reason: str | None = None
+    admin_comment: str | None = None
+    decided_by: int | None = None
+    created_at: datetime
+    decided_at: datetime | None = None
+
+    class Config:
+        orm_mode = True
+
+
+class RoleRequestDecision(BaseModel):
+    approve: bool
+    admin_comment: str | None = None
+
+
+class RoleRequestCancel(BaseModel):
+    reason: str | None = None
+
+
+class RoleRequestPage(Page):
+    items: list[RoleRequestRead]
+
+
+class RoleRequestSummary(BaseModel):
+    total: int
+    pending: int
+    last_status: str | None = None
+    last_created_at: datetime | None = None
+    last_decided_at: datetime | None = None
+
+
+class RoleRequestDailyEntry(BaseModel):
+    date: str
+    pending: int = 0
+    approved: int = 0
+    rejected: int = 0
+    canceled: int = 0
+
+
+class RoleRequestDailySeries(BaseModel):
+    items: list[RoleRequestDailyEntry]
+
+
+class RoleRequestRejectionTemplates(BaseModel):
+    templates: list[str]
