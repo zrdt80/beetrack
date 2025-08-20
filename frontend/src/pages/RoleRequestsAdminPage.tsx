@@ -18,6 +18,7 @@ import { RoleRequestDecisionSheet } from "@/components/roleRequests/DecisionShee
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 function extractError(e: unknown): string {
     if (typeof e === "string") return e;
@@ -33,6 +34,7 @@ function extractError(e: unknown): string {
 export default function RoleRequestsAdminPage() {
     const [page, setPage] = useState(1);
     const [size] = useState(25);
+    const [pages, setPages] = useState<number>(1);
     const [multiStatuses, setMultiStatuses] = useState<string[]>([]);
     const [username, setUsername] = useState("");
     const [order, setOrder] = useState("created_desc");
@@ -77,13 +79,16 @@ export default function RoleRequestsAdminPage() {
     const load = useCallback(async () => {
         try {
             setLoading(true);
-            const [{ items }, , s, d] = await Promise.all([
+            const [{ items, meta }, , s, d] = await Promise.all([
                 listRoleRequests(page, size, filters),
                 getRejectionTemplates(),
                 getAdminSummary(),
                 getDailyStats(14),
             ]);
             setData(items);
+            if (meta && typeof meta.pages === "number") {
+                setPages(meta.pages);
+            }
             setSummary(
                 s as {
                     pending: number;
@@ -161,11 +166,25 @@ export default function RoleRequestsAdminPage() {
         {
             key: "id",
             header: "ID",
-            render: (r) => <span className="font-mono text-xs">#{r.id}</span>,
+            render: (r) => <span className="text-xs">{r.id}</span>,
             sortable: true,
             headerClassName: "w-16",
         },
-        { key: "user_id", header: "User", sortable: true },
+        {
+            key: "user_id",
+            header: "User",
+            render: (r) => (
+                <span className="text-xs">
+                    <Link
+                        to={`/dashboard/user/${r.user_id}`}
+                        className="underline font-semibold"
+                    >
+                        {r.user_id || "N/A"}
+                    </Link>
+                </span>
+            ),
+            sortable: true,
+        },
         { key: "from_role", header: "From", className: "text-xs" },
         { key: "to_role", header: "To", className: "text-xs" },
         {
@@ -201,6 +220,7 @@ export default function RoleRequestsAdminPage() {
             header: "Created",
             render: (r) => new Date(r.created_at).toLocaleString(),
             className: "text-xs whitespace-nowrap",
+            sortable: true,
         },
         {
             key: "decided_at",
@@ -208,6 +228,7 @@ export default function RoleRequestsAdminPage() {
             render: (r) =>
                 r.decided_at ? new Date(r.decided_at).toLocaleString() : "—",
             className: "text-xs whitespace-nowrap",
+            sortable: true,
         },
         {
             key: "actions",
@@ -225,6 +246,28 @@ export default function RoleRequestsAdminPage() {
                 ) : null,
         },
     ];
+
+    const sortKey = useMemo(() => {
+        if (order.startsWith("created")) return "created_at";
+        if (order.startsWith("decided")) return "decided_at";
+        return undefined;
+    }, [order]);
+    const sortOrder = useMemo(() => {
+        return order.endsWith("_asc") ? "asc" : "desc";
+    }, [order]);
+
+    const onSort = (key: string) => {
+        setPage(1);
+        if (key === "created_at") {
+            setOrder((prev) =>
+                prev === "created_desc" ? "created_asc" : "created_desc"
+            );
+        } else if (key === "decided_at") {
+            setOrder((prev) =>
+                prev === "decided_desc" ? "decided_asc" : "decided_desc"
+            );
+        }
+    };
 
     return (
         <div className="p-4 space-y-6">
@@ -250,8 +293,13 @@ export default function RoleRequestsAdminPage() {
                     order,
                 }}
                 onChange={(u) => {
-                    if ("statuses" in u && u.statuses !== undefined)
-                        setMultiStatuses(u.statuses);
+                    if ("statuses" in u) {
+                        if (u.statuses && u.statuses.length) {
+                            setMultiStatuses(u.statuses);
+                        } else {
+                            setMultiStatuses([]);
+                        }
+                    }
                     if ("username" in u) setUsername(u.username || "");
                     if ("from_date" in u) setFromDate(u.from_date || "");
                     if ("to_date" in u) setToDate(u.to_date || "");
@@ -273,27 +321,34 @@ export default function RoleRequestsAdminPage() {
                         }
                         className="mb-0"
                         alternatingRows
+                        sortKey={sortKey}
+                        sortOrder={sortOrder as "asc" | "desc" | undefined}
+                        onSort={onSort}
                     />
                 </CardContent>
             </Card>
 
-            <div className="flex items-center justify-between">
-                <div className="flex gap-2 items-center text-xs">
-                    <button
+            <div className="flex items-center justify-between mt-4">
+                <div className="flex gap-3 items-center text-xs">
+                    <Button
+                        variant="outline"
+                        size="sm"
                         disabled={page <= 1}
-                        onClick={() => setPage((p) => p - 1)}
-                        className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
                         Prev
-                    </button>
-                    <span className="text-gray-600">Page {page}</span>
-                    <button
-                        disabled={data.length < size}
-                        onClick={() => setPage((p) => p + 1)}
-                        className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40"
+                    </Button>
+                    <span className="text-sm">
+                        Page {page} / {pages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page >= pages}
+                        onClick={() => setPage((p) => (p < pages ? p + 1 : p))}
                     >
                         Next
-                    </button>
+                    </Button>
                 </div>
                 <Button
                     onClick={() => load()}

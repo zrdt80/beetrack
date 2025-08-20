@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Filter } from "lucide-react";
@@ -32,9 +32,6 @@ export function AdminFiltersBar({
     className,
 }: RoleRequestFiltersUIProps<AdminFilters>) {
     const [open, setOpen] = useState(false);
-    useEffect(() => {
-        if (activeCount === 0) setOpen(false);
-    }, [activeCount]);
     const setDecided = (v: DecidedOption) => onChange({ decided: v });
     const setOrder = (v: string) => onChange({ order: v });
     return (

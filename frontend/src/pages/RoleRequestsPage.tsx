@@ -94,11 +94,15 @@ export default function RoleRequestsPage() {
 
     const latest = items[0];
 
+    const [order, setOrder] = useState<
+        "created_desc" | "created_asc" | "decided_desc" | "decided_asc"
+    >("created_desc");
+
     const userColumns: DataTableColumn<RoleRequest>[] = [
         {
             key: "id",
             header: "ID",
-            render: (r) => <span className="font-mono text-xs">#{r.id}</span>,
+            render: (r) => <span className="text-xs">{r.id}</span>,
             sortable: true,
             headerClassName: "w-16",
         },
@@ -114,6 +118,7 @@ export default function RoleRequestsPage() {
             header: "Created",
             render: (r) => new Date(r.created_at).toLocaleString(),
             className: "text-xs whitespace-nowrap",
+            sortable: true,
         },
         {
             key: "decided_at",
@@ -121,8 +126,27 @@ export default function RoleRequestsPage() {
             render: (r) =>
                 r.decided_at ? new Date(r.decided_at).toLocaleString() : "—",
             className: "text-xs whitespace-nowrap",
+            sortable: true,
         },
     ];
+
+    const sortKey = order.startsWith("created")
+        ? "created_at"
+        : order.startsWith("decided")
+        ? "decided_at"
+        : undefined;
+    const sortOrder = order.endsWith("_asc") ? "asc" : "desc";
+    const onSort = (key: string) => {
+        if (key === "created_at") {
+            setOrder((prev) =>
+                prev === "created_desc" ? "created_asc" : "created_desc"
+            );
+        } else if (key === "decided_at") {
+            setOrder((prev) =>
+                prev === "decided_desc" ? "decided_asc" : "decided_desc"
+            );
+        }
+    };
 
     return (
         <div className="p-4 space-y-6">
@@ -217,12 +241,29 @@ export default function RoleRequestsPage() {
             <Card className="shadow-sm">
                 <CardContent className="p-4">
                     <DataTable
-                        data={items}
+                        data={[...items].sort((a, b) => {
+                            if (!sortKey) return 0;
+                            const av = (
+                                a as unknown as Record<string, unknown>
+                            )[sortKey];
+                            const bv = (
+                                b as unknown as Record<string, unknown>
+                            )[sortKey];
+                            if (!av && !bv) return 0;
+                            if (!av) return 1;
+                            if (!bv) return -1;
+                            const ad = new Date(av as string).getTime();
+                            const bd = new Date(bv as string).getTime();
+                            return sortOrder === "asc" ? ad - bd : bd - ad;
+                        })}
                         columns={userColumns}
                         emptyMessage={
                             loading ? "Loading..." : "No requests found."
                         }
                         alternatingRows
+                        sortKey={sortKey}
+                        sortOrder={sortOrder as "asc" | "desc" | undefined}
+                        onSort={onSort}
                     />
                 </CardContent>
             </Card>

@@ -171,6 +171,7 @@ def _clear_existing_data(db: Session):
                 models.Hive.__table__,
                 models.Product.__table__,
                 models.Log.__table__,
+                models.RoleChangeRequest.__table__,
                 models.User.__table__,
             ]
             for table in ordered_tables:
@@ -272,6 +273,94 @@ def _seed_orders(db: Session, seed_data: dict):
     log_event(f"Seeded {orders_count} orders")
 
 
+def _seed_role_change_requests(db: Session):
+    users = db.query(models.User).order_by(models.User.id).all()
+    if not users:
+        return
+    rng = random.Random(RANDOM_SEED)
+    admin_user = next((u for u in users if u.role == models.UserRole.admin), None)
+
+    worker_candidates = [u for u in users if u.role == models.UserRole.worker]
+    user_candidates = [u for u in users if u.role == models.UserRole.user]
+    if len(worker_candidates) < 4 or len(user_candidates) < 4:
+        return
+    selected_workers = rng.sample(worker_candidates, 4)
+    selected_users = rng.sample(user_candidates, 4)
+
+    window_start = datetime(2025, 1, 7, 7, 0, 0)
+    window_end = datetime(2025, 8, 15, 7, 0, 0)
+
+    def random_start():
+        span_seconds = int((window_end - window_start).total_seconds())
+        offset = rng.randint(0, span_seconds)
+        return window_start + timedelta(seconds=offset)
+
+    def next_after(prev: datetime):
+        extra_hours = rng.randint(0, 18)
+        extra_minutes = rng.randint(0, 59)
+        return prev + timedelta(hours=24 + extra_hours, minutes=extra_minutes)
+
+    requests: list[models.RoleChangeRequest] = []
+
+    def add_request(u, created_at: datetime, status, from_role, to_role=models.UserRole.worker, reason_prefix="Pattern seed"):
+        r = models.RoleChangeRequest(
+            user_id=u.id,
+            from_role=from_role,
+            to_role=to_role,
+            status=status,
+            reason=f"{reason_prefix} for {u.username}",
+            created_at=created_at,
+        )
+        if status in (models.RoleRequestStatus.approved, models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled):
+            r.decided_at = created_at + timedelta(hours=rng.randint(2, 8))
+            if admin_user:
+                r.decided_by = admin_user.id
+            if status == models.RoleRequestStatus.approved:
+                r.admin_comment = "Approved (pattern)"
+            elif status == models.RoleRequestStatus.rejected:
+                r.admin_comment = "Rejected (pattern)"
+            else:
+                r.admin_comment = "Canceled (pattern)"
+        return r
+
+    for w in selected_workers:
+        current = random_start()
+        for i in range(3):
+            status = rng.choice([models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled])
+            req = add_request(w, current, status, from_role=models.UserRole.user)
+            requests.append(req)
+            current = next_after(current)
+
+    for u in selected_users:
+        current = random_start()
+        for i in range(3):
+            status = rng.choice([models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled])
+            req = add_request(u, current, status, from_role=models.UserRole.user)
+            requests.append(req)
+            current = next_after(current)
+
+    for w in selected_workers:
+        related = [r for r in requests if r.user_id == w.id]
+        last_time = max(r.created_at for r in related)
+        req = add_request(w, next_after(last_time), models.RoleRequestStatus.approved, from_role=models.UserRole.user)
+        requests.append(req)
+
+    pending_users = rng.sample(selected_users, 2)
+    for u in pending_users:
+        related = [r for r in requests if r.user_id == u.id]
+        last_time = max(r.created_at for r in related)
+        req = add_request(u, next_after(last_time), models.RoleRequestStatus.pending, from_role=models.UserRole.user)
+        req.decided_at = None
+        req.decided_by = None
+        req.admin_comment = None
+        requests.append(req)
+
+    requests.sort(key=lambda r: r.created_at)
+    db.add_all(requests)
+    db.commit()
+    log_event(f"Seeded {len(requests)} role change requests (patterned distribution)")
+
+
 def run_seed(db: Session):
     inspector = inspect(db.bind)
     if "users" not in inspector.get_table_names():
@@ -308,6 +397,7 @@ def run_seed(db: Session):
     _seed_inspections(db, seed_data)
     _recalculate_last_inspection_dates(db)
     _seed_orders(db, seed_data)
+    _seed_role_change_requests(db)
 
     print("✅ Data seeding completed.")
     log_event("Data seeding completed successfully")
