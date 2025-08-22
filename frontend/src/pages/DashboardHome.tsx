@@ -173,12 +173,24 @@ export default function DashboardHome() {
                         ? getAllOrders()
                         : getOrders()
                     ).catch(() => [] as Order[]),
+                    (user?.role === "admin"
+                        ? getAllOrders(1, 1, "date", "desc", undefined, [
+                              "pending",
+                          ])
+                        : getOrders(1, 1, "date", "desc", undefined, [
+                              "pending",
+                          ])
+                    ).catch(
+                        () => ({ meta: { total: 0 } } as unknown as OrderPage)
+                    ),
                 ]);
-                const [hivesPage, productsPage, ordersPage] = results as [
-                    HivePage | Hive[],
-                    ProductPage | Product[],
-                    OrderPage | Order[]
-                ];
+                const [hivesPage, productsPage, ordersPage, pendingOrdersPage] =
+                    results as [
+                        HivePage | Hive[],
+                        ProductPage | Product[],
+                        OrderPage | Order[],
+                        OrderPage | { meta: { total: number } }
+                    ];
 
                 const hives: Hive[] = Array.isArray(hivesPage)
                     ? hivesPage
@@ -196,9 +208,18 @@ export default function DashboardHome() {
                 const lowStockProducts = products.filter(
                     (p) => p.stock_quantity < 10
                 ).length;
-                const pendingOrders = orders.filter(
-                    (o) => o.status === "pending"
-                ).length;
+                const totalHives = Array.isArray(hivesPage)
+                    ? hivesPage.length
+                    : hivesPage.meta.total;
+                const totalProducts = Array.isArray(productsPage)
+                    ? productsPage.length
+                    : productsPage.meta.total;
+                const totalOrders = Array.isArray(ordersPage)
+                    ? ordersPage.length
+                    : ordersPage.meta.total;
+                const pendingOrders = (pendingOrdersPage as OrderPage).meta
+                    ? (pendingOrdersPage as OrderPage).meta.total
+                    : 0;
 
                 const recentActivity =
                     user?.role === "admin"
@@ -255,11 +276,11 @@ export default function DashboardHome() {
                               })),
                           ].slice(0, 6);
                 setStats({
-                    totalHives: hives.length,
+                    totalHives,
                     activeHives,
-                    totalProducts: products.length,
+                    totalProducts,
                     lowStockProducts,
-                    totalOrders: orders.length,
+                    totalOrders,
                     pendingOrders,
                     recentActivity,
                 });
@@ -361,7 +382,7 @@ export default function DashboardHome() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">
-                                        Products
+                                        Total Products
                                     </p>
                                     <p className="text-2xl font-bold">
                                         {stats.totalProducts}
@@ -438,7 +459,7 @@ export default function DashboardHome() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">
-                                        Orders
+                                        Total Orders
                                     </p>
                                     <p className="text-2xl font-bold">
                                         {stats.totalOrders}
