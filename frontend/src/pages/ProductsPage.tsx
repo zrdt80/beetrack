@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
 import type { Product, ProductPage } from "@/api/products";
@@ -15,6 +15,7 @@ import {
 import ProductEditModal from "@/components/ProductEditModal";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import PaginationControls from "@/components/PaginationControls";
 
 export default function ProductsPage() {
     const { user } = useAuth();
@@ -33,21 +34,24 @@ export default function ProductsPage() {
     });
     const [open, setOpen] = useState(false);
 
-    const load = async (p: number = page) => {
-        setLoading(true);
-        try {
-            const res: ProductPage = await getProducts(p, size);
-            setProducts(res.items);
-            setPage(res.meta.page);
-            setTotalPages(res.meta.pages || 1);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const load = useCallback(
+        async (p: number) => {
+            setLoading(true);
+            try {
+                const res: ProductPage = await getProducts(p, size);
+                setProducts(res.items);
+                setPage(res.meta.page);
+                setTotalPages(res.meta.pages || 1);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [size]
+    );
 
     useEffect(() => {
         load(1);
-    }, []);
+    }, [load]);
 
     const handleSubmit = async () => {
         await createProduct({
@@ -63,13 +67,13 @@ export default function ProductsPage() {
             stock_quantity: "",
         });
         setOpen(false);
-        load();
+        load(page);
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Delete this product?")) {
             await deleteProduct(id);
-            load();
+            load(page);
         }
     };
 
@@ -105,7 +109,7 @@ export default function ProductsPage() {
                           <div className="flex gap-2">
                               <ProductEditModal
                                   product={product}
-                                  onSuccess={load}
+                                  onSuccess={() => load(page)}
                               />
                               <Button
                                   variant="destructive"
@@ -205,27 +209,14 @@ export default function ProductsPage() {
                 emptyMessage={loading ? "Loading..." : "No products found."}
                 className="mb-4"
             />
-            <div className="flex items-center gap-4 mt-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1 || loading}
-                    onClick={() => page > 1 && load(page - 1)}
-                >
-                    Prev
-                </Button>
-                <span className="text-sm">
-                    Page {page} / {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages || loading}
-                    onClick={() => page < totalPages && load(page + 1)}
-                >
-                    Next
-                </Button>
-            </div>
+            <PaginationControls
+                className="mt-2"
+                page={page}
+                pages={totalPages}
+                onChange={(p) => {
+                    if (p !== page) load(p);
+                }}
+            />
         </div>
     );
 }

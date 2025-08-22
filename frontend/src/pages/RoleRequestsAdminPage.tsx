@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import PaginationControls from "@/components/PaginationControls";
 
 function extractError(e: unknown): string {
     if (typeof e === "string") return e;
@@ -329,27 +330,12 @@ export default function RoleRequestsAdminPage() {
             </Card>
 
             <div className="flex items-center justify-between mt-4">
-                <div className="flex gap-3 items-center text-xs">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page <= 1}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    >
-                        Prev
-                    </Button>
-                    <span className="text-sm">
-                        Page {page} / {pages}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page >= pages}
-                        onClick={() => setPage((p) => (p < pages ? p + 1 : p))}
-                    >
-                        Next
-                    </Button>
-                </div>
+                <PaginationControls
+                    className="w-auto"
+                    page={page}
+                    pages={pages}
+                    onChange={(p) => setPage(p)}
+                />
                 <Button
                     onClick={() => load()}
                     variant="outline"

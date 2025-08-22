@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     createRoleRequest,
     listMyRoleRequestsPage,
@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/button";
+import PaginationControls from "@/components/PaginationControls";
 
 export default function RoleRequestsPage() {
     const { user } = useAuth();
@@ -62,7 +63,7 @@ export default function RoleRequestsPage() {
         return () => timer && clearTimeout(timer);
     }, []);
 
-    const load = async () => {
+    const load = useCallback(async () => {
         try {
             setLoading(true);
             const apiOrder =
@@ -90,11 +91,11 @@ export default function RoleRequestsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [order, page, size]);
 
     useEffect(() => {
         load();
-    }, [page, order]);
+    }, [load]);
 
     const onCreate = async () => {
         try {
@@ -273,27 +274,12 @@ export default function RoleRequestsPage() {
                 </CardContent>
             </Card>
 
-            <div className="flex items-center gap-4 mt-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                    Prev
-                </Button>
-                <span className="text-sm">
-                    Page {page} / {pages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= pages}
-                    onClick={() => setPage((p) => (p < pages ? p + 1 : p))}
-                >
-                    Next
-                </Button>
-            </div>
+            <PaginationControls
+                className="mt-2"
+                page={page}
+                pages={pages}
+                onChange={setPage}
+            />
         </div>
     );
 }

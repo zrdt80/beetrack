@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import PaginationControls from "@/components/PaginationControls";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
@@ -43,7 +44,7 @@ export default function HivesPage() {
                 setHives(res.items);
                 setPage(res.meta.page);
                 setPages(res.meta.pages || 1);
-            } catch (err) {
+            } catch {
                 setError("Failed to load hives.");
             } finally {
                 setLoading(false);
@@ -139,27 +140,14 @@ export default function HivesPage() {
                 emptyMessage="No hives found."
                 className="mb-4"
             />
-            <div className="flex items-center gap-4 mt-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => page > 1 && refreshHives(page - 1)}
-                >
-                    Prev
-                </Button>
-                <span className="text-sm">
-                    Page {page} / {pages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= pages}
-                    onClick={() => page < pages && refreshHives(page + 1)}
-                >
-                    Next
-                </Button>
-            </div>
+            <PaginationControls
+                className="mt-2"
+                page={page}
+                pages={pages}
+                onChange={(p) => {
+                    if (p !== page) refreshHives(p);
+                }}
+            />
         </div>
     );
 }

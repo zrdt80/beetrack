@@ -1,4 +1,5 @@
-import { useEffect, useState, Suspense, lazy, useMemo } from "react";
+import { useEffect, useState, Suspense, lazy, useMemo, useRef } from "react";
+import { useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import PaginationControls from "@/components/PaginationControls";
 
 type SortKey = "date" | "status" | "id";
 type SortOrder = "asc" | "desc";
@@ -54,85 +56,137 @@ export default function OrdersPage() {
     const [debouncedSearch, setDebouncedSearch] = useState<string>("");
     const [orderError, setOrderError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     useDocumentTitle("Orders");
 
-    const load = async (
-        oPage: number = orderPage,
-        sKey: SortKey = sortKey,
-        sOrder: SortOrder = sortOrder,
-        status: string = statusFilter,
-        statuses: string[] = selectedStatuses,
-        search: string = debouncedSearch
-    ) => {
-        setLoading(true);
-        try {
-            const [oRes, pRes] = await Promise.all([
-                (user?.role === "admin"
-                    ? getAllOrders(
-                          oPage,
-                          20,
-                          sKey,
-                          sOrder,
-                          status,
-                          statuses,
-                          search
-                      )
-                    : getOrders(
-                          oPage,
-                          20,
-                          sKey,
-                          sOrder,
-                          status,
-                          statuses,
-                          search
-                      )) as Promise<OrderPage>,
-                getProducts(1, 100) as Promise<ProductPage>,
-            ]);
-            setOrders(oRes.items);
-            setOrderPage(oRes.meta.page);
-            setOrderPages(oRes.meta.pages || 1);
-            setProducts(pRes.items);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const load = useCallback(
+        async (
+            oPage: number,
+            sKey: SortKey,
+            sOrder: SortOrder,
+            status: string,
+            statuses: string[],
+            search: string
+        ) => {
+            setLoading(true);
+            try {
+                const [oRes, pRes] = await Promise.all([
+                    (user?.role === "admin"
+                        ? getAllOrders(
+                              oPage,
+                              20,
+                              sKey,
+                              sOrder,
+                              status,
+                              statuses,
+                              search
+                          )
+                        : getOrders(
+                              oPage,
+                              20,
+                              sKey,
+                              sOrder,
+                              status,
+                              statuses,
+                              search
+                          )) as Promise<OrderPage>,
+                    getProducts(1, 100) as Promise<ProductPage>,
+                ]);
+                setOrders(oRes.items);
+                const totalPages = oRes.meta.pages || 1;
+                setOrderPages(totalPages);
+                if (oPage > totalPages && totalPages > 0) {
+                    setOrderPage(totalPages);
+                } else if (oPage < 1) {
+                    setOrderPage(1);
+                }
+                setProducts(pRes.items);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [user?.role]
+    );
 
     const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
 
     useEffect(() => {
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
         const params = new URLSearchParams(location.search);
         const qPage = parseInt(params.get("page") || "1", 10);
-        const qSortKey = (params.get("sort_key") as SortKey) || "date";
-        const qSortOrder = (params.get("sort_order") as SortOrder) || "desc";
-        const qStatus = params.get("status") || "all";
-        setOrderPage(qPage);
-        setSortKey(
-            ["date", "id", "status"].includes(qSortKey) ? qSortKey : "date"
-        );
-        setSortOrder(qSortOrder === "asc" ? "asc" : "desc");
-        setStatusFilter(qStatus);
-        load(qPage, qSortKey, qSortOrder, qStatus);
-    }, []);
+        const qSortKeyRaw = (params.get("sort_key") || "date").toString();
+        const qSortKey = (
+            ["date", "id", "status"].includes(qSortKeyRaw)
+                ? qSortKeyRaw
+                : "date"
+        ) as SortKey;
+        const qSortOrderRaw = (params.get("sort_order") || "desc")
+            .toString()
+            .toLowerCase();
+        const qSortOrder = (
+            qSortOrderRaw === "asc" ? "asc" : "desc"
+        ) as SortOrder;
+        const qStatus = (params.get("status") || "all").toString();
+
+        if (orderPage !== qPage) setOrderPage(qPage);
+        if (sortKey !== qSortKey) setSortKey(qSortKey);
+        if (sortOrder !== qSortOrder) setSortOrder(qSortOrder);
+        if (statusFilter !== qStatus) setStatusFilter(qStatus);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+    }, [location.search]);
 
     useEffect(() => {
+        load(
+            orderPage,
+            sortKey,
+            sortOrder,
+            statusFilter,
+            selectedStatuses,
+            debouncedSearch
+        );
+    }, [
+        orderPage,
+        sortKey,
+        sortOrder,
+        statusFilter,
+        selectedStatuses,
+        debouncedSearch,
+        load,
+    ]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
         const params = new URLSearchParams();
         params.set("page", String(orderPage));
         params.set("sort_key", sortKey);
         params.set("sort_order", sortOrder);
         params.set("status", statusFilter);
         const newSearch = `?${params.toString()}`;
-        if (newSearch !== location.search) {
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
             navigate({ search: newSearch }, { replace: true });
         }
-    }, [
-        orderPage,
-        sortKey,
-        sortOrder,
-        statusFilter,
-        navigate,
-        location.search,
-    ]);
+    }, [orderPage, sortKey, sortOrder, statusFilter, navigate]);
 
     const handleAddProduct = (id: number) => {
         const found = selected.find((item) => item.product_id === id);
@@ -163,9 +217,18 @@ export default function OrdersPage() {
         try {
             await createOrder({ items: selected });
             setSelected([]);
-            load();
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail;
+            load(
+                orderPage,
+                sortKey,
+                sortOrder,
+                statusFilter,
+                selectedStatuses,
+                debouncedSearch
+            );
+        } catch (err: unknown) {
+            const detail = (
+                err as { response?: { data?: { detail?: string } } }
+            )?.response?.data?.detail;
             if (typeof detail === "string") {
                 setOrderError(detail);
             } else {
@@ -179,7 +242,14 @@ export default function OrdersPage() {
     const handleDelete = async (id: number) => {
         if (confirm("Delete this order?")) {
             await deleteOrder(id);
-            load();
+            load(
+                orderPage,
+                sortKey,
+                sortOrder,
+                statusFilter,
+                selectedStatuses,
+                debouncedSearch
+            );
         }
     };
 
@@ -198,16 +268,14 @@ export default function OrdersPage() {
         return () => clearTimeout(handle);
     }, [productSearch]);
 
+    const lastSearchRef = useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (debouncedSearch !== undefined) {
-            load(
-                1,
-                sortKey,
-                sortOrder,
-                statusFilter,
-                selectedStatuses,
-                debouncedSearch
-            );
+        if (lastSearchRef.current === undefined) {
+            lastSearchRef.current = debouncedSearch;
+            return;
+        }
+        if (debouncedSearch !== lastSearchRef.current) {
+            lastSearchRef.current = debouncedSearch;
             setOrderPage(1);
         }
     }, [debouncedSearch]);
@@ -219,21 +287,12 @@ export default function OrdersPage() {
         }
         setSortKey(key);
         setSortOrder(nextOrder);
-        load(
-            1,
-            key,
-            nextOrder,
-            statusFilter,
-            selectedStatuses,
-            debouncedSearch
-        );
         setOrderPage(1);
     };
 
     const handleStatusChange = (val: string) => {
         setStatusFilter(val);
         setOrderPage(1);
-        load(1, sortKey, sortOrder, val, selectedStatuses, debouncedSearch);
     };
 
     const toggleStatus = (status: string) => {
@@ -242,7 +301,6 @@ export default function OrdersPage() {
             const next = exists
                 ? prev.filter((s) => s !== status)
                 : [...prev, status];
-            load(1, sortKey, sortOrder, statusFilter, next, debouncedSearch);
             setOrderPage(1);
             return next;
         });
@@ -630,7 +688,9 @@ export default function OrdersPage() {
                                                         orderPage,
                                                         sortKey,
                                                         sortOrder,
-                                                        statusFilter
+                                                        statusFilter,
+                                                        selectedStatuses,
+                                                        debouncedSearch
                                                     )
                                                 }
                                             />
@@ -647,29 +707,14 @@ export default function OrdersPage() {
                         ))}
                 </TableBody>
             </Table>
-            <div className="flex items-center gap-4 mt-4">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={orderPage <= 1}
-                    onClick={() => orderPage > 1 && load(orderPage - 1)}
-                >
-                    Prev
-                </Button>
-                <span className="text-sm">
-                    Page {orderPage} / {orderPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={orderPage >= orderPages}
-                    onClick={() =>
-                        orderPage < orderPages && load(orderPage + 1)
-                    }
-                >
-                    Next
-                </Button>
-            </div>
+            <PaginationControls
+                className="mt-4"
+                page={orderPage}
+                pages={orderPages}
+                onChange={(p: number) => {
+                    if (p !== orderPage) setOrderPage(p);
+                }}
+            />
         </div>
     );
 }
