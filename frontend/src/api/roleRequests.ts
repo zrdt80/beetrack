@@ -52,6 +52,22 @@ export const listMyRoleRequests = async (): Promise<RoleRequest[]> => {
     return res.data;
 };
 
+export const listMyRoleRequestsPage = async (
+    page = 1,
+    size = 25,
+    order: string = "-created_at"
+): Promise<RoleRequestPage> => {
+    const params = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+        order,
+    });
+    const res = await api.get<RoleRequestPage>(
+        `/role-requests/me/page?${params.toString()}`
+    );
+    return res.data;
+};
+
 export interface RoleRequestFilters {
     status?: string;
     statuses?: string[];

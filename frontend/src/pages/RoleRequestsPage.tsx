@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
     createRoleRequest,
-    listMyRoleRequests,
+    listMyRoleRequestsPage,
     getMyRoleRequestSummary,
     getMyRoleRequestNotifications,
 } from "@/api/roleRequests";
@@ -20,16 +20,26 @@ import { Button } from "@/components/ui/button";
 
 export default function RoleRequestsPage() {
     const { user } = useAuth();
+
     const [items, setItems] = useState<RoleRequest[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [reason, setReason] = useState("");
     const [summary, setSummary] = useState<RoleRequestSummary | null>(null);
-    const [creating, setCreating] = useState(false);
     const [notifications, setNotifications] = useState<
         RoleRequestNotification[]
     >([]);
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [notifError, setNotifError] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+
+    const [reason, setReason] = useState("");
+
+    const [page, setPage] = useState(1);
+    const [size] = useState(20);
+    const [pages, setPages] = useState(1);
+    const [order, setOrder] = useState<
+        "created_desc" | "created_asc" | "decided_desc" | "decided_asc"
+    >("created_desc");
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -55,12 +65,22 @@ export default function RoleRequestsPage() {
     const load = async () => {
         try {
             setLoading(true);
-            const [reqs, sum] = await Promise.all([
-                listMyRoleRequests(),
+            const apiOrder =
+                order === "created_desc"
+                    ? "-created_at"
+                    : order === "created_asc"
+                    ? "created_at"
+                    : order === "decided_desc"
+                    ? "-decided_at"
+                    : "decided_at";
+            const [pageData, sum] = await Promise.all([
+                listMyRoleRequestsPage(page, size, apiOrder),
                 getMyRoleRequestSummary(),
             ]);
-            setItems(reqs);
+            setItems(pageData.items);
+            setPages(pageData.meta.pages || 1);
             setSummary(sum);
+            setError(null);
         } catch (e: unknown) {
             const msg =
                 (e as { response?: { data?: { detail?: string } } })?.response
@@ -71,15 +91,17 @@ export default function RoleRequestsPage() {
             setLoading(false);
         }
     };
+
     useEffect(() => {
         load();
-    }, []);
+    }, [page, order]);
 
     const onCreate = async () => {
         try {
             setCreating(true);
             await createRoleRequest({ to_role: "worker", reason });
             setReason("");
+            setPage(1);
             await load();
         } catch (e) {
             const msg =
@@ -93,10 +115,6 @@ export default function RoleRequestsPage() {
     };
 
     const latest = items[0];
-
-    const [order, setOrder] = useState<
-        "created_desc" | "created_asc" | "decided_desc" | "decided_asc"
-    >("created_desc");
 
     const userColumns: DataTableColumn<RoleRequest>[] = [
         {
@@ -171,6 +189,7 @@ export default function RoleRequestsPage() {
                     Notification issue: {notifError}
                 </div>
             )}
+
             <RoleRequestSummaryCards
                 summary={
                     summary
@@ -241,21 +260,7 @@ export default function RoleRequestsPage() {
             <Card className="shadow-sm">
                 <CardContent className="p-4">
                     <DataTable
-                        data={[...items].sort((a, b) => {
-                            if (!sortKey) return 0;
-                            const av = (
-                                a as unknown as Record<string, unknown>
-                            )[sortKey];
-                            const bv = (
-                                b as unknown as Record<string, unknown>
-                            )[sortKey];
-                            if (!av && !bv) return 0;
-                            if (!av) return 1;
-                            if (!bv) return -1;
-                            const ad = new Date(av as string).getTime();
-                            const bd = new Date(bv as string).getTime();
-                            return sortOrder === "asc" ? ad - bd : bd - ad;
-                        })}
+                        data={items}
                         columns={userColumns}
                         emptyMessage={
                             loading ? "Loading..." : "No requests found."
@@ -267,6 +272,28 @@ export default function RoleRequestsPage() {
                     />
                 </CardContent>
             </Card>
+
+            <div className="flex items-center gap-4 mt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                    Prev
+                </Button>
+                <span className="text-sm">
+                    Page {page} / {pages}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= pages}
+                    onClick={() => setPage((p) => (p < pages ? p + 1 : p))}
+                >
+                    Next
+                </Button>
+            </div>
         </div>
     );
 }

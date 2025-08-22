@@ -79,6 +79,42 @@ def list_my_role_requests(
     return items
 
 
+@router.get("/me/page", response_model=schemas.RoleRequestPage)
+def list_my_role_requests_page(
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=100),
+    order: str = Query("-created_at", pattern="^-?(created_at|decided_at|id)$"),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.RoleChangeRequest).filter(
+        models.RoleChangeRequest.user_id == current_user.id
+    )
+    direction = sa.desc if order.startswith("-") else sa.asc
+    field = order.lstrip("-")
+    order_col = {
+        "created_at": models.RoleChangeRequest.created_at,
+        "decided_at": models.RoleChangeRequest.decided_at,
+        "id": models.RoleChangeRequest.id,
+    }[field]
+    query = query.order_by(direction(order_col))
+
+    total = query.order_by(None).count()
+    items = query.limit(size).offset((page - 1) * size).all()
+    pages = (total + size - 1) // size if size else 0
+    return {
+        "meta": {
+            "page": page,
+            "size": size,
+            "total": total,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        },
+        "items": items,
+    }
+
+
 @router.get("/", response_model=schemas.RoleRequestPage)
 def list_role_requests(
     page: int = Query(1, ge=1),
