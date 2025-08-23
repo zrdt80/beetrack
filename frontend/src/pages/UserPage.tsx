@@ -116,8 +116,11 @@ export default function UserPage() {
             setUserInfo(updated);
             setEditMode(false);
             setForm((f) => ({ ...f, password: "" }));
-        } catch (err: any) {
-            setError(err?.message || "Failed to update user.");
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+                (err instanceof Error ? err.message : "Failed to update user.");
+            setError(msg);
         } finally {
             setSaving(false);
         }
@@ -140,8 +143,8 @@ export default function UserPage() {
     }
 
     return (
-        <div className="flex justify-center items-center min-h-[80vh]">
-            <Card className="w-full max-w-lg shadow-lg border-0 p-8">
+        <div className="w-full max-w-2xl mx-auto">
+            <Card className="shadow-sm border-0 p-0">
                 <CardHeader className="flex flex-row items-center gap-6 pb-4">
                     <Avatar className="w-16 h-16 text-2xl">
                         <AvatarFallback>

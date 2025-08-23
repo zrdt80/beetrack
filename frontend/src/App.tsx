@@ -17,6 +17,7 @@ import UserPage from "@/pages/UserPage";
 import SessionsPage from "@/pages/SessionsPage";
 import RoleRequestsPage from "@/pages/RoleRequestsPage";
 import RoleRequestsAdminPage from "@/pages/RoleRequestsAdminPage";
+import UserSettingsLayout from "@/pages/UserSettingsLayout";
 
 function App() {
     const { user, isLoading } = useAuth();
@@ -52,16 +53,10 @@ function App() {
                     <Route path="export" element={<ExportPage />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="logs" element={<LogsPage />} />
-                    <Route path="sessions" element={<SessionsPage />} />
+                    {/** Admin moderation remains on dashboard-level */}
                     <Route
                         path="role-requests"
-                        element={
-                            user.role === "admin" ? (
-                                <RoleRequestsAdminPage />
-                            ) : (
-                                <RoleRequestsPage />
-                            )
-                        }
+                        element={user.role === "admin" ? <RoleRequestsAdminPage /> : <Navigate to="/dashboard" replace />}
                     />
                     <Route
                         path="role-requests/admin"
@@ -70,10 +65,12 @@ function App() {
                         }
                     />
                     <Route path="help" element={<HelpPage />} />
-                    <Route
-                        path="user/:id"
-                        element={user ? <UserPage /> : <Navigate to="/login" />}
-                    />
+                    <Route path="user/:id" element={<UserSettingsLayout />}>
+                        <Route index element={<UserPage />} />
+                        <Route path="sessions" element={<SessionsPage />} />
+                        <Route path="role-requests" element={<RoleRequestsPage />} />
+                    </Route>
+                    {/** (No back-compat redirects needed) */}
                 </Route>
             )}
 

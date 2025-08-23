@@ -18,7 +18,6 @@ import {
     HelpCircle,
     LogOut,
     Settings,
-    Shield,
     Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,13 +82,6 @@ const navLinks = [
         workerOnly: false,
     },
     {
-        to: "/dashboard/sessions",
-        label: "Sessions",
-        icon: Shield,
-        admin: false,
-        workerOnly: false,
-    },
-    {
         to: "/dashboard/help",
         label: "Help",
         icon: HelpCircle,
@@ -98,9 +90,9 @@ const navLinks = [
     },
     {
         to: "/dashboard/role-requests",
-        label: "Role Requests",
+        label: "Role Moderation",
         icon: Bell,
-        admin: false,
+        admin: true,
         workerOnly: false,
     },
 ];
