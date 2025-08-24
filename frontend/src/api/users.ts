@@ -9,6 +9,7 @@ export interface User {
     role: string;
     created_at: string;
     is_active: boolean;
+    two_factor_enabled?: boolean | null;
 }
 
 export interface UpdateUserPayload {
@@ -68,5 +69,52 @@ export const getUsersPage = async (
     size: number = 25
 ): Promise<UserPage> => {
     const res = await api.get<UserPage>(`/users/?page=${page}&size=${size}`);
+    return res.data;
+};
+
+export interface TwoFASetupStart {
+    provisioning_uri: string;
+    secret: string;
+    setup_token: string;
+}
+
+export interface TwoFAVerifyResponse {
+    recovery_codes: string[];
+}
+
+export const startTwoFASetup = async (): Promise<TwoFASetupStart> => {
+    const res = await api.post<TwoFASetupStart>(`/users/2fa/setup/start`);
+    return res.data;
+};
+
+export const verifyTwoFASetup = async (
+    code: string,
+    setup_token?: string
+): Promise<TwoFAVerifyResponse> => {
+    const res = await api.post<TwoFAVerifyResponse>(`/users/2fa/setup/verify`, {
+        code,
+        setup_token,
+    });
+    return res.data;
+};
+
+export const disableTwoFA = async (payload?: {
+    password?: string;
+    code?: string;
+}): Promise<{ message: string }> => {
+    const res = await api.post<{ message: string }>(
+        `/users/2fa/disable`,
+        payload || {}
+    );
+    return res.data;
+};
+
+export const regenerateTwoFARecovery = async (): Promise<{
+    recovery_codes: string[];
+}> => {
+    const res = await api.post<{ recovery_codes: string[] }>(
+        `/users/2fa/recovery/regenerate`,
+        {}
+    );
     return res.data;
 };

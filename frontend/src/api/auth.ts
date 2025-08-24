@@ -13,6 +13,11 @@ export interface TokenPair {
     token_type: string;
 }
 
+export interface LoginRequires2FA {
+    requires_2fa: true;
+    twofa_token: string;
+}
+
 export interface Token {
     access_token: string;
     token_type: string;
@@ -29,28 +34,46 @@ export interface UserSession {
     is_valid: boolean;
 }
 
-export const login = async (data: LoginForm): Promise<TokenPair> => {
+export const login = async (
+    data: LoginForm
+): Promise<TokenPair | LoginRequires2FA> => {
     if (!data.remember_me) {
         const form = new URLSearchParams();
         form.append("username", data.email);
         form.append("password", data.password);
 
-        const res = await api.post<Token>("/users/login", form, {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-
+        const res = await api.post<Token | LoginRequires2FA>(
+            "/users/login",
+            form,
+            {
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            }
+        );
+        const maybe2fa = res.data as Partial<LoginRequires2FA>;
+        if (
+            "requires_2fa" in maybe2fa &&
+            maybe2fa.requires_2fa &&
+            typeof maybe2fa.twofa_token === "string"
+        ) {
+            return maybe2fa as LoginRequires2FA;
+        }
+        const token = res.data as Token;
         return {
-            access_token: res.data.access_token,
+            access_token: token.access_token,
             refresh_token: "",
-            token_type: res.data.token_type,
+            token_type: token.token_type,
         };
     } else {
-        const res = await api.post<TokenPair>("/users/login-with-remember", {
-            email: data.email,
-            password: data.password,
-            remember_me: data.remember_me,
-        });
-
+        const res = await api.post<TokenPair | LoginRequires2FA>(
+            "/users/login-with-remember",
+            {
+                email: data.email,
+                password: data.password,
+                remember_me: data.remember_me,
+            }
+        );
         return res.data;
     }
 };
@@ -67,6 +90,21 @@ export const logout = async (): Promise<{ message: string }> => {
 
 export const getUserSessions = async (): Promise<UserSession[]> => {
     const res = await api.get<UserSession[]>("/users/sessions");
+    return res.data;
+};
+
+export interface TwoFALoginVerifyRequest {
+    code: string;
+    twofa_token: string;
+}
+
+export const login2faVerify = async (
+    payload: TwoFALoginVerifyRequest
+): Promise<TokenPair | Token> => {
+    const res = await api.post<TokenPair | Token>("/users/login/2fa-verify", {
+        code: payload.code,
+        setup_token: payload.twofa_token,
+    });
     return res.data;
 };
 

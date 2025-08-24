@@ -9,7 +9,13 @@ import {
     revokeSession,
     revokeAllSessions,
 } from "@/api/auth";
-import type { LoginForm, RegisterForm, UserSession } from "@/api/auth";
+import type {
+    LoginForm,
+    RegisterForm,
+    UserSession,
+    LoginRequires2FA,
+} from "@/api/auth";
+import { login2faVerify, type TwoFALoginVerifyRequest } from "@/api/auth";
 import { setAuthToken } from "@/api/axios";
 import { useNavigate } from "react-router-dom";
 
@@ -29,7 +35,7 @@ function decodeJwt(token: string) {
         );
 
         return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -39,12 +45,14 @@ export interface User {
     username: string;
     email: string;
     role: string;
+    two_factor_enabled?: boolean | null;
 }
 
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     loginUser: (data: LoginForm) => Promise<void>;
+    loginWith2FA: (twofaToken: string, code: string) => Promise<void>;
     registerUser: (data: RegisterForm) => Promise<void>;
     logout: () => Promise<void>;
     sessions: UserSession[];
@@ -71,16 +79,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const tokenData = await login(data);
 
-            setAuthToken(tokenData.access_token);
+            if ((tokenData as LoginRequires2FA).requires_2fa) {
+                const info = tokenData as LoginRequires2FA;
+                const err = new Error("TwoFARequired") as Error & {
+                    twofa_token: string;
+                };
+                err.twofa_token = info.twofa_token;
+                throw err;
+            }
+
+            const pair = tokenData as {
+                access_token: string;
+                refresh_token?: string;
+                token_type: string;
+            };
+            setAuthToken(pair.access_token);
 
             if (data.remember_me) {
-                localStorage.setItem("access_token", tokenData.access_token);
-                const decodedToken = decodeJwt(tokenData.access_token);
+                localStorage.setItem("access_token", pair.access_token);
+                const decodedToken = decodeJwt(pair.access_token);
                 if (decodedToken && decodedToken.session_id) {
                     setCurrentSessionId(decodedToken.session_id);
                 }
             } else {
-                sessionStorage.setItem("access_token", tokenData.access_token);
+                sessionStorage.setItem("access_token", pair.access_token);
             }
 
             const profile = await getMe();
@@ -89,6 +111,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Login failed:", error);
             throw error;
         }
+    };
+
+    const loginWith2FA = async (twofaToken: string, code: string) => {
+        const payload: TwoFALoginVerifyRequest = {
+            twofa_token: twofaToken,
+            code,
+        };
+        const res = await login2faVerify(payload);
+        const hasRefresh =
+            "refresh_token" in res &&
+            (res as { refresh_token?: string }).refresh_token !== "";
+
+        const accessToken = (res as { access_token: string }).access_token;
+        setAuthToken(accessToken);
+
+        if (hasRefresh) {
+            localStorage.setItem("access_token", accessToken);
+            const decoded = decodeJwt(accessToken);
+            if (decoded && decoded.session_id)
+                setCurrentSessionId(decoded.session_id);
+        } else {
+            sessionStorage.setItem("access_token", accessToken);
+        }
+
+        const profile = await getMe();
+        setUser(profile);
     };
 
     const registerUser = async (registerData: RegisterForm) => {
@@ -223,6 +271,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 user,
                 isLoading,
                 loginUser,
+                loginWith2FA,
                 registerUser,
                 logout,
                 sessions,
@@ -238,6 +287,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error("useAuth must be used inside AuthProvider");

@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { User as UserIcon, Shield, Bell, ArrowLeft } from "lucide-react";
+import { User as UserIcon, Shield, Bell, ArrowLeft, Lock } from "lucide-react";
 
 type SettingsItem = {
     to: string;
@@ -23,6 +23,7 @@ export default function UserSettingsLayout() {
 
     const items: SettingsItem[] = [
         { to: base, label: "My Account", icon: UserIcon, end: true },
+        { to: `${base}/security`, label: "Security", icon: Lock },
         { to: `${base}/sessions`, label: "Sessions", icon: Shield },
         { to: `${base}/role-requests`, label: "Role Requests", icon: Bell },
     ];

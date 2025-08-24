@@ -18,6 +18,7 @@ import SessionsPage from "@/pages/SessionsPage";
 import RoleRequestsPage from "@/pages/RoleRequestsPage";
 import RoleRequestsAdminPage from "@/pages/RoleRequestsAdminPage";
 import UserSettingsLayout from "@/pages/UserSettingsLayout";
+import SecurityPage from "@/pages/SecurityPage";
 
 function App() {
     const { user, isLoading } = useAuth();
@@ -53,10 +54,15 @@ function App() {
                     <Route path="export" element={<ExportPage />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="logs" element={<LogsPage />} />
-                    {/** Admin moderation remains on dashboard-level */}
                     <Route
                         path="role-requests"
-                        element={user.role === "admin" ? <RoleRequestsAdminPage /> : <Navigate to="/dashboard" replace />}
+                        element={
+                            user.role === "admin" ? (
+                                <RoleRequestsAdminPage />
+                            ) : (
+                                <Navigate to="/dashboard" replace />
+                            )
+                        }
                     />
                     <Route
                         path="role-requests/admin"
@@ -67,10 +73,13 @@ function App() {
                     <Route path="help" element={<HelpPage />} />
                     <Route path="user/:id" element={<UserSettingsLayout />}>
                         <Route index element={<UserPage />} />
+                        <Route path="security" element={<SecurityPage />} />
                         <Route path="sessions" element={<SessionsPage />} />
-                        <Route path="role-requests" element={<RoleRequestsPage />} />
+                        <Route
+                            path="role-requests"
+                            element={<RoleRequestsPage />}
+                        />
                     </Route>
-                    {/** (No back-compat redirects needed) */}
                 </Route>
             )}
 

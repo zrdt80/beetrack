@@ -24,6 +24,10 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
+    two_factor_enabled = Column(Boolean, default=False, nullable=False)
+    two_factor_secret = Column(String(64), nullable=True)
+    two_factor_confirmed_at = Column(DateTime, nullable=True)
+    two_factor_recovery_codes = Column(Text, nullable=True)
 
     orders = relationship("Order", back_populates="user")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete")
@@ -48,6 +52,7 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
     last_activity = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_valid = Column(Boolean, default=True)
+    replaced_by = Column(Integer, nullable=True)
 
     user = relationship("User", back_populates="sessions")
 

@@ -11,6 +11,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime, timezone
 from app.utils.logger import log_event
 from typing import List, Optional, Dict, Tuple
+import pyotp
+import secrets
+import json
 from jose import jwt
 from time import time
 
@@ -70,7 +73,7 @@ def register_user(request: Request, user_data: schemas.UserCreate, db: Session =
     return user
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login")
 @limiter.limit("5/minute")
 def login_user(
     request: Request,
@@ -87,14 +90,26 @@ def login_user(
         log_event(f"Login failed: user with email {email} is not active")
         raise HTTPException(status_code=403, detail="User account is not active")
 
-    access_token = auth.create_access_token(
-        data={"sub": user.email}
-    )
+    if getattr(user, "two_factor_enabled", False):
+        twofa_token = jwt.encode(
+            {
+                "sub": user.email,
+                "twofa": True,
+                "remember": False,
+                "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+            },
+            auth.SECRET_KEY,
+            algorithm=auth.ALGORITHM,
+        )
+        log_event(f"2FA required at login for user: {user.username}")
+        return {"requires_2fa": True, "twofa_token": twofa_token}
+
+    access_token = auth.create_access_token(data={"sub": user.email})
     log_event(f"User logged in: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/login-with-remember", response_model=schemas.TokenPair)
+@router.post("/login-with-remember")
 @limiter.limit("5/minute")
 def login_with_remember(
     request: Request,
@@ -117,6 +132,20 @@ def login_with_remember(
 
     is_suspicious = auth.check_for_suspicious_activity(db, user.id, ip_address, user_agent)
     
+    if getattr(user, "two_factor_enabled", False):
+        twofa_token = jwt.encode(
+            {
+                "sub": user.email,
+                "twofa": True,
+                "remember": bool(login_data.remember_me),
+                "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+            },
+            auth.SECRET_KEY,
+            algorithm=auth.ALGORITHM,
+        )
+        log_event(f"2FA required at login (remember) for user: {user.username}")
+        return {"requires_2fa": True, "twofa_token": twofa_token}
+
     if login_data.remember_me:
         refresh_token, expires_at = auth.create_refresh_token(user.id)
         
@@ -157,6 +186,87 @@ def login_with_remember(
             "refresh_token": "",
             "token_type": "bearer"
         }
+
+
+@router.post("/login/2fa-verify")
+@limiter.limit("10/minute")
+def login_twofa_verify(
+    payload: schemas.TwoFAVerifyRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db)
+):
+    if not payload or not payload.setup_token:
+        raise HTTPException(status_code=400, detail="Missing payload or setup token")
+    twofa_token = payload.setup_token
+    if not twofa_token:
+        raise HTTPException(status_code=400, detail="Missing twofa token")
+    try:
+        data = jwt.decode(twofa_token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        email = data.get("sub")
+        remember = bool(data.get("remember"))
+        twofa_flag = data.get("twofa")
+        if not email or not twofa_flag:
+            raise HTTPException(status_code=400, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not getattr(user, "two_factor_enabled", False):
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+
+    verified = False
+    if user.two_factor_secret:
+        totp = pyotp.TOTP(user.two_factor_secret)
+        verified = totp.verify(payload.code, valid_window=1)
+
+    if not verified and user.two_factor_recovery_codes:
+        try:
+            codes = json.loads(user.two_factor_recovery_codes) or []
+        except Exception:
+            codes = []
+
+        matched_index = None
+        for i, h in enumerate(codes):
+            try:
+                if isinstance(h, str) and Hasher.verify_password(payload.code, h):
+                    matched_index = i
+                    break
+            except Exception:
+                continue
+        if matched_index is not None:
+            verified = True
+            codes.pop(matched_index)
+            user.two_factor_recovery_codes = json.dumps(codes)
+            db.add(user)
+            db.commit()
+
+    if not verified:
+        raise HTTPException(status_code=400, detail="Invalid code")
+
+    user_agent = request.headers.get("user-agent", "")
+    ip_address = request.client.host if request.client else None
+    device_info = f"{user_agent[:100]}"
+
+    if remember:
+        refresh_token, expires_at = auth.create_refresh_token(user.id)
+        session = auth.create_user_session(
+            db, user.id, refresh_token, expires_at, user_agent, ip_address, device_info
+        )
+        access_token = auth.create_access_token(data={"sub": user.email, "session_id": session.id})
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=60 * 60 * 24 * auth.REFRESH_TOKEN_EXPIRE_DAYS,
+            path="/",
+        )
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    else:
+        access_token = auth.create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/me", response_model=schemas.UserRead)
@@ -269,6 +379,129 @@ def logout(
     
     log_event(f"User logged out: {current_user.username}")
     return {"message": "Logged out successfully"}
+
+
+def _generate_recovery_codes(n: int = 10) -> list[str]:
+    return [secrets.token_hex(4) + "-" + secrets.token_hex(4) for _ in range(n)]
+
+
+@router.post("/2fa/setup/start", response_model=schemas.TwoFASetupStart)
+def twofa_setup_start(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if current_user.two_factor_enabled and current_user.two_factor_secret:
+        raise HTTPException(status_code=400, detail="2FA already enabled")
+
+    secret = pyotp.random_base32()
+    issuer = "BeeTrack"
+    label = current_user.email
+    provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=label, issuer_name=issuer)
+
+    setup_token = secrets.token_urlsafe(24)
+    current_user.two_factor_secret = secret
+    db.add(current_user)
+    db.commit()
+
+    log_event(f"2FA setup started for user: {current_user.username}")
+    return {"provisioning_uri": provisioning_uri, "secret": secret, "setup_token": setup_token}
+
+
+@router.post("/2fa/setup/verify", response_model=schemas.TwoFAVerifyResponse)
+def twofa_setup_verify(payload: schemas.TwoFAVerifyRequest, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not current_user.two_factor_secret:
+        raise HTTPException(status_code=400, detail="2FA setup not initiated")
+
+    totp = pyotp.TOTP(current_user.two_factor_secret)
+    if not totp.verify(payload.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
+
+    current_user.two_factor_enabled = True
+    current_user.two_factor_confirmed_at = datetime.now(timezone.utc)
+    recovery_codes = _generate_recovery_codes()
+    hashed_codes = [Hasher.hash_password(c) for c in recovery_codes]
+    current_user.two_factor_recovery_codes = json.dumps(hashed_codes)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    log_event(f"2FA enabled for user: {current_user.username}")
+    return {"recovery_codes": recovery_codes}
+
+
+@router.post("/2fa/disable")
+def twofa_disable(payload: schemas.TwoFADisableRequest, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+
+    provided = (payload.password or "").strip() or (payload.code or "").strip()
+    if not provided:
+        raise HTTPException(status_code=400, detail="Provide password or 2FA code to disable")
+
+    authorized = False
+
+    if payload.password:
+        try:
+            authorized = Hasher.verify_password(payload.password, current_user.hashed_password)
+        except Exception:
+            pass
+
+    consumed_recovery_index = None
+    if not authorized and payload.code:
+        if current_user.two_factor_secret:
+            try:
+                totp = pyotp.TOTP(current_user.two_factor_secret)
+                authorized = totp.verify(payload.code, valid_window=1)
+            except Exception:
+                pass
+        if not authorized and current_user.two_factor_recovery_codes:
+            try:
+                codes = json.loads(current_user.two_factor_recovery_codes) or []
+            except Exception:
+                codes = []
+
+            for i, h in enumerate(codes):
+                try:
+                    if isinstance(h, str) and Hasher.verify_password(payload.code, h):
+                        consumed_recovery_index = i
+                        authorized = True
+                        break
+                except Exception:
+                    continue
+
+    if not authorized:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    if consumed_recovery_index is not None:
+        try:
+            codes = json.loads(current_user.two_factor_recovery_codes) or []
+        except Exception:
+            codes = []
+        if 0 <= consumed_recovery_index < len(codes):
+            codes.pop(consumed_recovery_index)
+            current_user.two_factor_recovery_codes = json.dumps(codes)
+
+    current_user.two_factor_enabled = False
+    current_user.two_factor_secret = None
+    current_user.two_factor_confirmed_at = None
+    current_user.two_factor_recovery_codes = None
+    db.add(current_user)
+    db.commit()
+
+    auth.invalidate_all_user_sessions(db, current_user.id)
+
+    log_event(f"2FA disabled for user: {current_user.username}")
+    return {"message": "2FA disabled"}
+
+
+@router.post("/2fa/recovery/regenerate", response_model=schemas.TwoFARegenerateResponse)
+def twofa_regenerate(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    recovery_codes = _generate_recovery_codes()
+    hashed_codes = [Hasher.hash_password(c) for c in recovery_codes]
+    current_user.two_factor_recovery_codes = json.dumps(hashed_codes)
+    db.add(current_user)
+    db.commit()
+    log_event(f"2FA recovery codes regenerated for user: {current_user.username}")
+    return {"recovery_codes": recovery_codes}
 
 
 @router.put("/me", response_model=schemas.Token)

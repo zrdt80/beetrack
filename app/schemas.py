@@ -40,6 +40,7 @@ class UserCreate(UserBase):
 
 class UserRead(UserBase):
     id: int
+    two_factor_enabled: bool | None = None
 
     class Config:
         orm_mode = True
@@ -81,6 +82,39 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
     remember_me: bool = False
+
+
+# ------------------------
+# --- 2FA TOTP SCHEMAS ---
+# ------------------------
+
+class TwoFASetupStart(BaseModel):
+    provisioning_uri: str
+    secret: str
+    setup_token: str
+
+
+class TwoFAVerifyRequest(BaseModel):
+    code: str
+    setup_token: Optional[str] = None
+
+
+class TwoFAVerifyResponse(BaseModel):
+    recovery_codes: list[str]
+
+
+class TwoFADisableRequest(BaseModel):
+    code: Optional[str] = None
+    password: Optional[str] = None
+
+
+class TwoFARegenerateResponse(BaseModel):
+    recovery_codes: list[str]
+
+
+class LoginRequires2FA(BaseModel):
+    requires_2fa: bool = True
+    twofa_token: str
 
 
 # -----------------------
