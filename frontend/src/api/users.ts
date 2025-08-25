@@ -10,6 +10,10 @@ export interface User {
     created_at: string;
     is_active: boolean;
     two_factor_enabled?: boolean | null;
+    avatar_url?: string | null;
+    theme?: string | null;
+    timezone?: string | null;
+    locale?: string | null;
 }
 
 export interface UpdateUserPayload {
@@ -18,6 +22,10 @@ export interface UpdateUserPayload {
     password?: string;
     role?: string;
     is_active?: boolean;
+    avatar_url?: string | null;
+    theme?: string;
+    timezone?: string;
+    locale?: string;
 }
 
 export interface PageMeta {
@@ -56,6 +64,26 @@ export const updateUser = async (
     userData: Partial<User>
 ): Promise<User> => {
     const res = await api.put<User>(`/users/${userId}`, userData);
+    return res.data;
+};
+
+export const uploadMyAvatar = async (
+    file: File
+): Promise<{ avatar_url: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await api.post<{ avatar_url: string }>(
+        `/users/me/avatar`,
+        form,
+        {
+            headers: { "Content-Type": "multipart/form-data" },
+        }
+    );
+    return res.data;
+};
+
+export const deleteMyAvatar = async (): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/users/me/avatar`);
     return res.data;
 };
 

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from app.utils.limiter import limiter
@@ -28,6 +29,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Session-Revoked", "Content-Disposition"],
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(products.router, prefix="/products", tags=["Products"])

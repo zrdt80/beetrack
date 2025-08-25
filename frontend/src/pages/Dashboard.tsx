@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -98,9 +98,18 @@ const navLinks = [
 ];
 
 export default function Dashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, avatarVersion } = useAuth();
     const navigate = useNavigate();
     const { summary } = useRoleRequestPolling({ active: !!user });
+
+    const API_BASE =
+        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+    const toAvatarSrc = (url?: string | null) => {
+        if (!url) return undefined;
+        if (/^https?:\/\//i.test(url)) return url;
+        const qs = avatarVersion ? `?v=${avatarVersion}` : "";
+        return `${API_BASE}${url}${qs}`;
+    };
 
     const handleLogout = () => {
         logout();
@@ -213,6 +222,12 @@ export default function Dashboard() {
                         }}
                     >
                         <Avatar className="w-10 h-10">
+                            {user?.avatar_url && (
+                                <AvatarImage
+                                    src={toAvatarSrc(user.avatar_url)}
+                                    alt={user.username}
+                                />
+                            )}
                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
                                 {user?.username?.[0]?.toUpperCase() ?? "U"}
                             </AvatarFallback>
@@ -325,6 +340,12 @@ export default function Dashboard() {
                     <div className="p-4 space-y-4">
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
                             <Avatar className="w-10 h-10">
+                                {user?.avatar_url && (
+                                    <AvatarImage
+                                        src={toAvatarSrc(user.avatar_url)}
+                                        alt={user.username}
+                                    />
+                                )}
                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
                                     {user?.username?.[0]?.toUpperCase() ?? "U"}
                                 </AvatarFallback>

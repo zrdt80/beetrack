@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app import models, schemas
@@ -16,6 +16,7 @@ import secrets
 import json
 from jose import jwt
 from time import time
+from pathlib import Path
 
 router = APIRouter()
 
@@ -504,6 +505,64 @@ def twofa_regenerate(current_user: models.User = Depends(auth.get_current_user),
     return {"recovery_codes": recovery_codes}
 
 
+@router.post("/me/avatar")
+def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    base_dir = Path("static") / "avatars"
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    content_type = (file.content_type or "").lower()
+    if content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    ext = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+    }.get(content_type, "")
+    filename = f"user_{current_user.id}{ext}"
+    dest = base_dir / filename
+
+    with dest.open("wb") as out:
+        out.write(file.file.read())
+
+    current_user.avatar_url = f"/static/avatars/{filename}"
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    log_event(f"Avatar uploaded for user: {current_user.username}")
+    return {"avatar_url": current_user.avatar_url}
+
+
+@router.delete("/me/avatar")
+def delete_avatar(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.avatar_url:
+        try:
+            path = current_user.avatar_url.lstrip("/")
+            file_path = Path(path)
+            if not str(file_path).startswith("static/avatars/"):
+                raise Exception("Invalid avatar path")
+            abs_path = Path.cwd() / file_path
+            if abs_path.exists():
+                abs_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+    current_user.avatar_url = None
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    log_event(f"Avatar removed for user: {current_user.username}")
+    return {"message": "Avatar removed"}
+
+
 @router.put("/me", response_model=schemas.Token)
 def update_me(
     user_data: schemas.UserUpdate,
@@ -520,6 +579,18 @@ def update_me(
         if is_password_breached(update_data["password"]):
             raise HTTPException(status_code=422, detail="This password has appeared in a data breach. Choose a different one.")
         update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
+
+    if "avatar_url" in update_data:
+        update_data.pop("avatar_url", None)
+
+    if "theme" in update_data and update_data["theme"] not in (None, "system", "light", "dark"):
+        raise HTTPException(status_code=422, detail="Invalid theme")
+
+    if "timezone" in update_data and update_data["timezone"]:
+        update_data["timezone"] = str(update_data["timezone"]).strip()[:64]
+
+    if "locale" in update_data and update_data["locale"]:
+        update_data["locale"] = str(update_data["locale"]).strip()[:10]
 
     for key, value in update_data.items():
         setattr(current_user, key, value)
@@ -563,6 +634,18 @@ def update_user(
         if is_password_breached(update_data["password"]):
             raise HTTPException(status_code=422, detail="This password has appeared in a data breach. Choose a different one.")
         update_data["hashed_password"] = Hasher.hash_password(update_data.pop("password"))
+
+    if "avatar_url" in update_data:
+        update_data.pop("avatar_url", None)
+
+    if "theme" in update_data and update_data["theme"] not in (None, "system", "light", "dark"):
+        raise HTTPException(status_code=422, detail="Invalid theme")
+
+    if "timezone" in update_data and update_data["timezone"]:
+        update_data["timezone"] = str(update_data["timezone"]).strip()[:64]
+
+    if "locale" in update_data and update_data["locale"]:
+        update_data["locale"] = str(update_data["locale"]).strip()[:10]
 
     for key, value in update_data.items():
         setattr(user, key, value)

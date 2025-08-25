@@ -18,9 +18,17 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import {
+    Select as UiSelect,
+    SelectTrigger as UiSelectTrigger,
+    SelectValue as UiSelectValue,
+    SelectContent as UiSelectContent,
+    SelectItem as UiSelectItem,
+} from "@/components/ui/select";
+import { uploadMyAvatar, deleteMyAvatar } from "@/api/users";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
@@ -29,8 +37,17 @@ import PasswordField from "@/components/PasswordField";
 import { evaluatePassword } from "@/lib/password";
 
 export default function UserPage() {
+    const API_BASE =
+        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
     const { id } = useParams<{ id: string }>();
-    const { user } = useAuth();
+    const { user, refreshProfile, avatarVersion, bumpAvatarVersion } =
+        useAuth();
+    const toAvatarSrc = (url?: string | null) => {
+        if (!url) return undefined;
+        if (/^https?:\/\//i.test(url)) return url;
+        const qs = avatarVersion ? `?v=${avatarVersion}` : "";
+        return `${API_BASE}${url}${qs}`;
+    };
     const [userInfo, setUserInfo] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [editMode, setEditMode] = useState(false);
@@ -40,9 +57,13 @@ export default function UserPage() {
         password: "",
         role: "",
         is_active: true,
+        theme: "system",
+        timezone: "UTC",
+        locale: "en",
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [avatarChanged, setAvatarChanged] = useState<boolean>(false);
     const isMe = user?.id == id;
     const passwordEval = evaluatePassword(form.password || "");
     const passwordValid = !form.password || passwordEval.isValid;
@@ -58,6 +79,9 @@ export default function UserPage() {
                         password: "",
                         role: data.role || "",
                         is_active: data.is_active ?? true,
+                        theme: data.theme || "system",
+                        timezone: data.timezone || "UTC",
+                        locale: data.locale || "en",
                     });
                 })
                 .finally(() => setLoading(false));
@@ -84,6 +108,13 @@ export default function UserPage() {
         }));
     };
 
+    const handlePrefChange = (
+        key: "theme" | "timezone" | "locale",
+        value: string
+    ) => {
+        setForm((f) => ({ ...f, [key]: value }));
+    };
+
     const handleSwitchChange = (checked: boolean) => {
         setForm((f) => ({
             ...f,
@@ -99,6 +130,9 @@ export default function UserPage() {
             const payload: UpdateUserPayload = {
                 username: form.username,
                 email: form.email,
+                theme: form.theme,
+                timezone: form.timezone,
+                locale: form.locale,
             };
             if (form.password) payload.password = form.password;
             if (user?.role === "admin" && !isMe) {
@@ -114,11 +148,17 @@ export default function UserPage() {
                 updated = await updateUser(Number(id!), payload);
             }
             setUserInfo(updated);
+            if (avatarChanged) {
+                await refreshProfile();
+                bumpAvatarVersion();
+                setAvatarChanged(false);
+            }
             setEditMode(false);
             setForm((f) => ({ ...f, password: "" }));
         } catch (err: unknown) {
             const msg =
-                (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail ||
                 (err instanceof Error ? err.message : "Failed to update user.");
             setError(msg);
         } finally {
@@ -147,6 +187,12 @@ export default function UserPage() {
             <Card className="shadow-sm border-0 p-0">
                 <CardHeader className="flex flex-row items-center gap-6 pb-4">
                     <Avatar className="w-16 h-16 text-2xl">
+                        {userInfo.avatar_url && (
+                            <AvatarImage
+                                src={toAvatarSrc(userInfo.avatar_url)}
+                                alt={userInfo.username}
+                            />
+                        )}
                         <AvatarFallback>
                             {userInfo.username?.[0]?.toUpperCase() ?? "U"}
                         </AvatarFallback>
@@ -182,6 +228,54 @@ export default function UserPage() {
                                     onChange={handleInputChange}
                                     required
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    Avatar
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        onChange={async (e) => {
+                                            if (
+                                                e.target.files &&
+                                                e.target.files[0]
+                                            ) {
+                                                try {
+                                                    await uploadMyAvatar(
+                                                        e.target.files[0]
+                                                    );
+                                                    setAvatarChanged(true);
+                                                } catch (err) {
+                                                    console.error(
+                                                        "Avatar upload failed",
+                                                        err
+                                                    );
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    {userInfo.avatar_url && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={async () => {
+                                                try {
+                                                    await deleteMyAvatar();
+                                                    setAvatarChanged(true);
+                                                } catch (err) {
+                                                    console.error(
+                                                        "Avatar delete failed",
+                                                        err
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            Remove
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">
@@ -262,6 +356,66 @@ export default function UserPage() {
                                     </label>
                                 </>
                             )}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Theme
+                                    </label>
+                                    <UiSelect
+                                        value={form.theme}
+                                        onValueChange={(v) =>
+                                            handlePrefChange("theme", v)
+                                        }
+                                    >
+                                        <UiSelectTrigger className="w-full">
+                                            <UiSelectValue placeholder="Select a theme" />
+                                        </UiSelectTrigger>
+                                        <UiSelectContent>
+                                            <UiSelectItem value="system">
+                                                System
+                                            </UiSelectItem>
+                                            <UiSelectItem value="light">
+                                                Light
+                                            </UiSelectItem>
+                                            <UiSelectItem value="dark">
+                                                Dark
+                                            </UiSelectItem>
+                                        </UiSelectContent>
+                                    </UiSelect>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Timezone
+                                    </label>
+                                    <Input
+                                        name="timezone"
+                                        value={form.timezone}
+                                        onChange={(e) =>
+                                            handlePrefChange(
+                                                "timezone",
+                                                e.target.value
+                                            )
+                                        }
+                                        placeholder="e.g. UTC, Europe/Warsaw"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Locale
+                                    </label>
+                                    <Input
+                                        name="locale"
+                                        value={form.locale}
+                                        onChange={(e) =>
+                                            handlePrefChange(
+                                                "locale",
+                                                e.target.value
+                                            )
+                                        }
+                                        placeholder="e.g. en, pl-PL"
+                                    />
+                                </div>
+                            </div>
                             {error && (
                                 <div className="text-red-600 text-sm">
                                     {error}
@@ -287,6 +441,10 @@ export default function UserPage() {
                                             role: userInfo.role || "",
                                             is_active:
                                                 userInfo.is_active ?? true,
+                                            theme: userInfo.theme || "system",
+                                            timezone:
+                                                userInfo.timezone || "UTC",
+                                            locale: userInfo.locale || "en",
                                         });
                                         setError(null);
                                     }}

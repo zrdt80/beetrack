@@ -21,6 +21,10 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.user
     created_at: datetime = None
     is_active: bool = True
+    avatar_url: str | None = None
+    theme: str | None = None
+    timezone: str | None = None
+    locale: str | None = None
 
     @field_validator("username")
     @classmethod
@@ -52,6 +56,10 @@ class UserUpdate(BaseModel):
     password: Optional[Annotated[str, constr(min_length=8)]] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    avatar_url: Optional[str] = None
+    theme: Optional[str] = None
+    timezone: Optional[str] = None
+    locale: Optional[str] = None
 
     class Config:
         orm_mode = True

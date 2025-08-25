@@ -46,6 +46,10 @@ export interface User {
     email: string;
     role: string;
     two_factor_enabled?: boolean | null;
+    avatar_url?: string | null;
+    theme?: string | null;
+    timezone?: string | null;
+    locale?: string | null;
 }
 
 interface AuthContextType {
@@ -55,6 +59,9 @@ interface AuthContextType {
     loginWith2FA: (twofaToken: string, code: string) => Promise<void>;
     registerUser: (data: RegisterForm) => Promise<void>;
     logout: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
+    avatarVersion: number;
+    bumpAvatarVersion: () => void;
     sessions: UserSession[];
     loadingSessions: boolean;
     fetchSessions: () => Promise<void>;
@@ -73,6 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentSessionId, setCurrentSessionId] = useState<number | null>(
         null
     );
+    const [avatarVersion, setAvatarVersion] = useState<number>(0);
     const navigate = useNavigate();
 
     const loginUser = async (data: LoginForm) => {
@@ -176,6 +184,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const refreshProfile = async () => {
+        try {
+            const profile = await getMe();
+            const prevAvatar = user?.avatar_url ?? null;
+            const newAvatar = profile?.avatar_url ?? null;
+            setUser(profile);
+            if (prevAvatar !== newAvatar) {
+                setAvatarVersion(Date.now());
+            }
+        } catch (error) {
+            console.error("Failed to refresh profile:", error);
+        }
+    };
+
+    const bumpAvatarVersion = () => setAvatarVersion((v) => v + 1);
+
     const revokeUserSession = async (sessionId: number) => {
         try {
             await revokeSession(sessionId);
@@ -274,6 +298,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 loginWith2FA,
                 registerUser,
                 logout,
+                refreshProfile,
+                avatarVersion,
+                bumpAvatarVersion,
                 sessions,
                 loadingSessions,
                 fetchSessions,

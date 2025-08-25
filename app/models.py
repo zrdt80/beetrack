@@ -28,6 +28,10 @@ class User(Base):
     two_factor_secret = Column(String(64), nullable=True)
     two_factor_confirmed_at = Column(DateTime, nullable=True)
     two_factor_recovery_codes = Column(Text, nullable=True)
+    avatar_url = Column(String(255), nullable=True)
+    theme = Column(String(20), default="system", nullable=False)
+    timezone = Column(String(64), default="UTC", nullable=False)
+    locale = Column(String(10), default="en", nullable=False)
 
     orders = relationship("Order", back_populates="user")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete")

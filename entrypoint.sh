@@ -15,6 +15,9 @@ alembic upgrade head || {
     exit 1
 }
 
+echo "🗂️ Ensuring static directories exist..."
+mkdir -p static/avatars || true
+
 echo "🌱 Running seed data script (idempotent)..."
 python - <<'PY'
 from app.database import SessionLocal
