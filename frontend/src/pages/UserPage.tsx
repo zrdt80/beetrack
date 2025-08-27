@@ -18,16 +18,19 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserAvatar from "@/components/UserAvatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import {
-    Select as UiSelect,
-    SelectTrigger as UiSelectTrigger,
-    SelectValue as UiSelectValue,
-    SelectContent as UiSelectContent,
-    SelectItem as UiSelectItem,
-} from "@/components/ui/select";
+    Combobox,
+    ComboboxTrigger,
+    ComboboxContent,
+    ComboboxInput,
+    ComboboxList,
+    ComboboxEmpty,
+    ComboboxItem,
+    ComboboxGroup,
+} from "@/components/ui/shadcn-io/combobox";
 import { uploadMyAvatar, deleteMyAvatar } from "@/api/users";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,19 +38,13 @@ import { useAuth } from "@/context/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PasswordField from "@/components/PasswordField";
 import { evaluatePassword } from "@/lib/password";
+import { TIMEZONES } from "@/lib/timezones";
+import { LOCALES } from "@/lib/locales";
+import StatusBadge from "@/components/StatusBadge";
 
 export default function UserPage() {
-    const API_BASE =
-        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
     const { id } = useParams<{ id: string }>();
-    const { user, refreshProfile, avatarVersion, bumpAvatarVersion } =
-        useAuth();
-    const toAvatarSrc = (url?: string | null) => {
-        if (!url) return undefined;
-        if (/^https?:\/\//i.test(url)) return url;
-        const qs = avatarVersion ? `?v=${avatarVersion}` : "";
-        return `${API_BASE}${url}${qs}`;
-    };
+    const { user, refreshProfile, bumpAvatarVersion } = useAuth();
     const [userInfo, setUserInfo] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [editMode, setEditMode] = useState(false);
@@ -72,6 +69,14 @@ export default function UserPage() {
         if (id) {
             getUser(Number(id))
                 .then((data: User) => {
+                    const tz = TIMEZONES.includes(data.timezone || "")
+                        ? data.timezone!
+                        : "UTC";
+                    const loc = LOCALES.some(
+                        (l) => l.code === (data.locale || "")
+                    )
+                        ? data.locale!
+                        : "en";
                     setUserInfo(data);
                     setForm({
                         username: data.username || "",
@@ -80,8 +85,8 @@ export default function UserPage() {
                         role: data.role || "",
                         is_active: data.is_active ?? true,
                         theme: data.theme || "system",
-                        timezone: data.timezone || "UTC",
-                        locale: data.locale || "en",
+                        timezone: tz,
+                        locale: loc,
                     });
                 })
                 .finally(() => setLoading(false));
@@ -186,17 +191,12 @@ export default function UserPage() {
         <div className="w-full max-w-2xl mx-auto">
             <Card className="shadow-sm border-0 p-0">
                 <CardHeader className="flex flex-row items-center gap-6 pb-4">
-                    <Avatar className="w-16 h-16 text-2xl">
-                        {userInfo.avatar_url && (
-                            <AvatarImage
-                                src={toAvatarSrc(userInfo.avatar_url)}
-                                alt={userInfo.username}
-                            />
-                        )}
-                        <AvatarFallback>
-                            {userInfo.username?.[0]?.toUpperCase() ?? "U"}
-                        </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                        className="w-16 h-16 text-2xl"
+                        avatarUrl={userInfo.avatar_url}
+                        username={userInfo.username}
+                        alt={userInfo.username}
+                    />
                     <div>
                         <CardTitle className="text-xl font-bold mb-1">
                             {userInfo.username}
@@ -305,6 +305,7 @@ export default function UserPage() {
                                     </p>
                                 )}
                             </div>
+
                             {user?.role === "admin" && !isMe && (
                                 <>
                                     <div>
@@ -356,64 +357,129 @@ export default function UserPage() {
                                     </label>
                                 </>
                             )}
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Theme
+                                    <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                                        <span>Theme</span>
+                                        <StatusBadge
+                                            status="not-implemented"
+                                            showIcon={false}
+                                            className="text-[10px]"
+                                        />
                                     </label>
-                                    <UiSelect
+                                    <Combobox
+                                        data={[
+                                            {
+                                                value: "system",
+                                                label: "System",
+                                            },
+                                            { value: "light", label: "Light" },
+                                            { value: "dark", label: "Dark" },
+                                        ]}
+                                        type="theme"
                                         value={form.theme}
                                         onValueChange={(v) =>
                                             handlePrefChange("theme", v)
                                         }
                                     >
-                                        <UiSelectTrigger className="w-full">
-                                            <UiSelectValue placeholder="Select a theme" />
-                                        </UiSelectTrigger>
-                                        <UiSelectContent>
-                                            <UiSelectItem value="system">
-                                                System
-                                            </UiSelectItem>
-                                            <UiSelectItem value="light">
-                                                Light
-                                            </UiSelectItem>
-                                            <UiSelectItem value="dark">
-                                                Dark
-                                            </UiSelectItem>
-                                        </UiSelectContent>
-                                    </UiSelect>
+                                        <ComboboxTrigger className="w-full" />
+                                        <ComboboxContent>
+                                            <ComboboxInput />
+                                            <ComboboxList>
+                                                <ComboboxEmpty />
+                                                <ComboboxGroup>
+                                                    <ComboboxItem value="system">
+                                                        System
+                                                    </ComboboxItem>
+                                                    <ComboboxItem value="light">
+                                                        Light
+                                                    </ComboboxItem>
+                                                    <ComboboxItem value="dark">
+                                                        Dark
+                                                    </ComboboxItem>
+                                                </ComboboxGroup>
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Timezone
+                                    <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                                        <span>Timezone</span>
+                                        <StatusBadge
+                                            status="not-implemented"
+                                            showIcon={false}
+                                            className="text-[10px]"
+                                        />
                                     </label>
-                                    <Input
-                                        name="timezone"
+                                    <Combobox
+                                        data={TIMEZONES.map((tz) => ({
+                                            value: tz,
+                                            label: tz,
+                                        }))}
+                                        type="timezone"
                                         value={form.timezone}
-                                        onChange={(e) =>
-                                            handlePrefChange(
-                                                "timezone",
-                                                e.target.value
-                                            )
+                                        onValueChange={(v) =>
+                                            handlePrefChange("timezone", v)
                                         }
-                                        placeholder="e.g. UTC, Europe/Warsaw"
-                                    />
+                                    >
+                                        <ComboboxTrigger className="w-full" />
+                                        <ComboboxContent>
+                                            <ComboboxInput />
+                                            <ComboboxList>
+                                                <ComboboxEmpty />
+                                                <ComboboxGroup>
+                                                    {TIMEZONES.map((tz) => (
+                                                        <ComboboxItem
+                                                            key={tz}
+                                                            value={tz}
+                                                        >
+                                                            {tz}
+                                                        </ComboboxItem>
+                                                    ))}
+                                                </ComboboxGroup>
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Locale
+                                    <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                                        <span>Locale</span>
+                                        <StatusBadge
+                                            status="not-implemented"
+                                            showIcon={false}
+                                            className="text-[10px]"
+                                        />
                                     </label>
-                                    <Input
-                                        name="locale"
+                                    <Combobox
+                                        data={LOCALES.map((l) => ({
+                                            value: l.code,
+                                            label: `${l.label} (${l.code})`,
+                                        }))}
+                                        type="locale"
                                         value={form.locale}
-                                        onChange={(e) =>
-                                            handlePrefChange(
-                                                "locale",
-                                                e.target.value
-                                            )
+                                        onValueChange={(v) =>
+                                            handlePrefChange("locale", v)
                                         }
-                                        placeholder="e.g. en, pl-PL"
-                                    />
+                                    >
+                                        <ComboboxTrigger className="w-full" />
+                                        <ComboboxContent>
+                                            <ComboboxInput />
+                                            <ComboboxList>
+                                                <ComboboxEmpty />
+                                                <ComboboxGroup>
+                                                    {LOCALES.map((l) => (
+                                                        <ComboboxItem
+                                                            key={l.code}
+                                                            value={l.code}
+                                                        >
+                                                            {l.label} ({l.code})
+                                                        </ComboboxItem>
+                                                    ))}
+                                                </ComboboxGroup>
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
                                 </div>
                             </div>
                             {error && (

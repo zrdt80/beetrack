@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserAvatar from "@/components/UserAvatar";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import StatusBadge from "@/components/StatusBadge";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
@@ -148,16 +148,7 @@ const customerQuickActions = [
 ];
 
 export default function DashboardHome() {
-    const { user, avatarVersion } = useAuth();
-
-    const API_BASE =
-        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
-    const toAvatarSrc = (url?: string | null) => {
-        if (!url) return undefined;
-        if (/^https?:\/\//i.test(url)) return url;
-        const qs = avatarVersion ? `?v=${avatarVersion}` : "";
-        return `${API_BASE}${url}${qs}`;
-    };
+    const { user } = useAuth();
 
     useDocumentTitle("Dashboard");
 
@@ -322,17 +313,12 @@ export default function DashboardHome() {
                 <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Avatar className="w-16 h-16 text-xl border-2 border-white shadow-md">
-                                {user?.avatar_url && (
-                                    <AvatarImage
-                                        src={toAvatarSrc(user.avatar_url)}
-                                        alt={user.username}
-                                    />
-                                )}
-                                <AvatarFallback className="bg-blue-600 text-white">
-                                    {user?.username?.[0]?.toUpperCase() ?? "U"}
-                                </AvatarFallback>
-                            </Avatar>
+                            <UserAvatar
+                                className="w-16 h-16 text-xl border-2 border-white shadow-md"
+                                avatarUrl={user?.avatar_url}
+                                username={user?.username}
+                                alt={user?.username}
+                            />
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900">
                                     Welcome back, {user?.username}! 🐝

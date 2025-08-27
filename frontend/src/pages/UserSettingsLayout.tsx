@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserAvatar from "@/components/UserAvatar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,15 +15,7 @@ type SettingsItem = {
 };
 
 export default function UserSettingsLayout() {
-    const { user, avatarVersion } = useAuth();
-    const API_BASE =
-        (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
-    const toAvatarSrc = (url?: string | null) => {
-        if (!url) return undefined;
-        if (/^https?:\/\//i.test(url)) return url;
-        const qs = avatarVersion ? `?v=${avatarVersion}` : "";
-        return `${API_BASE}${url}${qs}`;
-    };
+    const { user } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -42,17 +34,12 @@ export default function UserSettingsLayout() {
                 <div className="hidden md:block sticky top-4">
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                         <div className="flex items-center gap-3 p-4 border-b">
-                            <Avatar className="w-10 h-10">
-                                {user?.avatar_url && (
-                                    <AvatarImage
-                                        src={toAvatarSrc(user.avatar_url)}
-                                        alt={user.username}
-                                    />
-                                )}
-                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
-                                    {user?.username?.[0]?.toUpperCase() ?? "U"}
-                                </AvatarFallback>
-                            </Avatar>
+                            <UserAvatar
+                                className="w-10 h-10"
+                                avatarUrl={user?.avatar_url}
+                                username={user?.username}
+                                alt={user?.username}
+                            />
                             <div className="min-w-0">
                                 <div className="text-sm font-medium truncate">
                                     {user?.username}
