@@ -19,6 +19,16 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import UserAvatar from "@/components/UserAvatar";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Dropzone } from "@/components/ui/shadcn-io/dropzone";
+import { Upload, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,6 +51,7 @@ import { evaluatePassword } from "@/lib/password";
 import { TIMEZONES } from "@/lib/timezones";
 import { LOCALES } from "@/lib/locales";
 import StatusBadge from "@/components/StatusBadge";
+import axios from "axios";
 
 export default function UserPage() {
     const { id } = useParams<{ id: string }>();
@@ -61,6 +72,14 @@ export default function UserPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [avatarChanged, setAvatarChanged] = useState<boolean>(false);
+    const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+    const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+    const [localAvatarVersion, setLocalAvatarVersion] = useState<
+        number | undefined
+    >(undefined);
+    const [avatarUploadError, setAvatarUploadError] = useState<string | null>(
+        null
+    );
     const isMe = user?.id == id;
     const passwordEval = evaluatePassword(form.password || "");
     const passwordValid = !form.password || passwordEval.isValid;
@@ -157,6 +176,8 @@ export default function UserPage() {
                 await refreshProfile();
                 bumpAvatarVersion();
                 setAvatarChanged(false);
+                setLocalAvatarUrl(null);
+                setLocalAvatarVersion(undefined);
             }
             setEditMode(false);
             setForm((f) => ({ ...f, password: "" }));
@@ -191,12 +212,25 @@ export default function UserPage() {
         <div className="w-full max-w-2xl mx-auto">
             <Card className="shadow-sm border-0 p-0">
                 <CardHeader className="flex flex-row items-center gap-6 pb-4">
-                    <UserAvatar
-                        className="w-16 h-16 text-2xl"
-                        avatarUrl={userInfo.avatar_url}
-                        username={userInfo.username}
-                        alt={userInfo.username}
-                    />
+                    <div className="relative group">
+                        <UserAvatar
+                            className="w-16 h-16 text-2xl"
+                            avatarUrl={localAvatarUrl ?? userInfo.avatar_url}
+                            username={userInfo.username}
+                            alt={userInfo.username}
+                            versionOverride={localAvatarVersion}
+                        />
+                        {isMe && editMode && (
+                            <button
+                                type="button"
+                                onClick={() => setAvatarDialogOpen(true)}
+                                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                aria-label="Change avatar"
+                            >
+                                <Upload className="w-6 h-6 text-white" />
+                            </button>
+                        )}
+                    </div>
                     <div>
                         <CardTitle className="text-xl font-bold mb-1">
                             {userInfo.username}
@@ -215,6 +249,135 @@ export default function UserPage() {
                     </div>
                 </CardHeader>
                 <Separator />
+                <Dialog
+                    open={avatarDialogOpen}
+                    onOpenChange={setAvatarDialogOpen}
+                >
+                    <DialogContent showClose={false}>
+                        <DialogHeader>
+                            <DialogTitle>Update Avatar</DialogTitle>
+                            <DialogDescription>
+                                Upload a new profile picture (PNG, JPG, or WEBP
+                                up to 5MB). Drag & drop or click to select.
+                                Removing will clear your current avatar.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <Dropzone
+                                accept={{ "image/*": [] }}
+                                maxSize={5 * 1024 * 1024}
+                                onError={(e) => {
+                                    setAvatarUploadError(
+                                        e?.message ||
+                                            "Upload failed. Max size 5MB and only images are allowed."
+                                    );
+                                }}
+                                onDrop={async (files) => {
+                                    const file = files[0];
+                                    if (!file) return;
+                                    try {
+                                        const { avatar_url } =
+                                            await uploadMyAvatar(file);
+                                        setLocalAvatarUrl(avatar_url);
+                                        setLocalAvatarVersion(Date.now());
+                                        setAvatarChanged(true);
+                                        setAvatarUploadError(null);
+                                        setAvatarDialogOpen(false);
+                                    } catch (err) {
+                                        let status: number | undefined;
+                                        let detail: string | undefined;
+                                        if (axios.isAxiosError(err)) {
+                                            status = err.response?.status;
+                                            const data = err.response
+                                                ?.data as unknown;
+                                            if (
+                                                data &&
+                                                typeof data === "object" &&
+                                                "detail" in data
+                                            ) {
+                                                const d = (
+                                                    data as {
+                                                        detail?: unknown;
+                                                    }
+                                                ).detail;
+                                                if (typeof d === "string") {
+                                                    detail = d;
+                                                }
+                                            }
+                                        }
+                                        if (
+                                            status === 413 ||
+                                            (detail &&
+                                                /too large|5MB/i.test(detail))
+                                        ) {
+                                            setAvatarUploadError(
+                                                "File too large. Maximum size is 5MB."
+                                            );
+                                        } else {
+                                            setAvatarUploadError(
+                                                "Avatar upload failed. Try a different image."
+                                            );
+                                        }
+                                    }
+                                }}
+                            >
+                                <div className="flex flex-col items-center">
+                                    <Upload className="w-5 h-5 mb-2" />
+                                    <p className="text-sm">
+                                        Drag & drop or click to upload
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        PNG, JPG, WEBP up to 5MB
+                                    </p>
+                                </div>
+                            </Dropzone>
+                            {avatarUploadError && (
+                                <p className="text-xs text-red-600">
+                                    {avatarUploadError}
+                                </p>
+                            )}
+                            {userInfo.avatar_url && (
+                                <div className="flex justify-between items-center">
+                                    <div className="text-sm text-muted-foreground">
+                                        Current avatar set
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={async () => {
+                                            try {
+                                                await deleteMyAvatar();
+                                                setLocalAvatarUrl(null);
+                                                setLocalAvatarVersion(
+                                                    Date.now()
+                                                );
+                                                setAvatarChanged(true);
+                                                setAvatarDialogOpen(false);
+                                            } catch (err) {
+                                                console.error(
+                                                    "Avatar delete failed",
+                                                    err
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-2" />{" "}
+                                        Remove avatar
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setAvatarDialogOpen(false)}
+                            >
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
                 <CardContent className="pt-6">
                     {editMode ? (
                         <form onSubmit={handleSave} className="space-y-4">
@@ -228,54 +391,6 @@ export default function UserPage() {
                                     onChange={handleInputChange}
                                     required
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">
-                                    Avatar
-                                </label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/webp"
-                                        onChange={async (e) => {
-                                            if (
-                                                e.target.files &&
-                                                e.target.files[0]
-                                            ) {
-                                                try {
-                                                    await uploadMyAvatar(
-                                                        e.target.files[0]
-                                                    );
-                                                    setAvatarChanged(true);
-                                                } catch (err) {
-                                                    console.error(
-                                                        "Avatar upload failed",
-                                                        err
-                                                    );
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    {userInfo.avatar_url && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={async () => {
-                                                try {
-                                                    await deleteMyAvatar();
-                                                    setAvatarChanged(true);
-                                                } catch (err) {
-                                                    console.error(
-                                                        "Avatar delete failed",
-                                                        err
-                                                    );
-                                                }
-                                            }}
-                                        >
-                                            Remove
-                                        </Button>
-                                    )}
-                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">
@@ -513,6 +628,9 @@ export default function UserPage() {
                                             locale: userInfo.locale || "en",
                                         });
                                         setError(null);
+                                        setLocalAvatarUrl(null);
+                                        setLocalAvatarVersion(undefined);
+                                        setAvatarChanged(false);
                                     }}
                                 >
                                     Cancel

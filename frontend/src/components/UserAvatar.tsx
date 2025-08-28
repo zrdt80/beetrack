@@ -9,6 +9,7 @@ export type UserAvatarProps = {
     alt?: string;
     fallbackClassName?: string;
     imageClassName?: string;
+    versionOverride?: number;
 };
 
 export default function UserAvatar({
@@ -18,10 +19,11 @@ export default function UserAvatar({
     alt,
     fallbackClassName,
     imageClassName,
+    versionOverride,
 }: UserAvatarProps) {
     const { avatarVersion } = useAuth();
     const fallback = username?.[0]?.toUpperCase() ?? "U";
-    const src = toAvatarSrc(avatarUrl, avatarVersion);
+    const src = toAvatarSrc(avatarUrl, versionOverride ?? avatarVersion);
     const defaultFallbackClass =
         "bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold";
     const appliedFallbackClass = fallbackClassName || defaultFallbackClass;

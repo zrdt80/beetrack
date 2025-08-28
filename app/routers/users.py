@@ -515,15 +515,23 @@ def upload_avatar(
     base_dir.mkdir(parents=True, exist_ok=True)
 
     content_type = (file.content_type or "").lower()
-    if content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
+
+    allowed_types = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp"}
+
+    if content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    ext = {
-        "image/png": ".png",
-        "image/jpeg": ".jpg",
-        "image/jpg": ".jpg",
-        "image/webp": ".webp",
-    }.get(content_type, "")
+    MAX_BYTES = 5 * 1024 * 1024
+    try:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    except Exception:
+        size = None
+    if size is not None and size > MAX_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 5MB.")
+
+    ext = allowed_types.get(content_type, "")
     filename = f"user_{current_user.id}{ext}"
     dest = base_dir / filename
 
