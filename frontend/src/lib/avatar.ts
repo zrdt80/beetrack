@@ -6,7 +6,14 @@ export function toAvatarSrc(
     apiBase: string = API_BASE
 ): string | undefined {
     if (!url) return undefined;
-    if (/^https?:\/\//i.test(url)) return version ? `${url}?v=${version}` : url;
+    if (url.startsWith("blob:") || url.startsWith("data:")) {
+        return url;
+    }
+    if (/^https?:\/\//i.test(url)) {
+        if (!version) return url;
+        const joiner = url.includes("?") ? "&" : "?";
+        return `${url}${joiner}v=${version}`;
+    }
     const qs = version ? `?v=${version}` : "";
     return `${apiBase}${url}${qs}`;
 }

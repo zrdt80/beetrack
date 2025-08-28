@@ -28,6 +28,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Dropzone } from "@/components/ui/shadcn-io/dropzone";
+import AvatarCropper from "@/components/AvatarCropper";
 import { Upload, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -80,56 +81,79 @@ export default function UserPage() {
     const [avatarUploadError, setAvatarUploadError] = useState<string | null>(
         null
     );
-    const isMe = user?.id == id;
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(
+        null
+    );
+    const [pendingAvatarAction, setPendingAvatarAction] = useState<
+        "upload" | "delete" | null
+    >(null);
+    const [pendingObjectUrl, setPendingObjectUrl] = useState<string | null>(
+        null
+    );
+    const isMe = user ? String(user.id) === id : false;
     const passwordEval = evaluatePassword(form.password || "");
     const passwordValid = !form.password || passwordEval.isValid;
-
-    useEffect(() => {
-        if (id) {
-            getUser(Number(id))
-                .then((data: User) => {
-                    const tz = TIMEZONES.includes(data.timezone || "")
-                        ? data.timezone!
-                        : "UTC";
-                    const loc = LOCALES.some(
-                        (l) => l.code === (data.locale || "")
-                    )
-                        ? data.locale!
-                        : "en";
-                    setUserInfo(data);
-                    setForm({
-                        username: data.username || "",
-                        email: data.email || "",
-                        password: "",
-                        role: data.role || "",
-                        is_active: data.is_active ?? true,
-                        theme: data.theme || "system",
-                        timezone: tz,
-                        locale: loc,
-                    });
-                })
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
-    }, [id]);
-
-    useDocumentTitle(userInfo ? `User: ${userInfo.username}` : "User Profile");
-
     const canEdit = isMe || user?.role === "admin";
 
+    useDocumentTitle(
+        userInfo ? `${userInfo.username} – Profile` : "User Profile"
+    );
+
+    useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            try {
+                setLoading(true);
+                const u = await getUser(Number(id!));
+                if (!mounted) return;
+                setUserInfo(u);
+                setForm({
+                    username: u.username || "",
+                    email: u.email || "",
+                    password: "",
+                    role: u.role || "",
+                    is_active: u.is_active ?? true,
+                    theme: u.theme || "system",
+                    timezone: u.timezone || "UTC",
+                    locale: u.locale || "en",
+                });
+            } catch (err: unknown) {
+                if (!mounted) return;
+                const msg =
+                    (err as { response?: { data?: { detail?: string } } })
+                        ?.response?.data?.detail ||
+                    (err instanceof Error
+                        ? err.message
+                        : "Failed to load user.");
+                setError(msg);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            mounted = false;
+        };
+    }, [id]);
+
+    useEffect(() => {
+        return () => {
+            if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl);
+        };
+    }, [pendingObjectUrl]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm((f) => ({
-            ...f,
-            [e.target.name]: e.target.value,
-        }));
+        const { name, value } = e.target;
+        setForm((f) => ({ ...f, [name]: value }));
     };
 
     const handleSelectChange = (value: string) => {
-        setForm((f) => ({
-            ...f,
-            role: value,
-        }));
+        setForm((f) => ({ ...f, role: value }));
+    };
+
+    const handleSwitchChange = (checked: boolean) => {
+        setForm((f) => ({ ...f, is_active: checked }));
     };
 
     const handlePrefChange = (
@@ -139,18 +163,11 @@ export default function UserPage() {
         setForm((f) => ({ ...f, [key]: value }));
     };
 
-    const handleSwitchChange = (checked: boolean) => {
-        setForm((f) => ({
-            ...f,
-            is_active: checked,
-        }));
-    };
-
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSaving(true);
-        setError(null);
         try {
+            setSaving(true);
+            setError(null);
             const payload: UpdateUserPayload = {
                 username: form.username,
                 email: form.email,
@@ -172,7 +189,47 @@ export default function UserPage() {
                 updated = await updateUser(Number(id!), payload);
             }
             setUserInfo(updated);
+
             if (avatarChanged) {
+                try {
+                    if (pendingAvatarAction === "upload" && pendingAvatarBlob) {
+                        const file = new File(
+                            [pendingAvatarBlob],
+                            "avatar.webp",
+                            {
+                                type: pendingAvatarBlob.type || "image/webp",
+                            }
+                        );
+                        await uploadMyAvatar(file as unknown as File);
+                    } else if (pendingAvatarAction === "delete") {
+                        await deleteMyAvatar();
+                    }
+                } catch (err) {
+                    let detail: string | undefined;
+                    if (axios.isAxiosError(err)) {
+                        const data = err.response?.data as unknown;
+                        if (
+                            data &&
+                            typeof data === "object" &&
+                            "detail" in data
+                        ) {
+                            const d = (data as { detail?: unknown }).detail;
+                            if (typeof d === "string") detail = d;
+                        }
+                    }
+                    throw new Error(
+                        detail ||
+                            (pendingAvatarAction === "upload"
+                                ? "Avatar upload failed."
+                                : "Avatar delete failed.")
+                    );
+                } finally {
+                    if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl);
+                    setPendingObjectUrl(null);
+                    setPendingAvatarBlob(null);
+                    setPendingAvatarAction(null);
+                }
+
                 await refreshProfile();
                 bumpAvatarVersion();
                 setAvatarChanged(false);
@@ -263,115 +320,114 @@ export default function UserPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                            <Dropzone
-                                accept={{ "image/*": [] }}
-                                maxSize={5 * 1024 * 1024}
-                                onError={(e) => {
-                                    setAvatarUploadError(
-                                        e?.message ||
-                                            "Upload failed. Max size 5MB and only images are allowed."
-                                    );
-                                }}
-                                onDrop={async (files) => {
-                                    const file = files[0];
-                                    if (!file) return;
-                                    try {
-                                        const { avatar_url } =
-                                            await uploadMyAvatar(file);
-                                        setLocalAvatarUrl(avatar_url);
-                                        setLocalAvatarVersion(Date.now());
-                                        setAvatarChanged(true);
-                                        setAvatarUploadError(null);
-                                        setAvatarDialogOpen(false);
-                                    } catch (err) {
-                                        let status: number | undefined;
-                                        let detail: string | undefined;
-                                        if (axios.isAxiosError(err)) {
-                                            status = err.response?.status;
-                                            const data = err.response
-                                                ?.data as unknown;
-                                            if (
-                                                data &&
-                                                typeof data === "object" &&
-                                                "detail" in data
-                                            ) {
-                                                const d = (
-                                                    data as {
-                                                        detail?: unknown;
-                                                    }
-                                                ).detail;
-                                                if (typeof d === "string") {
-                                                    detail = d;
-                                                }
-                                            }
-                                        }
-                                        if (
-                                            status === 413 ||
-                                            (detail &&
-                                                /too large|5MB/i.test(detail))
-                                        ) {
+                            {!pendingFile ? (
+                                <>
+                                    <Dropzone
+                                        accept={{ "image/*": [] }}
+                                        maxSize={5 * 1024 * 1024}
+                                        onError={(e) => {
                                             setAvatarUploadError(
-                                                "File too large. Maximum size is 5MB."
+                                                e?.message ||
+                                                    "Upload failed. Max size 5MB and only images are allowed."
                                             );
-                                        } else {
-                                            setAvatarUploadError(
-                                                "Avatar upload failed. Try a different image."
-                                            );
-                                        }
-                                    }
-                                }}
-                            >
-                                <div className="flex flex-col items-center">
-                                    <Upload className="w-5 h-5 mb-2" />
-                                    <p className="text-sm">
-                                        Drag & drop or click to upload
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        PNG, JPG, WEBP up to 5MB
-                                    </p>
-                                </div>
-                            </Dropzone>
-                            {avatarUploadError && (
-                                <p className="text-xs text-red-600">
-                                    {avatarUploadError}
-                                </p>
-                            )}
-                            {userInfo.avatar_url && (
-                                <div className="flex justify-between items-center">
-                                    <div className="text-sm text-muted-foreground">
-                                        Current avatar set
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        onClick={async () => {
-                                            try {
-                                                await deleteMyAvatar();
-                                                setLocalAvatarUrl(null);
-                                                setLocalAvatarVersion(
-                                                    Date.now()
-                                                );
-                                                setAvatarChanged(true);
-                                                setAvatarDialogOpen(false);
-                                            } catch (err) {
-                                                console.error(
-                                                    "Avatar delete failed",
-                                                    err
-                                                );
-                                            }
+                                        }}
+                                        onDrop={(files) => {
+                                            const file = files[0];
+                                            if (!file) return;
+                                            setPendingFile(file);
+                                            setAvatarUploadError(null);
                                         }}
                                     >
-                                        <Trash2 className="w-4 h-4 mr-2" />{" "}
-                                        Remove avatar
-                                    </Button>
-                                </div>
+                                        <div className="flex flex-col items-center">
+                                            <Upload className="w-5 h-5 mb-2" />
+                                            <p className="text-sm">
+                                                Drag & drop or click to upload
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                PNG, JPG, WEBP up to 5MB
+                                            </p>
+                                        </div>
+                                    </Dropzone>
+                                    {avatarUploadError && (
+                                        <p className="text-xs text-red-600">
+                                            {avatarUploadError}
+                                        </p>
+                                    )}
+                                    {userInfo.avatar_url && (
+                                        <div className="flex justify-between items-center">
+                                            <div className="text-sm text-muted-foreground">
+                                                Current avatar set
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() => {
+                                                    setPendingAvatarAction(
+                                                        "delete"
+                                                    );
+                                                    setPendingAvatarBlob(null);
+                                                    if (pendingObjectUrl) {
+                                                        URL.revokeObjectURL(
+                                                            pendingObjectUrl
+                                                        );
+                                                        setPendingObjectUrl(
+                                                            null
+                                                        );
+                                                    }
+                                                    setLocalAvatarUrl(null);
+                                                    setLocalAvatarVersion(
+                                                        Date.now()
+                                                    );
+                                                    setAvatarChanged(true);
+                                                    setPendingFile(null);
+                                                    setAvatarDialogOpen(false);
+                                                }}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />{" "}
+                                                Remove avatar
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <AvatarCropper
+                                    file={pendingFile}
+                                    onCancel={() => setPendingFile(null)}
+                                    onCropped={async (blob) => {
+                                        try {
+                                            if (pendingObjectUrl) {
+                                                URL.revokeObjectURL(
+                                                    pendingObjectUrl
+                                                );
+                                                setPendingObjectUrl(null);
+                                            }
+                                            const url =
+                                                URL.createObjectURL(blob);
+                                            setPendingObjectUrl(url);
+                                            setLocalAvatarUrl(url);
+                                            setLocalAvatarVersion(Date.now());
+                                            setPendingAvatarBlob(blob);
+                                            setPendingAvatarAction("upload");
+                                            setAvatarChanged(true);
+                                            setPendingFile(null);
+                                            setAvatarDialogOpen(false);
+                                        } catch {
+                                            setAvatarUploadError(
+                                                "Avatar preview failed. Try a different image."
+                                            );
+                                        }
+                                    }}
+                                />
                             )}
                         </div>
                         <DialogFooter>
                             <Button
                                 type="button"
                                 variant="secondary"
-                                onClick={() => setAvatarDialogOpen(false)}
+                                onClick={() => {
+                                    setAvatarDialogOpen(false);
+                                    setPendingFile(null);
+                                }}
                             >
                                 Close
                             </Button>
@@ -677,13 +733,13 @@ export default function UserPage() {
                                     to date!
                                 </p>
                                 <p className="mt-1">
-                                    Need help? Visit the{" "}
+                                    Need help? Visit the
                                     <Link
                                         to="/dashboard/help"
-                                        className="underline font-semibold"
+                                        className="underline font-semibold ml-1"
                                     >
                                         Help Center
-                                    </Link>{" "}
+                                    </Link>
                                     or contact support.
                                 </p>
                             </div>

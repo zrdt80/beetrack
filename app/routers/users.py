@@ -17,6 +17,8 @@ import json
 from jose import jwt
 from time import time
 from pathlib import Path
+from io import BytesIO
+from PIL import Image, ImageOps
 
 router = APIRouter()
 
@@ -535,8 +537,39 @@ def upload_avatar(
     filename = f"user_{current_user.id}{ext}"
     dest = base_dir / filename
 
-    with dest.open("wb") as out:
-        out.write(file.file.read())
+    raw_bytes = file.file.read()
+    try:
+        img = Image.open(BytesIO(raw_bytes))
+        img = ImageOps.exif_transpose(img)
+
+        if content_type in ("image/jpeg", "image/jpg"):
+            if img.mode not in ("RGB",):
+                img = img.convert("RGB")
+        else:
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGBA")
+
+        w, h = img.size
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        img = img.crop((left, top, left + side, top + side))
+
+        target = 512
+        if img.size[0] != target:
+            img = img.resize((target, target), Image.LANCZOS)
+
+        save_params = {"optimize": True}
+        if content_type in ("image/jpeg", "image/jpg"):
+            save_params.update({"quality": 90})
+        elif content_type == "image/webp":
+            save_params.update({"quality": 90})
+
+        with dest.open("wb") as out:
+            img.save(out, format=img.format or img.get_format_mimetype() or None, **save_params)
+    except Exception:
+        with dest.open("wb") as out:
+            out.write(raw_bytes)
 
     current_user.avatar_url = f"/static/avatars/{filename}"
     db.add(current_user)
