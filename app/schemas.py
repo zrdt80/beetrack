@@ -398,7 +398,6 @@ class RoleRequestSummary(BaseModel):
     pending: int
     last_status: str | None = None
     last_created_at: datetime | None = None
-    last_decided_at: datetime | None = None
 
 
 class RoleRequestDailyEntry(BaseModel):
@@ -415,3 +414,92 @@ class RoleRequestDailySeries(BaseModel):
 
 class RoleRequestRejectionTemplates(BaseModel):
     templates: list[str]
+
+
+# -------------------
+# --- APIARIES ------
+# -------------------
+
+class ApiaryRole(str, Enum):
+    owner = "owner"
+    manager = "manager"
+    worker = "worker"
+
+
+class InvitationStatus(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    declined = "declined"
+    canceled = "canceled"
+
+
+class ApiaryBase(BaseModel):
+    name: str
+    location: str | None = None
+    description: str | None = None
+
+
+class ApiaryCreate(ApiaryBase):
+    pass
+
+
+class ApiaryRead(ApiaryBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class ApiaryMemberRead(BaseModel):
+    id: int
+    apiary_id: int
+    user_id: int
+    role: ApiaryRole
+    joined_at: datetime
+    is_active: bool
+
+    class Config:
+        orm_mode = True
+
+
+class ApiaryMemberUpdate(BaseModel):
+    role: ApiaryRole
+
+
+class ApiaryInviteCreate(BaseModel):
+    email: EmailStr
+    role: ApiaryRole = ApiaryRole.worker
+
+
+class ApiaryInvitationRead(BaseModel):
+    id: int
+    apiary_id: int
+    inviter_id: int
+    invitee_email: EmailStr
+    role: ApiaryRole
+    status: InvitationStatus
+    token: str
+    created_at: datetime
+    decided_at: datetime | None = None
+
+    class Config:
+        orm_mode = True
+    last_decided_at: datetime | None = None
+
+
+class ApiaryPage(Page):
+    items: list[ApiaryRead]
+
+
+class ApiaryMemberPage(Page):
+    items: list[ApiaryMemberRead]
+
+
+class ApiaryInvitationPage(Page):
+    items: list[ApiaryInvitationRead]
+
+
+class ApiaryTransferOwnershipRequest(BaseModel):
+    new_owner_user_id: int

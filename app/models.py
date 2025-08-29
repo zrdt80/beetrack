@@ -3,6 +3,7 @@ from sqlalchemy import (
     DateTime, Text, Enum, Boolean
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 from datetime import datetime, timezone
 from app.database import Base
 import enum
@@ -41,6 +42,8 @@ class User(Base):
         cascade="all, delete-orphan",
         foreign_keys="RoleChangeRequest.user_id",
     )
+    owned_apiaries = relationship("Apiary", back_populates="owner", cascade="all, delete-orphan")
+    apiary_memberships = relationship("ApiaryMember", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSession(Base):
@@ -65,12 +68,14 @@ class Hive(Base):
     __tablename__ = "hives"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
     location = Column(String(200))
     status = Column(String(50), default="active")
     last_inspection_date = Column(DateTime)
+    apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=True, index=True)
 
     inspections = relationship("Inspection", back_populates="hive")
+    apiary = relationship("Apiary", back_populates="hives")
 
 
 class Inspection(Base):
@@ -131,6 +136,68 @@ class Log(Base):
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     event = Column(String(255), nullable=False)
     level = Column(String(20), nullable=False, default="info", index=True)
+
+
+class ApiaryRole(str, enum.Enum):
+    owner = "owner"
+    manager = "manager"
+    worker = "worker"
+
+
+class Apiary(Base):
+    __tablename__ = "apiaries"
+    __table_args__ = (
+        UniqueConstraint('owner_id', 'name', name='uq_apiaries_owner_name'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    location = Column(String(200))
+    description = Column(Text)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    owner = relationship("User", back_populates="owned_apiaries")
+    members = relationship("ApiaryMember", back_populates="apiary", cascade="all, delete-orphan")
+    hives = relationship("Hive", back_populates="apiary", cascade="all, delete-orphan")
+
+
+class ApiaryMember(Base):
+    __tablename__ = "apiary_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role = Column(Enum(ApiaryRole), default=ApiaryRole.worker, nullable=False)
+    joined_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    is_active = Column(Boolean, default=True)
+
+    apiary = relationship("Apiary", back_populates="members")
+    user = relationship("User", back_populates="apiary_memberships")
+
+
+class InvitationStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    declined = "declined"
+    canceled = "canceled"
+
+
+class ApiaryInvitation(Base):
+    __tablename__ = "apiary_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=False, index=True)
+    inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    invitee_email = Column(String(120), nullable=False, index=True)
+    role = Column(Enum(ApiaryRole), default=ApiaryRole.worker, nullable=False)
+    status = Column(Enum(InvitationStatus), default=InvitationStatus.pending, nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    decided_at = Column(DateTime, nullable=True)
+
+    apiary = relationship("Apiary")
+    inviter = relationship("User")
 
 
 class RoleRequestStatus(str, enum.Enum):

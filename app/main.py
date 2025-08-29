@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from app.utils.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
-from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests
+from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries
 from app.services.scheduler import start_scheduler
 
 
@@ -41,3 +41,4 @@ app.include_router(export.router, prefix="/export", tags=["Export"])
 app.include_router(stats.router, prefix="/stats", tags=["Statistics"])
 app.include_router(logs.router, prefix="/logs", tags=["Logs"])
 app.include_router(role_requests.router, prefix="/role-requests", tags=["Role Requests"])
+app.include_router(apiaries.router, prefix="/apiaries", tags=["Apiaries"])
