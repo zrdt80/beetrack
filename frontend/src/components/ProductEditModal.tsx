@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateProduct } from "@/api/products";
 import type { Product, ProductCreate } from "@/api/products";
 import {
@@ -27,8 +27,17 @@ export default function ProductEditModal({
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (open) {
+            setError(null);
+        }
+    }, [open]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value, type } = e.target;
+        const nextVal =
+            type === "number" ? (value === "" ? 0 : Number(value)) : value;
+        setForm({ ...form, [name]: nextVal } as ProductCreate);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -41,8 +50,17 @@ export default function ProductEditModal({
             });
             onSuccess();
             setOpen(false);
-        } catch {
-            setError("Update failed.");
+        } catch (err) {
+            const axErr = err as {
+                response?: { data?: { detail?: unknown } };
+                message?: unknown;
+            };
+            const detail = axErr?.response?.data?.detail;
+            const message =
+                (typeof detail === "string" && detail) ||
+                (typeof axErr?.message === "string" && axErr.message) ||
+                "Update failed.";
+            setError(message);
         }
     };
 
@@ -74,7 +92,11 @@ export default function ProductEditModal({
                     <Input
                         name="unit_price"
                         type="number"
-                        value={form.unit_price.toFixed(2)}
+                        value={
+                            typeof form.unit_price === "number"
+                                ? form.unit_price
+                                : form.unit_price
+                        }
                         onChange={handleChange}
                         required
                     />

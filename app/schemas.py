@@ -221,6 +221,7 @@ class ProductCreate(ProductBase):
 
 
 class ProductUpdate(BaseModel):
+    name: Optional[str] = None
     description: Optional[str]
     unit_price: Optional[float]
     stock_quantity: Optional[int]

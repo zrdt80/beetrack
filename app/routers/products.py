@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app import models, schemas
 from app.database import get_db
 from app.services.auth import requires_role
@@ -14,12 +15,20 @@ def create_product(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    exists = db.query(models.Product).filter(models.Product.name == product.name).first()
+    normalized_name = product.name.strip()
+    exists = (
+        db.query(models.Product)
+        .filter(func.lower(models.Product.name) == normalized_name.lower())
+        .first()
+    )
     if exists:
-        log_event(f"Product creation failed: {product.name} already exists, attempted by admin {current_user.username}")
+        log_event(
+            f"Product creation failed: '{normalized_name}' already exists (case-insensitive), attempted by admin {current_user.username}"
+        )
         raise HTTPException(status_code=400, detail="Product with this name already exists")
-
-    new_product = models.Product(**product.dict())
+    payload = product.dict()
+    payload["name"] = normalized_name
+    new_product = models.Product(**payload)
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
@@ -73,7 +82,26 @@ def update_product(
         log_event(f"Product update failed: product {product_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Product not found")
 
-    for key, value in product_data.dict(exclude_unset=True).items():
+    payload = product_data.dict(exclude_unset=True)
+    if "name" in payload and payload["name"] is not None:
+        new_name = payload["name"].strip()
+        if new_name != product.name:
+            conflict = (
+                db.query(models.Product)
+                .filter(
+                    func.lower(models.Product.name) == new_name.lower(),
+                    models.Product.id != product_id,
+                )
+                .first()
+            )
+            if conflict:
+                log_event(
+                    f"Product update failed: name '{new_name}' already exists (case-insensitive, ID: {conflict.id}), attempted by admin {current_user.username}"
+                )
+                raise HTTPException(status_code=400, detail="Product with this name already exists (case-insensitive)")
+        payload["name"] = new_name
+
+    for key, value in payload.items():
         setattr(product, key, value)
 
     db.commit()
