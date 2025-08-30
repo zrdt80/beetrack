@@ -344,7 +344,10 @@ export default function DashboardHome() {
                                 Today
                             </p>
                             <p className="text-lg font-semibold">
-                                {new Date().toLocaleDateString()}
+                                {formatDateTime(
+                                    new Date().toISOString(),
+                                    "date"
+                                )}
                             </p>
                             <TimezoneDisplay
                                 showIcon={false}

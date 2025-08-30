@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -24,6 +24,8 @@ import {
     transferApiaryOwnership,
     type ApiaryTransferOwnershipRequest,
 } from "@/api/apiaries";
+import { formatDateTime } from "@/lib/datetime";
+import TimezoneDisplay from "@/components/TimezoneDisplay";
 
 const getErr = (e: unknown): string => {
     const anyErr = e as
@@ -74,7 +76,7 @@ export default function ApiaryDetailPage() {
     const [transferUserId, setTransferUserId] = useState<string>("");
     const [transferring, setTransferring] = useState(false);
 
-    const loadMain = (): Promise<void> => {
+    const loadMain = useCallback((): Promise<void> => {
         if (!apiaryId) return Promise.resolve();
         setLoading(true);
         return Promise.all([
@@ -87,38 +89,44 @@ export default function ApiaryDetailPage() {
             })
             .catch(() => setError("Failed to load apiary."))
             .finally(() => setLoading(false));
-    };
+    }, [apiaryId]);
 
-    const loadMembers = (p = membersPage, q = membersQ): Promise<void> => {
-        if (!apiaryId) return Promise.resolve();
-        setMembersLoading(true);
-        return listApiaryMembers(apiaryId, p, 10, q, false)
-            .then((res: ApiaryMemberPage) => {
-                setMembers(res.items);
-                setMembersPages(res.meta.pages);
-            })
-            .finally(() => setMembersLoading(false));
-    };
+    const loadMembers = useCallback(
+        (p = membersPage, q = membersQ): Promise<void> => {
+            if (!apiaryId) return Promise.resolve();
+            setMembersLoading(true);
+            return listApiaryMembers(apiaryId, p, 10, q, false)
+                .then((res: ApiaryMemberPage) => {
+                    setMembers(res.items);
+                    setMembersPages(res.meta.pages);
+                })
+                .finally(() => setMembersLoading(false));
+        },
+        [apiaryId, membersPage, membersQ]
+    );
 
-    const loadInvitations = (p = invPage, q = invQ): Promise<void> => {
-        if (!apiaryId) return Promise.resolve();
-        setInvLoading(true);
-        return listApiaryInvitations(apiaryId, p, 10, q)
-            .then((res: ApiaryInvitationPage) => {
-                setInvitations(res.items);
-                setInvPages(res.meta.pages);
-            })
-            .finally(() => setInvLoading(false));
-    };
+    const loadInvitations = useCallback(
+        (p = invPage, q = invQ): Promise<void> => {
+            if (!apiaryId) return Promise.resolve();
+            setInvLoading(true);
+            return listApiaryInvitations(apiaryId, p, 10, q)
+                .then((res: ApiaryInvitationPage) => {
+                    setInvitations(res.items);
+                    setInvPages(res.meta.pages);
+                })
+                .finally(() => setInvLoading(false));
+        },
+        [apiaryId, invPage, invQ]
+    );
 
     useEffect(() => {
         loadMain();
-    }, [apiaryId]);
+    }, [apiaryId, loadMain]);
 
     useEffect(() => {
         loadMembers(1, membersQ);
         loadInvitations(1, invQ);
-    }, [apiaryId]);
+    }, [apiaryId, loadMembers, loadInvitations, membersQ, invQ]);
 
     const handleCreateHive = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -351,6 +359,10 @@ export default function ApiaryDetailPage() {
                     </form>
                 </div>
                 <div className="overflow-x-auto border rounded">
+                    <div className="flex justify-end p-2 text-xs text-gray-500">
+                        <span className="mr-1">Times shown in</span>
+                        <TimezoneDisplay showIcon={false} />
+                    </div>
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50">
                             <tr>
@@ -394,7 +406,10 @@ export default function ApiaryDetailPage() {
                                         )}
                                     </td>
                                     <td className="px-3 py-2">
-                                        {new Date(m.joined_at).toLocaleString()}
+                                        {formatDateTime(
+                                            m.joined_at,
+                                            "datetime"
+                                        )}
                                     </td>
                                     <td className="px-3 py-2">
                                         {(isOwner || isAdmin) &&
@@ -509,6 +524,10 @@ export default function ApiaryDetailPage() {
                 )}
 
                 <div className="overflow-x-auto border rounded">
+                    <div className="flex justify-end p-2 text-xs text-gray-500">
+                        <span className="mr-1">Times shown in</span>
+                        <TimezoneDisplay showIcon={false} />
+                    </div>
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50">
                             <tr>
@@ -528,9 +547,10 @@ export default function ApiaryDetailPage() {
                                     <td className="px-3 py-2">{inv.role}</td>
                                     <td className="px-3 py-2">{inv.status}</td>
                                     <td className="px-3 py-2">
-                                        {new Date(
-                                            inv.created_at
-                                        ).toLocaleString()}
+                                        {formatDateTime(
+                                            inv.created_at,
+                                            "datetime"
+                                        )}
                                     </td>
                                     <td className="px-3 py-2">
                                         {isOwner &&

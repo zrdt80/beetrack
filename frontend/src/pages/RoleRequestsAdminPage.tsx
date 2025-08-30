@@ -20,6 +20,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PaginationControls from "@/components/PaginationControls";
+import { formatDateTime } from "@/lib/datetime";
 
 function extractError(e: unknown): string {
     if (typeof e === "string") return e;
@@ -219,7 +220,7 @@ export default function RoleRequestsAdminPage() {
         {
             key: "created_at",
             header: "Created",
-            render: (r) => new Date(r.created_at).toLocaleString(),
+            render: (r) => formatDateTime(r.created_at, "datetime"),
             className: "text-xs whitespace-nowrap",
             sortable: true,
         },
@@ -227,7 +228,7 @@ export default function RoleRequestsAdminPage() {
             key: "decided_at",
             header: "Decided",
             render: (r) =>
-                r.decided_at ? new Date(r.decided_at).toLocaleString() : "—",
+                r.decided_at ? formatDateTime(r.decided_at, "datetime") : "—",
             className: "text-xs whitespace-nowrap",
             sortable: true,
         },

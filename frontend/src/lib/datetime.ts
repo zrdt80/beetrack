@@ -117,10 +117,7 @@ export const formatRelativeTime = (
         }
     }
 
-    return date.toLocaleDateString(
-        locale || "en-US",
-        dateFormatOptions.datetime
-    );
+    return date.toLocaleString(locale || "en-US", dateFormatOptions.datetime);
 };
 
 export const getUserTimezone = (): string => {
