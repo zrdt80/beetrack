@@ -160,7 +160,7 @@ def _clear_existing_data(db: Session):
     try:
         if dialect == "postgresql":
             db.execute(text(
-                "TRUNCATE TABLE order_items, orders, user_sessions, inspections, hives, products, logs, users RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE order_items, orders, user_sessions, inspections, apiary_invitations, apiary_members, hives, apiaries, products, role_change_requests, logs, users RESTART IDENTITY CASCADE"
             ))
         else:
             ordered_tables = [
@@ -168,7 +168,10 @@ def _clear_existing_data(db: Session):
                 models.Order.__table__,
                 models.UserSession.__table__,
                 models.Inspection.__table__,
+                models.ApiaryInvitation.__table__,
+                models.ApiaryMember.__table__,
                 models.Hive.__table__,
+                models.Apiary.__table__,
                 models.Product.__table__,
                 models.Log.__table__,
                 models.RoleChangeRequest.__table__,
@@ -194,6 +197,7 @@ def _seed_users(db: Session, seed_data: dict):
             role=user["role"]
         ))
     db.add_all(users_payload)
+    db.commit()
     log_event(f"Seeded {len(users_payload)} users")
 
 
@@ -207,17 +211,80 @@ def _seed_products(db: Session, seed_data: dict):
             stock_quantity=product["stock_quantity"]
         ))
     db.add_all(products_payload)
+    db.commit()
     log_event(f"Seeded {len(products_payload)} products")
 
 
+def _seed_apiaries(db: Session, seed_data: dict):
+    users_by_username = {u.username.lower(): u for u in db.query(models.User).all()}
+    apiaries_payload: list[models.Apiary] = []
+    current_max_apiary_id = db.query(func.max(models.Apiary.id)).scalar() or 0
+    owner_memberships: list[models.ApiaryMember] = []
+    for apiary in seed_data.get("apiaries", []):
+        owner_name = (apiary.get("owner") or "").lower()
+        owner = users_by_username.get(owner_name)
+        if not owner:
+            continue
+        current_max_apiary_id += 1
+        obj = models.Apiary(
+            id=current_max_apiary_id,
+            name=apiary["name"],
+            location=apiary.get("location"),
+            description=apiary.get("description"),
+            owner_id=owner.id,
+        )
+        apiaries_payload.append(obj)
+    db.add_all(apiaries_payload)
+    db.commit()
+    current_max_member_id = db.query(func.max(models.ApiaryMember.id)).scalar() or 0
+    for a in apiaries_payload:
+        current_max_member_id += 1
+        owner_memberships.append(models.ApiaryMember(id=current_max_member_id, apiary_id=a.id, user_id=a.owner_id, role=models.ApiaryRole.owner, is_active=True))
+    if owner_memberships:
+        db.add_all(owner_memberships)
+        db.commit()
+    log_event(f"Seeded {len(apiaries_payload)} apiaries (+owner memberships)")
+
+
+def _seed_apiary_members(db: Session, seed_data: dict):
+    if not seed_data.get("apiary_members"):
+        return
+    apiaries_by_name = {a.name: a for a in db.query(models.Apiary).all()}
+    users_by_username = {u.username.lower(): u for u in db.query(models.User).all()}
+    created = 0
+    current_max_member_id = db.query(func.max(models.ApiaryMember.id)).scalar() or 0
+    for m in seed_data.get("apiary_members", []):
+        apiary = apiaries_by_name.get(m.get("apiary"))
+        user = users_by_username.get((m.get("username") or "").lower())
+        if not apiary or not user:
+            continue
+        existing = db.query(models.ApiaryMember).filter_by(apiary_id=apiary.id, user_id=user.id).first()
+        if existing:
+            continue
+        role_value = (m.get("role") or "worker").lower()
+        try:
+            role = models.ApiaryRole(role_value)
+        except Exception:
+            role = models.ApiaryRole.worker
+        current_max_member_id += 1
+        db.add(models.ApiaryMember(id=current_max_member_id, apiary_id=apiary.id, user_id=user.id, role=role, is_active=True))
+        created += 1
+    if created:
+        db.commit()
+        log_event(f"Seeded {created} apiary members")
+
+
 def _seed_hives(db: Session, seed_data: dict):
+    apiary_by_name = {a.name: a.id for a in db.query(models.Apiary).all()}
     hives_payload = []
     for hive in seed_data.get("hives", []):
+        apiary_id = apiary_by_name.get(hive.get("location"))
         hives_payload.append(models.Hive(
             name=hive["name"],
             location=hive["location"],
             status=hive["status"],
             last_inspection_date=None,
+            apiary_id=apiary_id,
         ))
     db.add_all(hives_payload)
     db.commit()
@@ -370,17 +437,18 @@ def run_seed(db: Session):
             log_event("Seed skipped: users table does not exist")
             return
 
-    if db.query(models.User).first() and not FORCE_RESEED:
-        print("ℹ️ Seeding skipped – users already exist (set FORCE_RESEED=True in seed.py to reseed).")
-        log_event("Seed skipped: users already exist")
-        return
+    users_exist = db.query(models.User).first() is not None
+    if users_exist and not FORCE_RESEED:
+        print("ℹ️ Users exist – will skip user seeding and proceed to seed remaining entities if empty.")
+        log_event("Users exist – running partial seed for remaining entities")
 
     if FORCE_RESEED:
         try:
             _clear_existing_data(db)
         except Exception:
             return
-
+    users_exist = False
+        
     print("🌱 Running data seed...")
     log_event("Data seeding started")
 
@@ -391,13 +459,47 @@ def run_seed(db: Session):
         log_event("Generating large synthetic seed dataset")
         seed_data = _generate_large_data(seed_data)
 
-    _seed_users(db, seed_data)
-    _seed_products(db, seed_data)
-    _seed_hives(db, seed_data)
-    _seed_inspections(db, seed_data)
+    if not users_exist:
+        _seed_users(db, seed_data)
+    else:
+        log_event("Skip users seeding: already present")
+
+    if not db.query(models.Product).first():
+        _seed_products(db, seed_data)
+    else:
+        log_event("Skip products seeding: already present")
+
+    if not db.query(models.Apiary).first():
+        _seed_apiaries(db, seed_data)
+    else:
+        log_event("Skip apiaries seeding: already present")
+
+    if not db.query(models.ApiaryMember).first():
+        _seed_apiary_members(db, seed_data)
+    else:
+        log_event("Skip apiary members seeding: already present")
+
+    if not db.query(models.Hive).first():
+        _seed_hives(db, seed_data)
+    else:
+        log_event("Skip hives seeding: already present")
+
+    if not db.query(models.Inspection).first():
+        _seed_inspections(db, seed_data)
+    else:
+        log_event("Skip inspections seeding: already present")
+
     _recalculate_last_inspection_dates(db)
-    _seed_orders(db, seed_data)
-    _seed_role_change_requests(db)
+
+    if not db.query(models.Order).first():
+        _seed_orders(db, seed_data)
+    else:
+        log_event("Skip orders seeding: already present")
+
+    if not db.query(models.RoleChangeRequest).first():
+        _seed_role_change_requests(db)
+    else:
+        log_event("Skip role change requests seeding: already present")
 
     print("✅ Data seeding completed.")
     log_event("Data seeding completed successfully")

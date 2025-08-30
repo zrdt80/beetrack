@@ -133,6 +133,94 @@
             "role": "worker"
         }
     ],
+    "apiaries": [
+        {
+            "name": "Apiary Alpha",
+            "location": "North Field",
+            "description": "Primary production yard",
+            "owner": "owner"
+        },
+        {
+            "name": "Apiary Beta",
+            "location": "South Slope",
+            "description": "Secondary yard near river",
+            "owner": "manager"
+        },
+        {
+            "name": "Apiary Gamma",
+            "location": "Forest Edge",
+            "description": "Shaded site",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Delta",
+            "location": "East Ridge",
+            "description": "Windy ridge line",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Epsilon",
+            "location": "West Valley",
+            "description": "Sheltered valley",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Zeta",
+            "location": "High Meadow",
+            "description": "Sunny meadow site",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Eta",
+            "location": "Creek Bend",
+            "description": "Close to water source",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Theta",
+            "location": "Hill Farm",
+            "description": "Gentle slope farm",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Iota",
+            "location": "Pine Grove",
+            "description": "Conifer edge",
+            "owner": "worker"
+        },
+        {
+            "name": "Apiary Kappa",
+            "location": "Orchard East",
+            "description": "Fruit trees nearby",
+            "owner": "worker"
+        }
+    ],
+    "apiary_members": [
+        { "apiary": "Apiary Alpha", "username": "worker", "role": "manager" },
+        { "apiary": "Apiary Alpha", "username": "qa", "role": "worker" },
+        { "apiary": "Apiary Beta", "username": "operator1", "role": "worker" },
+        { "apiary": "Apiary Beta", "username": "operator2", "role": "worker" },
+        {
+            "apiary": "Apiary Gamma",
+            "username": "beekeeper1",
+            "role": "manager"
+        },
+        {
+            "apiary": "Apiary Gamma",
+            "username": "beekeeper2",
+            "role": "worker"
+        },
+        {
+            "apiary": "Apiary Delta",
+            "username": "beekeeper3",
+            "role": "worker"
+        },
+        {
+            "apiary": "Apiary Epsilon",
+            "username": "fieldtech",
+            "role": "worker"
+        }
+    ],
     "products": [
         {
             "name": "Starter Honey",

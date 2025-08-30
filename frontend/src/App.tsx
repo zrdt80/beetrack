@@ -5,6 +5,8 @@ import RegisterPage from "@/pages/RegisterPage";
 import Dashboard from "@/pages/Dashboard";
 import DashboardHome from "@/pages/DashboardHome";
 import HivesPage from "@/pages/HivesPage";
+import ApiariesPage from "@/pages/ApiariesPage";
+import ApiaryDetailPage from "@/pages/ApiaryDetailPage";
 import InspectionsPage from "@/pages/InspectionsPage";
 import ProductsPage from "@/pages/ProductsPage";
 import OrdersPage from "@/pages/OrdersPage";
@@ -46,6 +48,9 @@ function App() {
             {user && (
                 <Route path="/dashboard" element={<Dashboard />}>
                     <Route index element={<DashboardHome />} />
+                    <Route path="apiaries" element={<ApiariesPage />} />
+                    <Route path="apiaries/:id" element={<ApiaryDetailPage />} />
+                    {/* Legacy routes retained temporarily */}
                     <Route path="hives" element={<HivesPage />} />
                     <Route path="hives/:id" element={<InspectionsPage />} />
                     <Route path="products" element={<ProductsPage />} />

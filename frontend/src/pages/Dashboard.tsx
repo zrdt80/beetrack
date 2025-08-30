@@ -33,8 +33,8 @@ const navLinks = [
         workerOnly: false,
     },
     {
-        to: "/dashboard/hives",
-        label: "Hives",
+        to: "/dashboard/apiaries",
+        label: "Apiaries",
         icon: Layers3,
         admin: false,
         workerOnly: true,

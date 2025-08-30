@@ -56,13 +56,16 @@ def list_my_apiaries(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    owned_q = db.query(models.Apiary).filter(models.Apiary.owner_id == current_user.id)
-    member_ids = db.query(models.ApiaryMember.apiary_id).filter(
-        models.ApiaryMember.user_id == current_user.id,
-        models.ApiaryMember.is_active == True,
-    )
-    member_q = db.query(models.Apiary).filter(models.Apiary.id.in_(member_ids))
-    query = owned_q.union(member_q)
+    if current_user.role == models.UserRole.admin:
+        query = db.query(models.Apiary)
+    else:
+        owned_q = db.query(models.Apiary).filter(models.Apiary.owner_id == current_user.id)
+        member_ids = db.query(models.ApiaryMember.apiary_id).filter(
+            models.ApiaryMember.user_id == current_user.id,
+            models.ApiaryMember.is_active == True,
+        )
+        member_q = db.query(models.Apiary).filter(models.Apiary.id.in_(member_ids))
+        query = owned_q.union(member_q)
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -91,6 +94,8 @@ def get_apiary(apiary_id: int, db: Session = Depends(get_db), current_user: mode
     apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
     if not apiary:
         raise HTTPException(status_code=404, detail="Apiary not found")
+    if current_user.role == models.UserRole.admin:
+        return apiary
     is_member = db.query(models.ApiaryMember).filter(
         models.ApiaryMember.apiary_id == apiary_id,
         models.ApiaryMember.user_id == current_user.id,
@@ -108,7 +113,12 @@ def update_apiary(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    apiary = _ensure_owner(db, apiary_id, current_user)
+    if current_user.role == models.UserRole.admin:
+        apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+        if not apiary:
+            raise HTTPException(status_code=404, detail="Apiary not found")
+    else:
+        apiary = _ensure_owner(db, apiary_id, current_user)
     apiary.name = payload.name
     apiary.location = payload.location
     apiary.description = payload.description
@@ -120,7 +130,12 @@ def update_apiary(
 
 @router.delete("/{apiary_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_apiary(apiary_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    apiary = _ensure_owner(db, apiary_id, current_user)
+    if current_user.role == models.UserRole.admin:
+        apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+        if not apiary:
+            raise HTTPException(status_code=404, detail="Apiary not found")
+    else:
+        apiary = _ensure_owner(db, apiary_id, current_user)
     db.delete(apiary)
     db.commit()
     log_event(f"Apiary deleted: {apiary_id} by {current_user.username}")
@@ -133,22 +148,28 @@ def list_members(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     q: str | None = Query(None, description="Search by username/email"),
+    include_inactive: bool = Query(False, description="Include inactive members"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
     apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
     if not apiary:
         raise HTTPException(status_code=404, detail="Apiary not found")
-    mem = db.query(models.ApiaryMember).filter(
-        models.ApiaryMember.apiary_id == apiary_id,
-        models.ApiaryMember.user_id == current_user.id,
-        models.ApiaryMember.is_active == True,
-    ).first()
-    if apiary.owner_id != current_user.id and not mem:
-        raise HTTPException(status_code=403, detail="Not allowed")
+    if current_user.role == models.UserRole.admin:
+        pass
+    else:
+        mem = db.query(models.ApiaryMember).filter(
+            models.ApiaryMember.apiary_id == apiary_id,
+            models.ApiaryMember.user_id == current_user.id,
+            models.ApiaryMember.is_active == True,
+        ).first()
+        if apiary.owner_id != current_user.id and not mem:
+            raise HTTPException(status_code=403, detail="Not allowed")
     mq = db.query(models.ApiaryMember).join(models.User, models.User.id == models.ApiaryMember.user_id).filter(
         models.ApiaryMember.apiary_id == apiary_id
     )
+    if not include_inactive:
+        mq = mq.filter(models.ApiaryMember.is_active == True)
     if q:
         like = f"%{q}%"
         mq = mq.filter((models.User.username.ilike(like)) | (models.User.email.ilike(like)))
@@ -178,7 +199,8 @@ def update_member_role(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    _ensure_owner(db, apiary_id, current_user)
+    if current_user.role != models.UserRole.admin:
+        _ensure_owner(db, apiary_id, current_user)
     member = db.query(models.ApiaryMember).filter(
         models.ApiaryMember.apiary_id == apiary_id,
         models.ApiaryMember.user_id == user_id,
@@ -202,7 +224,8 @@ def remove_member(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    _ensure_owner(db, apiary_id, current_user)
+    if current_user.role != models.UserRole.admin:
+        _ensure_owner(db, apiary_id, current_user)
     member = db.query(models.ApiaryMember).filter(
         models.ApiaryMember.apiary_id == apiary_id,
         models.ApiaryMember.user_id == user_id,
@@ -225,7 +248,12 @@ def invite_member(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    apiary = _ensure_owner(db, apiary_id, current_user)
+    if current_user.role == models.UserRole.admin:
+        apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+        if not apiary:
+            raise HTTPException(status_code=404, detail="Apiary not found")
+    else:
+        apiary = _ensure_owner(db, apiary_id, current_user)
     token = secrets.token_urlsafe(24)
     inv = models.ApiaryInvitation(
         apiary_id=apiary.id,
@@ -254,7 +282,11 @@ def list_invitations(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    _ensure_owner(db, apiary_id, current_user)
+    apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+    if not apiary:
+        raise HTTPException(status_code=404, detail="Apiary not found")
+    if current_user.role != models.UserRole.admin:
+        _ensure_owner(db, apiary_id, current_user)
     iq = db.query(models.ApiaryInvitation).filter(models.ApiaryInvitation.apiary_id == apiary_id)
     if q:
         like = f"%{q}%"
@@ -305,11 +337,14 @@ def transfer_ownership(
         new_owner_member = models.ApiaryMember(
             apiary_id=apiary_id,
             user_id=payload.new_owner_user_id,
-            role=models.ApiaryRole.manager,
+            role=models.ApiaryRole.owner,
             is_active=True,
         )
         db.add(new_owner_member)
         db.flush()
+    else:
+        new_owner_member.role = models.ApiaryRole.owner
+        new_owner_member.is_active = True
     old_owner_member = db.query(models.ApiaryMember).filter(
         models.ApiaryMember.apiary_id == apiary_id,
         models.ApiaryMember.user_id == apiary.owner_id,
@@ -381,7 +416,8 @@ def decline_invitation(token: str, db: Session = Depends(get_db), current_user: 
 
 @router.post("/{apiary_id}/invitations/{invitation_id}/cancel")
 def cancel_invitation(apiary_id: int, invitation_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    _ensure_owner(db, apiary_id, current_user)
+    if current_user.role != models.UserRole.admin:
+        _ensure_owner(db, apiary_id, current_user)
     inv = db.query(models.ApiaryInvitation).filter(
         models.ApiaryInvitation.id == invitation_id,
         models.ApiaryInvitation.apiary_id == apiary_id,
@@ -407,13 +443,14 @@ def list_apiary_hives(
     apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
     if not apiary:
         raise HTTPException(status_code=404, detail="Apiary not found")
-    is_member = db.query(models.ApiaryMember).filter(
-        models.ApiaryMember.apiary_id == apiary_id,
-        models.ApiaryMember.user_id == current_user.id,
-        models.ApiaryMember.is_active == True,
-    ).first()
-    if apiary.owner_id != current_user.id and not is_member:
-        raise HTTPException(status_code=403, detail="Not allowed")
+    if current_user.role != models.UserRole.admin:
+        is_member = db.query(models.ApiaryMember).filter(
+            models.ApiaryMember.apiary_id == apiary_id,
+            models.ApiaryMember.user_id == current_user.id,
+            models.ApiaryMember.is_active == True,
+        ).first()
+        if apiary.owner_id != current_user.id and not is_member:
+            raise HTTPException(status_code=403, detail="Not allowed")
     query = db.query(models.Hive).filter(models.Hive.apiary_id == apiary_id).order_by(models.Hive.id)
     total = query.order_by(None).count()
     items = query.limit(size).offset((page - 1) * size).all()
@@ -441,15 +478,16 @@ def create_apiary_hive(
     apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
     if not apiary:
         raise HTTPException(status_code=404, detail="Apiary not found")
-    member = db.query(models.ApiaryMember).filter(
-        models.ApiaryMember.apiary_id == apiary_id,
-        models.ApiaryMember.user_id == current_user.id,
-        models.ApiaryMember.is_active == True,
-    ).first()
-    if apiary.owner_id != current_user.id and not (
-        member and member.role in [models.ApiaryRole.owner, models.ApiaryRole.manager]
-    ):
-        raise HTTPException(status_code=403, detail="Only owner or manager can add hives")
+    if current_user.role != models.UserRole.admin:
+        member = db.query(models.ApiaryMember).filter(
+            models.ApiaryMember.apiary_id == apiary_id,
+            models.ApiaryMember.user_id == current_user.id,
+            models.ApiaryMember.is_active == True,
+        ).first()
+        if apiary.owner_id != current_user.id and not (
+            member and member.role in [models.ApiaryRole.owner, models.ApiaryRole.manager]
+        ):
+            raise HTTPException(status_code=403, detail="Only owner or manager can add hives")
     existing = db.query(models.Hive).filter(
         models.Hive.apiary_id == apiary_id,
         models.Hive.name == payload.name,
