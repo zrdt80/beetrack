@@ -53,6 +53,7 @@ import { TIMEZONES } from "@/lib/timezones";
 import { LOCALES } from "@/lib/locales";
 import StatusBadge from "@/components/StatusBadge";
 import axios from "axios";
+import { toast } from "sonner";
 
 export default function UserPage() {
     const { id } = useParams<{ id: string }>();
@@ -217,12 +218,13 @@ export default function UserPage() {
                             if (typeof d === "string") detail = d;
                         }
                     }
-                    throw new Error(
+                    const message =
                         detail ||
-                            (pendingAvatarAction === "upload"
-                                ? "Avatar upload failed."
-                                : "Avatar delete failed.")
-                    );
+                        (pendingAvatarAction === "upload"
+                            ? "Avatar upload failed."
+                            : "Avatar delete failed.");
+                    toast.error(message);
+                    throw new Error(message);
                 } finally {
                     if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl);
                     setPendingObjectUrl(null);
@@ -236,6 +238,7 @@ export default function UserPage() {
                 setLocalAvatarUrl(null);
                 setLocalAvatarVersion(undefined);
             }
+            toast.success("Profile saved");
             setEditMode(false);
             setForm((f) => ({ ...f, password: "" }));
         } catch (err: unknown) {
@@ -244,6 +247,7 @@ export default function UserPage() {
                     ?.data?.detail ||
                 (err instanceof Error ? err.message : "Failed to update user.");
             setError(msg);
+            toast.error(msg);
         } finally {
             setSaving(false);
         }

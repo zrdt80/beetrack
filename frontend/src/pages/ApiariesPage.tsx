@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiaries, type Apiary, type ApiaryPage } from "@/api/apiaries";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function ApiariesPage() {
     const { user } = useAuth();
@@ -13,22 +14,28 @@ export default function ApiariesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const load = (p = page, query = q) => {
-        if (!user) return;
-        setLoading(true);
-        getApiaries(p, size, query)
-            .then((res: ApiaryPage) => {
-                setItems(res.items);
-                setTotalPages(res.meta.pages);
-                setError(null);
-            })
-            .catch(() => setError("Failed to load apiaries."))
-            .finally(() => setLoading(false));
-    };
+    const load = useCallback(
+        (p = page, query = q) => {
+            if (!user) return;
+            setLoading(true);
+            getApiaries(p, size, query)
+                .then((res: ApiaryPage) => {
+                    setItems(res.items);
+                    setTotalPages(res.meta.pages);
+                    setError(null);
+                })
+                .catch(() => {
+                    setError("Failed to load apiaries.");
+                    toast.error("Failed to load apiaries");
+                })
+                .finally(() => setLoading(false));
+        },
+        [user, page, q, size]
+    );
 
     useEffect(() => {
         load(1, q);
-    }, [user]);
+    }, [load, q]);
 
     const onSearch = (e: React.FormEvent) => {
         e.preventDefault();

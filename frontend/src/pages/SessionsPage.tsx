@@ -12,6 +12,7 @@ import {
 import { Trash2, ShieldAlert, Clock, Shield, LogOut } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "@/lib/datetime";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import { toast } from "sonner";
 
 export default function SessionsPage() {
     const {
@@ -38,11 +39,11 @@ export default function SessionsPage() {
     const handleRevokeSession = async (sessionId: number) => {
         setLoading(sessionId);
         try {
-            await revokeUserSession(sessionId);
-            alert("Session revoked successfully");
-        } catch (error) {
-            console.error("Failed to revoke session:", error);
-            alert("Failed to revoke session");
+            await toast.promise(revokeUserSession(sessionId), {
+                loading: "Revoking session...",
+                success: "Session revoked",
+                error: "Failed to revoke session",
+            });
         } finally {
             setLoading(null);
         }
@@ -51,11 +52,11 @@ export default function SessionsPage() {
     const handleRevokeAllSessions = async () => {
         setRevokeAllLoading(true);
         try {
-            await revokeAllUserSessions(true);
-            alert("All other sessions revoked successfully");
-        } catch (error) {
-            console.error("Failed to revoke all sessions:", error);
-            alert("Failed to revoke all sessions");
+            await toast.promise(revokeAllUserSessions(true), {
+                loading: "Revoking other sessions...",
+                success: "All other sessions revoked",
+                error: "Failed to revoke all sessions",
+            });
         } finally {
             setRevokeAllLoading(false);
         }

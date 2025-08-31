@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     getLogs,
     clearLogs,
@@ -47,6 +47,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 type LogLevel = "all" | "success" | "error" | "info" | "warning";
 
@@ -94,45 +95,50 @@ export default function LogsPage() {
 
     useDocumentTitle("System Logs");
 
-    const loadLogs = async (after?: number, append: boolean = false) => {
-        if (append) {
-            setLoadingMore(true);
-        } else {
-            setLoading(true);
-        }
-        try {
-            const data: LogCursorPage = await getLogs(50, after, {
-                q: debouncedQ || undefined,
-                level: levelFilter,
-            });
-            setHasNext(data.meta.has_next);
-            setCursor(data.meta.next_cursor);
-            setLogs((prev) =>
-                append && prev ? [...prev, ...data.items] : data.items
-            );
-            if (!append) {
-                try {
-                    const s = await getLogStats();
-                    setStats(s);
-                } catch (e) {
-                    console.error("Failed to load log stats", e);
+    const loadLogs = useCallback(
+        async (after?: number, append: boolean = false) => {
+            if (append) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+            }
+            try {
+                const data: LogCursorPage = await getLogs(50, after, {
+                    q: debouncedQ || undefined,
+                    level: levelFilter,
+                });
+                setHasNext(data.meta.has_next);
+                setCursor(data.meta.next_cursor);
+                setLogs((prev) =>
+                    append && prev ? [...prev, ...data.items] : data.items
+                );
+                if (!append) {
+                    try {
+                        const s = await getLogStats();
+                        setStats(s);
+                    } catch (e) {
+                        console.error("Failed to load log stats", e);
+                        toast.error("Failed to load log stats");
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load logs:", error);
+                toast.error("Failed to load logs");
+            } finally {
+                if (append) {
+                    setLoadingMore(false);
+                } else {
+                    setLoading(false);
                 }
             }
-        } catch (error) {
-            console.error("Failed to load logs:", error);
-        } finally {
-            if (append) {
-                setLoadingMore(false);
-            } else {
-                setLoading(false);
-            }
-        }
-    };
+        },
+        [debouncedQ, levelFilter]
+    );
 
     useEffect(() => {
         setCursor(undefined);
         loadLogs();
-    }, [debouncedQ, levelFilter]);
+    }, [loadLogs]);
 
     const handleClearLogs = async () => {
         if (
@@ -144,17 +150,20 @@ export default function LogsPage() {
         }
 
         try {
-            await clearLogs();
+            await toast.promise(clearLogs(), {
+                loading: "Clearing logs...",
+                success: "Logs cleared",
+                error: "Failed to clear logs",
+            });
             await loadLogs();
         } catch (error) {
             console.error("Failed to clear logs:", error);
-            alert("Failed to clear logs");
         }
     };
 
     useEffect(() => {
         loadLogs();
-    }, []);
+    }, [loadLogs]);
 
     const filteredLogs = logs
         ? logs.filter(
@@ -187,7 +196,15 @@ export default function LogsPage() {
         return () => {
             observerRef.current?.disconnect();
         };
-    }, [cursor, hasNext, loadingMore, loading, debouncedQ, levelFilter]);
+    }, [
+        cursor,
+        hasNext,
+        loadingMore,
+        loading,
+        debouncedQ,
+        levelFilter,
+        loadLogs,
+    ]);
 
     const logCounts = stats || {
         total: 0,

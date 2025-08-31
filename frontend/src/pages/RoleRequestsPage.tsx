@@ -19,6 +19,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/button";
 import PaginationControls from "@/components/PaginationControls";
 import { formatDateTime } from "@/lib/datetime";
+import { toast } from "sonner";
 
 export default function RoleRequestsPage() {
     const { user } = useAuth();
@@ -89,6 +90,7 @@ export default function RoleRequestsPage() {
                     ?.data?.detail ||
                 (e instanceof Error ? e.message : String(e));
             setError(msg);
+            toast.error(`Failed to load requests: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -101,16 +103,29 @@ export default function RoleRequestsPage() {
     const onCreate = async () => {
         try {
             setCreating(true);
-            await createRoleRequest({ to_role: "worker", reason });
+            await toast.promise(
+                createRoleRequest({ to_role: "worker", reason }),
+                {
+                    loading: "Submitting request...",
+                    success: "Role request submitted",
+                    error: (e) => {
+                        const msg =
+                            (
+                                e as {
+                                    response?: { data?: { detail?: string } };
+                                }
+                            )?.response?.data?.detail ||
+                            (e instanceof Error
+                                ? e.message
+                                : "Failed to create request");
+                        setError(msg);
+                        return msg;
+                    },
+                }
+            );
             setReason("");
             setPage(1);
             await load();
-        } catch (e) {
-            const msg =
-                (e as { response?: { data?: { detail?: string } } })?.response
-                    ?.data?.detail ||
-                (e instanceof Error ? e.message : String(e));
-            setError(msg);
         } finally {
             setCreating(false);
         }

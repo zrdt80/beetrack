@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useCallback } from "react";
 import { getUsersPage, type UserPage, type User } from "@/api/users";
 import {
     Card,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import { toast } from "sonner";
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[] | null>(null);
@@ -27,31 +29,36 @@ export default function UsersPage() {
 
     useDocumentTitle("User Management");
 
-    const load = async (reset: boolean = false) => {
-        if (reset) {
-            setPage(1);
-            setUsers(null);
-        }
-        const targetPage = reset ? 1 : page;
-        if (targetPage === 1) setLoading(true);
-        else setLoadingMore(true);
-        try {
-            const data: UserPage = await getUsersPage(targetPage, size);
-            setHasNext(data.meta.has_next);
-            setUsers((prev) =>
-                targetPage === 1 || !prev
-                    ? data.items
-                    : [...prev, ...data.items]
-            );
-        } finally {
-            setLoading(false);
-            setLoadingMore(false);
-        }
-    };
+    const load = useCallback(
+        async (reset: boolean = false) => {
+            if (reset) {
+                setPage(1);
+                setUsers(null);
+            }
+            const targetPage = reset ? 1 : page;
+            if (targetPage === 1) setLoading(true);
+            else setLoadingMore(true);
+            try {
+                const data: UserPage = await getUsersPage(targetPage, size);
+                setHasNext(data.meta.has_next);
+                setUsers((prev) =>
+                    targetPage === 1 || !prev
+                        ? data.items
+                        : [...prev, ...data.items]
+                );
+            } catch {
+                toast.error("Failed to load users");
+            } finally {
+                setLoading(false);
+                setLoadingMore(false);
+            }
+        },
+        [page, size]
+    );
 
     useEffect(() => {
         load(true);
-    }, []);
+    }, [load]);
 
     useEffect(() => {
         if (!sentinelRef.current) return;
@@ -62,12 +69,14 @@ export default function UsersPage() {
                 if (first.isIntersecting && hasNext && !loadingMore) {
                     const next = page + 1;
                     setPage(next);
-                    getUsersPage(next, size).then((data) => {
-                        setHasNext(data.meta.has_next);
-                        setUsers((prev) =>
-                            prev ? [...prev, ...data.items] : data.items
-                        );
-                    });
+                    getUsersPage(next, size)
+                        .then((data) => {
+                            setHasNext(data.meta.has_next);
+                            setUsers((prev) =>
+                                prev ? [...prev, ...data.items] : data.items
+                            );
+                        })
+                        .catch(() => toast.error("Failed to load more users"));
                 }
             },
             { threshold: 1.0 }
@@ -242,8 +251,8 @@ export default function UsersPage() {
                                         onClick={() => {
                                             const next = page + 1;
                                             setPage(next);
-                                            getUsersPage(next, size).then(
-                                                (d) => {
+                                            getUsersPage(next, size)
+                                                .then((d) => {
                                                     setHasNext(d.meta.has_next);
                                                     setUsers((prev) =>
                                                         prev
@@ -253,8 +262,12 @@ export default function UsersPage() {
                                                               ]
                                                             : d.items
                                                     );
-                                                }
-                                            );
+                                                })
+                                                .catch(() =>
+                                                    toast.error(
+                                                        "Failed to load more users"
+                                                    )
+                                                );
                                         }}
                                     >
                                         Load More

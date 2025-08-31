@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PaginationControls from "@/components/PaginationControls";
 import { formatDateTime } from "@/lib/datetime";
+import { toast } from "sonner";
 
 function extractError(e: unknown): string {
     if (typeof e === "string") return e;
@@ -102,7 +103,9 @@ export default function RoleRequestsAdminPage() {
             );
             setDaily(d);
         } catch (e) {
-            setError(extractError(e));
+            const msg = extractError(e);
+            setError(msg);
+            toast.error(`Failed to load requests: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -135,13 +138,18 @@ export default function RoleRequestsAdminPage() {
         if (!selected) return;
         setDecisionLoading(true);
         try {
-            await decideRoleRequest(selected.id, {
-                approve: true,
-                admin_comment: comment,
-            });
+            await toast.promise(
+                decideRoleRequest(selected.id, {
+                    approve: true,
+                    admin_comment: comment,
+                }),
+                {
+                    loading: "Approving...",
+                    success: "Request approved",
+                    error: (e) => extractError(e),
+                }
+            );
             await load();
-        } catch (e) {
-            setError(extractError(e));
         } finally {
             setDecisionLoading(false);
             setSelected(null);
@@ -151,13 +159,18 @@ export default function RoleRequestsAdminPage() {
         if (!selected) return;
         setDecisionLoading(true);
         try {
-            await decideRoleRequest(selected.id, {
-                approve: false,
-                admin_comment: comment,
-            });
+            await toast.promise(
+                decideRoleRequest(selected.id, {
+                    approve: false,
+                    admin_comment: comment,
+                }),
+                {
+                    loading: "Rejecting...",
+                    success: "Request rejected",
+                    error: (e) => extractError(e),
+                }
+            );
             await load();
-        } catch (e) {
-            setError(extractError(e));
         } finally {
             setDecisionLoading(false);
             setSelected(null);
@@ -338,7 +351,11 @@ export default function RoleRequestsAdminPage() {
                     onChange={(p) => setPage(p)}
                 />
                 <Button
-                    onClick={() => load()}
+                    onClick={async () => {
+                        toast.info("Refreshing...");
+                        await load();
+                        toast.success("Refreshed");
+                    }}
                     variant="outline"
                     size="sm"
                     className="text-xs"

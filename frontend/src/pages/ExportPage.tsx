@@ -20,6 +20,7 @@ import {
     ClipboardList,
 } from "lucide-react";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
+import { toast } from "sonner";
 
 export default function ExportPage() {
     const [loading, setLoading] = useState<
@@ -40,10 +41,14 @@ export default function ExportPage() {
     const handleExportOrdersCSV = async () => {
         setLoading("orders-csv");
         try {
-            const blob = await exportOrdersCSV();
+            const promise = exportOrdersCSV();
+            toast.promise(promise, {
+                loading: "Preparing CSV...",
+                success: "Orders CSV ready",
+                error: "Failed to generate CSV",
+            });
+            const blob = await promise;
             download(blob, "orders.csv");
-        } catch (err) {
-            alert("Failed to download orders CSV.");
         } finally {
             setLoading(null);
         }
@@ -52,10 +57,14 @@ export default function ExportPage() {
     const handleExportOrdersPDF = async () => {
         setLoading("orders-pdf");
         try {
-            const blob = await exportOrdersPDF();
+            const promise = exportOrdersPDF();
+            toast.promise(promise, {
+                loading: "Generating PDF...",
+                success: "Orders PDF ready",
+                error: "Failed to generate PDF",
+            });
+            const blob = await promise;
             download(blob, "orders.pdf");
-        } catch (err) {
-            alert("Failed to download orders PDF.");
         } finally {
             setLoading(null);
         }
@@ -64,10 +73,14 @@ export default function ExportPage() {
     const handleExportInspectionsPDF = async () => {
         setLoading("inspections-pdf");
         try {
-            const blob = await exportInspectionsPDF();
+            const promise = exportInspectionsPDF();
+            toast.promise(promise, {
+                loading: "Generating inspections PDF...",
+                success: "Inspections PDF ready",
+                error: "Failed to generate PDF",
+            });
+            const blob = await promise;
             download(blob, "inspections.pdf");
-        } catch (err) {
-            alert("Failed to download inspections PDF.");
         } finally {
             setLoading(null);
         }

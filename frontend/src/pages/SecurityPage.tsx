@@ -11,6 +11,7 @@ import {
 } from "@/api/users";
 import QRCode from "qrcode";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function SecurityPage() {
     const { user } = useAuth();
@@ -44,6 +45,7 @@ export default function SecurityPage() {
                     ?.data?.detail ||
                 (e instanceof Error ? e.message : "Failed to start 2FA setup");
             setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -56,12 +58,14 @@ export default function SecurityPage() {
             const res = await verifyTwoFASetup(code, setup?.setup_token);
             setRecovery(res.recovery_codes);
             setEnabled(true);
+            toast.success("2FA enabled");
         } catch (e: unknown) {
             const msg =
                 (e as { response?: { data?: { detail?: string } } })?.response
                     ?.data?.detail ||
                 (e instanceof Error ? e.message : "Invalid code");
             setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -83,12 +87,14 @@ export default function SecurityPage() {
             setDisablePassword("");
             setDisableCode("");
             setEnabled(false);
+            toast.success("2FA disabled");
         } catch (e: unknown) {
             const msg =
                 (e as { response?: { data?: { detail?: string } } })?.response
                     ?.data?.detail ||
                 (e instanceof Error ? e.message : "Failed to disable 2FA");
             setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -100,12 +106,14 @@ export default function SecurityPage() {
         try {
             const res = await regenerateTwoFARecovery();
             setRecovery(res.recovery_codes);
+            toast.success("New recovery codes generated");
         } catch (e: unknown) {
             const msg =
                 (e as { response?: { data?: { detail?: string } } })?.response
                     ?.data?.detail ||
                 (e instanceof Error ? e.message : "Failed to regenerate codes");
             setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

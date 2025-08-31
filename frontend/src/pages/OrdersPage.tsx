@@ -35,6 +35,7 @@ import {
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import PaginationControls from "@/components/PaginationControls";
+import { toast } from "sonner";
 
 type SortKey = "date" | "status" | "id";
 type SortOrder = "asc" | "desc";
@@ -143,7 +144,7 @@ export default function OrdersPage() {
         queueMicrotask(() => {
             isSyncingFromUrl.current = false;
         });
-    }, [location.search]);
+    }, [location.search, orderPage, sortKey, sortOrder, statusFilter]);
 
     useEffect(() => {
         load(
@@ -214,34 +215,41 @@ export default function OrdersPage() {
     const handleSubmit = async () => {
         if (!selected.length) return;
         setOrderError(null);
-        try {
-            await createOrder({ items: selected });
-            setSelected([]);
-            load(
-                orderPage,
-                sortKey,
-                sortOrder,
-                statusFilter,
-                selectedStatuses,
-                debouncedSearch
-            );
-        } catch (err: unknown) {
-            const detail = (
-                err as { response?: { data?: { detail?: string } } }
-            )?.response?.data?.detail;
-            if (typeof detail === "string") {
-                setOrderError(detail);
-            } else {
-                setOrderError(
-                    "Failed to place order. Please review quantities and try again."
-                );
-            }
-        }
+        await toast.promise(createOrder({ items: selected }), {
+            loading: "Placing order...",
+            success: "Order placed successfully",
+            error: (err) => {
+                const detail = (
+                    err as { response?: { data?: { detail?: string } } }
+                )?.response?.data?.detail;
+                if (typeof detail === "string") {
+                    setOrderError(detail);
+                    return detail;
+                }
+                const msg =
+                    "Failed to place order. Please review quantities and try again.";
+                setOrderError(msg);
+                return msg;
+            },
+        });
+        setSelected([]);
+        load(
+            orderPage,
+            sortKey,
+            sortOrder,
+            statusFilter,
+            selectedStatuses,
+            debouncedSearch
+        );
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Delete this order?")) {
-            await deleteOrder(id);
+            await toast.promise(deleteOrder(id), {
+                loading: "Deleting order...",
+                success: "Order deleted",
+                error: "Failed to delete order",
+            });
             load(
                 orderPage,
                 sortKey,
@@ -683,7 +691,10 @@ export default function OrdersPage() {
                                         >
                                             <OrderEditModal
                                                 order={o}
-                                                onSuccess={() =>
+                                                onSuccess={() => {
+                                                    toast.success(
+                                                        "Order updated"
+                                                    );
                                                     load(
                                                         orderPage,
                                                         sortKey,
@@ -691,8 +702,8 @@ export default function OrdersPage() {
                                                         statusFilter,
                                                         selectedStatuses,
                                                         debouncedSearch
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             />
                                         </Suspense>
                                         <Button

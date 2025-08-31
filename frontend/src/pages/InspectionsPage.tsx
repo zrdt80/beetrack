@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     getInspections,
@@ -24,6 +24,7 @@ import InspectionEditModal from "@/components/InspectionEditModal";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import DiseaseSelector from "@/components/DiseaseSelector";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { toast } from "sonner";
 
 export default function InspectionsPage() {
     const { id } = useParams();
@@ -57,37 +58,42 @@ export default function InspectionsPage() {
 
     useDocumentTitle(hive ? `Inspections: ${hive.name}` : "Inspections");
 
-    const load = async (reset: boolean = false) => {
-        if (reset) {
-            setPage(1);
-            setHasNext(false);
-            setInspections([]);
-        }
-        const targetPage = reset ? 1 : page;
-        if (targetPage === 1) setLoading(true);
-        else setLoadingMore(true);
-        try {
-            const hivesRes: HivePage = await getHives();
-            const target = hivesRes.items.find((h) => h.id === hiveId);
-            if (target) setHive(target);
-            const inspRes: InspectionPage = await getInspections(
-                hiveId,
-                targetPage,
-                size
-            );
-            setHasNext(inspRes.meta.has_next);
-            setInspections((prev) =>
-                targetPage === 1 ? inspRes.items : [...prev, ...inspRes.items]
-            );
-        } finally {
-            setLoading(false);
-            setLoadingMore(false);
-        }
-    };
+    const load = useCallback(
+        async (reset: boolean = false) => {
+            if (reset) {
+                setPage(1);
+                setHasNext(false);
+                setInspections([]);
+            }
+            const targetPage = reset ? 1 : page;
+            if (targetPage === 1) setLoading(true);
+            else setLoadingMore(true);
+            try {
+                const hivesRes: HivePage = await getHives();
+                const target = hivesRes.items.find((h) => h.id === hiveId);
+                if (target) setHive(target);
+                const inspRes: InspectionPage = await getInspections(
+                    hiveId,
+                    targetPage,
+                    size
+                );
+                setHasNext(inspRes.meta.has_next);
+                setInspections((prev) =>
+                    targetPage === 1
+                        ? inspRes.items
+                        : [...prev, ...inspRes.items]
+                );
+            } finally {
+                setLoading(false);
+                setLoadingMore(false);
+            }
+        },
+        [hiveId, page, size]
+    );
 
     useEffect(() => {
         load(true);
-    }, [hiveId]);
+    }, [hiveId, load]);
 
     useEffect(() => {
         if (!hasNext) return;
@@ -132,7 +138,13 @@ export default function InspectionsPage() {
             setFormError("Inspection date cannot be in the future.");
             return;
         }
-        const created = await createInspection({ ...form, hive_id: hiveId });
+        const createPromise = createInspection({ ...form, hive_id: hiveId });
+        toast.promise(createPromise, {
+            loading: "Creating inspection...",
+            success: "Inspection created",
+            error: "Failed to create inspection",
+        });
+        const created = await createPromise;
         setInspections((prev) => [created, ...prev]);
         load(true);
         setForm({
@@ -147,7 +159,11 @@ export default function InspectionsPage() {
     const handleDelete = async (id: number) => {
         if (confirm("Delete this inspection?")) {
             setInspections((prev) => prev.filter((i) => i.id !== id));
-            await deleteInspection(id);
+            await toast.promise(deleteInspection(id), {
+                loading: "Deleting inspection...",
+                success: "Inspection deleted",
+                error: "Failed to delete inspection",
+            });
             load(true);
         }
     };
@@ -183,7 +199,10 @@ export default function InspectionsPage() {
                           <div className="flex gap-2">
                               <InspectionEditModal
                                   inspection={inspection}
-                                  onSuccess={load}
+                                  onSuccess={() => {
+                                      toast.success("Inspection updated");
+                                      load();
+                                  }}
                               />
                               <Button
                                   variant="destructive"

@@ -16,6 +16,7 @@ import ProductEditModal from "@/components/ProductEditModal";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PaginationControls from "@/components/PaginationControls";
+import { toast } from "sonner";
 
 export default function ProductsPage() {
     const { user } = useAuth();
@@ -54,12 +55,19 @@ export default function ProductsPage() {
     }, [load]);
 
     const handleSubmit = async () => {
-        await createProduct({
-            name: formData.name,
-            description: formData.description || undefined,
-            unit_price: parseFloat(formData.unit_price),
-            stock_quantity: parseInt(formData.stock_quantity),
-        });
+        await toast.promise(
+            createProduct({
+                name: formData.name,
+                description: formData.description || undefined,
+                unit_price: parseFloat(formData.unit_price),
+                stock_quantity: parseInt(formData.stock_quantity),
+            }),
+            {
+                loading: "Creating product...",
+                success: "Product created",
+                error: "Failed to create product",
+            }
+        );
         setFormData({
             name: "",
             description: "",
@@ -72,7 +80,11 @@ export default function ProductsPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Delete this product?")) {
-            await deleteProduct(id);
+            await toast.promise(deleteProduct(id), {
+                loading: "Deleting product...",
+                success: "Product deleted",
+                error: "Failed to delete product",
+            });
             load(page);
         }
     };
@@ -109,7 +121,10 @@ export default function ProductsPage() {
                           <div className="flex gap-2">
                               <ProductEditModal
                                   product={product}
-                                  onSuccess={() => load(page)}
+                                  onSuccess={() => {
+                                      toast.success("Product updated");
+                                      load(page);
+                                  }}
                               />
                               <Button
                                   variant="destructive"

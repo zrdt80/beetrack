@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PaginationControls from "@/components/PaginationControls";
+import { toast } from "sonner";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
@@ -92,7 +93,10 @@ export default function HivesPage() {
                           <div className="flex gap-2">
                               <HiveEditModal
                                   hive={hive}
-                                  onSuccess={refreshHives}
+                                  onSuccess={() => {
+                                      toast.success("Hive updated");
+                                      refreshHives();
+                                  }}
                               />
                               <Button
                                   variant="destructive"
@@ -103,7 +107,14 @@ export default function HivesPage() {
                                               `Are you sure you want to delete ${hive.name}?`
                                           )
                                       ) {
-                                          await deleteHive(hive.id);
+                                          await toast.promise(
+                                              deleteHive(hive.id),
+                                              {
+                                                  loading: "Deleting hive...",
+                                                  success: "Hive deleted",
+                                                  error: "Failed to delete hive",
+                                              }
+                                          );
                                           refreshHives();
                                       }
                                   }}
@@ -128,6 +139,7 @@ export default function HivesPage() {
                 {user?.role === "admin" && (
                     <HiveFormModal
                         onSuccess={() => {
+                            toast.success("Hive created");
                             refreshHives(1);
                         }}
                     />
