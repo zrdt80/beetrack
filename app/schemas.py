@@ -503,3 +503,11 @@ class ApiaryInvitationPage(Page):
 
 class ApiaryTransferOwnershipRequest(BaseModel):
     new_owner_user_id: int
+
+
+class ApiaryMemberAdd(BaseModel):
+    user_id: int
+    role: ApiaryRole = ApiaryRole.worker
+
+    class Config:
+        orm_mode = True

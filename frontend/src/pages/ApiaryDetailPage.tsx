@@ -17,6 +17,7 @@ import {
     cancelApiaryInvitation,
     type ApiaryInvitationRead,
     type ApiaryInvitationPage,
+    addApiaryMemberDirect,
 } from "@/api/apiaries";
 import { deleteApiary } from "@/api/apiaries";
 import type { Hive, HiveCreate, HivePage } from "@/api/hives";
@@ -63,6 +64,9 @@ export default function ApiaryDetailPage() {
     const [membersPages, setMembersPages] = useState(1);
     const [membersQ, setMembersQ] = useState("");
     const [membersLoading, setMembersLoading] = useState(false);
+    const [addMemberUserId, setAddMemberUserId] = useState("");
+    const [addMemberRole, setAddMemberRole] = useState<ApiaryRole>("worker");
+    const [addingMember, setAddingMember] = useState(false);
 
     const [invitations, setInvitations] = useState<ApiaryInvitationRead[]>([]);
     const [invPage, setInvPage] = useState(1);
@@ -107,6 +111,32 @@ export default function ApiaryDetailPage() {
         },
         [apiaryId, membersPage, membersQ]
     );
+
+    const handleAddMemberDirect = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!isAdmin || !apiaryId) return;
+        const uid = Number(addMemberUserId);
+        if (!uid || Number.isNaN(uid)) return;
+        setAddingMember(true);
+        try {
+            const p = addApiaryMemberDirect(apiaryId, {
+                user_id: uid,
+                role: addMemberRole,
+            });
+            toast.promise(p, {
+                loading: "Adding member...",
+                success: "Member added",
+                error: (err: unknown) => getErr(err),
+            });
+            await p;
+            setAddMemberUserId("");
+            setAddMemberRole("worker");
+            await loadMembers(1, membersQ);
+            setMembersPage(1);
+        } finally {
+            setAddingMember(false);
+        }
+    };
 
     const loadInvitations = useCallback(
         (p = invPage, q = invQ): Promise<void> => {
@@ -364,6 +394,41 @@ export default function ApiaryDetailPage() {
                     </form>
                 </div>
                 <div className="overflow-x-auto border rounded">
+                    {isAdmin && (
+                        <form
+                            onSubmit={handleAddMemberDirect}
+                            className="flex flex-wrap gap-2 p-2"
+                        >
+                            <input
+                                className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                                placeholder="User ID"
+                                value={addMemberUserId}
+                                onChange={(e) =>
+                                    setAddMemberUserId(e.target.value)
+                                }
+                                required
+                            />
+                            <select
+                                className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                value={addMemberRole}
+                                onChange={(e) =>
+                                    setAddMemberRole(
+                                        e.target.value as ApiaryRole
+                                    )
+                                }
+                            >
+                                <option value="worker">worker</option>
+                                <option value="manager">manager</option>
+                            </select>
+                            <button
+                                type="submit"
+                                disabled={addingMember}
+                                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                            >
+                                {addingMember ? "Adding..." : "Add Member"}
+                            </button>
+                        </form>
+                    )}
                     <div className="flex justify-end p-2 text-xs text-gray-500">
                         <span className="mr-1">Times shown in</span>
                         <TimezoneDisplay showIcon={false} />

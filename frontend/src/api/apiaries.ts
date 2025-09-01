@@ -217,3 +217,19 @@ export const transferApiaryOwnership = async (
     );
     return res.data;
 };
+
+export interface ApiaryMemberAdd {
+    user_id: number;
+    role: ApiaryRole;
+}
+
+export const addApiaryMemberDirect = async (
+    apiaryId: number,
+    data: ApiaryMemberAdd
+): Promise<ApiaryMemberRead> => {
+    const res = await api.post<ApiaryMemberRead>(
+        `/apiaries/${apiaryId}/members`,
+        data
+    );
+    return res.data;
+};

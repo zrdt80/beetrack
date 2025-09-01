@@ -254,11 +254,40 @@ def invite_member(
             raise HTTPException(status_code=404, detail="Apiary not found")
     else:
         apiary = _ensure_owner(db, apiary_id, current_user)
+    email = (payload.email or "").strip().lower()
+    invitee = db.query(models.User).filter(
+        sa.func.lower(models.User.email) == email,
+        models.User.is_active == True,
+    ).first()
+    if not invitee:
+        raise HTTPException(status_code=404, detail="User not found or inactive")
+
+    if invitee.id == apiary.owner_id:
+        raise HTTPException(status_code=400, detail="Cannot invite the owner")
+    if invitee.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot invite yourself")
+
+    member = db.query(models.ApiaryMember).filter(
+        models.ApiaryMember.apiary_id == apiary.id,
+        models.ApiaryMember.user_id == invitee.id,
+        models.ApiaryMember.is_active == True,
+    ).first()
+    if member:
+        raise HTTPException(status_code=400, detail="User is already a member")
+
+    pending = db.query(models.ApiaryInvitation).filter(
+        models.ApiaryInvitation.apiary_id == apiary.id,
+        sa.func.lower(models.ApiaryInvitation.invitee_email) == email,
+        models.ApiaryInvitation.status == models.InvitationStatus.pending,
+    ).first()
+    if pending:
+        raise HTTPException(status_code=400, detail="Pending invitation already exists")
+
     token = secrets.token_urlsafe(24)
     inv = models.ApiaryInvitation(
         apiary_id=apiary.id,
         inviter_id=current_user.id,
-        invitee_email=payload.email.lower(),
+        invitee_email=email,
         role=models.ApiaryRole(payload.role),
         token=token,
     )
@@ -269,7 +298,7 @@ def invite_member(
         db.rollback()
         raise HTTPException(status_code=400, detail="Could not create invitation")
     db.refresh(inv)
-    log_event(f"Apiary invitation created: apiary={apiary.id} email={payload.email}")
+    log_event(f"Apiary invitation created: apiary={apiary.id} email={email}")
     return inv
 
 
@@ -372,6 +401,8 @@ def transfer_ownership(
 def accept_invitation(token: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != models.UserRole.worker:
         raise HTTPException(status_code=403, detail="Only workers can join apiaries")
+    if not current_user.is_active:
+        raise HTTPException(status_code=403, detail="Inactive users cannot accept invitations")
     inv = db.query(models.ApiaryInvitation).filter(
         models.ApiaryInvitation.token == token,
         models.ApiaryInvitation.status == models.InvitationStatus.pending,
@@ -410,7 +441,7 @@ def decline_invitation(token: str, db: Session = Depends(get_db), current_user: 
         raise HTTPException(status_code=403, detail="Invitation is for a different email")
     inv.status = models.InvitationStatus.declined
     db.commit()
-    log_event(f"Invitation declined: apiary={inv.apiary_id} email={current_user.email}")
+    log_event(f"Invitation declined: apiary={inv.api_id} email={current_user.email}")
     return {"message": "Invitation declined"}
 
 
@@ -500,3 +531,54 @@ def create_apiary_hive(
     db.refresh(hive)
     log_event(f"Hive created in apiary: apiary={apiary_id} hive={hive.name}")
     return hive
+
+
+@router.post("/{apiary_id}/members", response_model=schemas.ApiaryMemberRead)
+def add_member_direct(
+    apiary_id: int,
+    payload: schemas.ApiaryMemberAdd,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if current_user.role != models.UserRole.admin:
+        raise HTTPException(status_code=403, detail="Only admin can add members directly")
+
+    apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+    if not apiary:
+        raise HTTPException(status_code=404, detail="Apiary not found")
+
+    user = db.query(models.User).filter(models.User.id == payload.user_id, models.User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found or inactive")
+
+    if user.id == apiary.owner_id:
+        raise HTTPException(status_code=400, detail="Owner is already part of the apiary")
+
+    member = db.query(models.ApiaryMember).filter(
+        models.ApiaryMember.apiary_id == apiary_id,
+        models.ApiaryMember.user_id == user.id,
+    ).first()
+
+    if member:
+        if member.is_active:
+            raise HTTPException(status_code=400, detail="User is already a member")
+        member.is_active = True
+        member.role = models.ApiaryRole(payload.role)
+    else:
+        member = models.ApiaryMember(
+            apiary_id=apiary_id,
+            user_id=user.id,
+            role=models.ApiaryRole(payload.role),
+            is_active=True,
+        )
+        db.add(member)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Could not add member")
+
+    db.refresh(member)
+    log_event(f"Member added directly by admin: apiary={apiary_id} user={user.id} role={member.role}")
+    return member
