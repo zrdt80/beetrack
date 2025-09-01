@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getApiaries, type Apiary, type ApiaryPage } from "@/api/apiaries";
+import {
+    getApiaries,
+    createApiary,
+    type Apiary,
+    type ApiaryPage,
+    type ApiaryCreate,
+} from "@/api/apiaries";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -13,6 +19,12 @@ export default function ApiariesPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+    const [form, setForm] = useState<ApiaryCreate>({
+        name: "",
+        location: "",
+        description: "",
+    });
 
     const load = useCallback(
         (p = page, query = q) => {
@@ -43,12 +55,38 @@ export default function ApiariesPage() {
         load(1, q);
     };
 
+    const onCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.name.trim()) return;
+        setCreating(true);
+        const payload: ApiaryCreate = {
+            name: form.name.trim(),
+            location: form.location?.trim() || undefined,
+            description: form.description?.trim() || undefined,
+        };
+        try {
+            const p = createApiary(payload);
+            toast.promise(p, {
+                loading: "Creating apiary...",
+                success: "Apiary created",
+                error: (err: unknown) =>
+                    err instanceof Error ? err.message : "Failed to create",
+            });
+            await p;
+            setForm({ name: "", location: "", description: "" });
+            setPage(1);
+            load(1, q);
+        } finally {
+            setCreating(false);
+        }
+    };
+
     if (loading) return <p>Loading apiaries...</p>;
     if (error) return <p className="text-red-600">{error}</p>;
 
     return (
         <div className="space-y-6">
-            <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
+            <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6 space-y-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h1 className="text-2xl font-bold m-0">Apiaries</h1>
                     <form onSubmit={onSearch} className="flex gap-2">
@@ -63,6 +101,44 @@ export default function ApiariesPage() {
                         </button>
                     </form>
                 </div>
+
+                <form onSubmit={onCreate} className="flex flex-wrap gap-2">
+                    <input
+                        className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                        placeholder="Apiary name"
+                        value={form.name}
+                        onChange={(e) =>
+                            setForm((f) => ({ ...f, name: e.target.value }))
+                        }
+                        required
+                    />
+                    <input
+                        className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                        placeholder="Location (optional)"
+                        value={form.location ?? ""}
+                        onChange={(e) =>
+                            setForm((f) => ({ ...f, location: e.target.value }))
+                        }
+                    />
+                    <input
+                        className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                        placeholder="Description (optional)"
+                        value={form.description ?? ""}
+                        onChange={(e) =>
+                            setForm((f) => ({
+                                ...f,
+                                description: e.target.value,
+                            }))
+                        }
+                    />
+                    <button
+                        type="submit"
+                        disabled={creating}
+                        className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                    >
+                        {creating ? "Creating..." : "Create Apiary"}
+                    </button>
+                </form>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

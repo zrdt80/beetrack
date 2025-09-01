@@ -217,33 +217,33 @@ def _seed_products(db: Session, seed_data: dict):
 
 def _seed_apiaries(db: Session, seed_data: dict):
     users_by_username = {u.username.lower(): u for u in db.query(models.User).all()}
-    apiaries_payload: list[models.Apiary] = []
-    current_max_apiary_id = db.query(func.max(models.Apiary.id)).scalar() or 0
-    owner_memberships: list[models.ApiaryMember] = []
+    created_apiaries: list[models.Apiary] = []
     for apiary in seed_data.get("apiaries", []):
         owner_name = (apiary.get("owner") or "").lower()
         owner = users_by_username.get(owner_name)
         if not owner:
             continue
-        current_max_apiary_id += 1
         obj = models.Apiary(
-            id=current_max_apiary_id,
             name=apiary["name"],
             location=apiary.get("location"),
             description=apiary.get("description"),
             owner_id=owner.id,
         )
-        apiaries_payload.append(obj)
-    db.add_all(apiaries_payload)
-    db.commit()
-    current_max_member_id = db.query(func.max(models.ApiaryMember.id)).scalar() or 0
-    for a in apiaries_payload:
-        current_max_member_id += 1
-        owner_memberships.append(models.ApiaryMember(id=current_max_member_id, apiary_id=a.id, user_id=a.owner_id, role=models.ApiaryRole.owner, is_active=True))
-    if owner_memberships:
-        db.add_all(owner_memberships)
+        db.add(obj)
+        created_apiaries.append(obj)
+    if created_apiaries:
+        db.flush()
+        for a in created_apiaries:
+            db.add(
+                models.ApiaryMember(
+                    apiary_id=a.id,
+                    user_id=a.owner_id,
+                    role=models.ApiaryRole.owner,
+                    is_active=True,
+                )
+            )
         db.commit()
-    log_event(f"Seeded {len(apiaries_payload)} apiaries (+owner memberships)")
+    log_event(f"Seeded {len(created_apiaries)} apiaries (+owner memberships)")
 
 
 def _seed_apiary_members(db: Session, seed_data: dict):
@@ -252,7 +252,6 @@ def _seed_apiary_members(db: Session, seed_data: dict):
     apiaries_by_name = {a.name: a for a in db.query(models.Apiary).all()}
     users_by_username = {u.username.lower(): u for u in db.query(models.User).all()}
     created = 0
-    current_max_member_id = db.query(func.max(models.ApiaryMember.id)).scalar() or 0
     for m in seed_data.get("apiary_members", []):
         apiary = apiaries_by_name.get(m.get("apiary"))
         user = users_by_username.get((m.get("username") or "").lower())
@@ -266,8 +265,7 @@ def _seed_apiary_members(db: Session, seed_data: dict):
             role = models.ApiaryRole(role_value)
         except Exception:
             role = models.ApiaryRole.worker
-        current_max_member_id += 1
-        db.add(models.ApiaryMember(id=current_max_member_id, apiary_id=apiary.id, user_id=user.id, role=role, is_active=True))
+        db.add(models.ApiaryMember(apiary_id=apiary.id, user_id=user.id, role=role, is_active=True))
         created += 1
     if created:
         db.commit()
@@ -322,19 +320,42 @@ def _recalculate_last_inspection_dates(db: Session):
 
 
 def _seed_orders(db: Session, seed_data: dict):
+    user_rows = db.query(models.User.id).order_by(models.User.id).all()
+    product_rows = db.query(models.Product.id).order_by(models.Product.id).all()
+    if not user_rows or not product_rows:
+        log_event("Skip orders seeding: missing users or products")
+        return
+    user_ids = [u.id for u in user_rows]
+    product_ids = [p.id for p in product_rows]
+
     orders_count = 0
+    user_index = 0
     for order in seed_data.get("orders", []):
-        db.add(models.Order(
-            user_id=order["user_id"],
-            date=datetime.fromisoformat(order["date"]),
-            status=order["status"],
-            total_price=order["total_price"],
-            items=[models.OrderItem(
-                product_id=item["product_id"],
-                quantity=item["quantity"],
-                price_each=item["price_each"]
-            ) for item in order.get("items", [])]
-        ))
+        real_user_id = user_ids[user_index % len(user_ids)]
+        user_index += 1
+        items = []
+        for item in order.get("items", []):
+            try:
+                idx = int(item.get("product_id", 1)) - 1
+            except Exception:
+                idx = 0
+            real_product_id = product_ids[idx % len(product_ids)]
+            items.append(
+                models.OrderItem(
+                    product_id=real_product_id,
+                    quantity=item.get("quantity", 1),
+                    price_each=item.get("price_each", 0.0),
+                )
+            )
+        db.add(
+            models.Order(
+                user_id=real_user_id,
+                date=datetime.fromisoformat(order["date"]),
+                status=order["status"],
+                total_price=order["total_price"],
+                items=items,
+            )
+        )
         orders_count += 1
     db.commit()
     log_event(f"Seeded {orders_count} orders")
@@ -447,7 +468,6 @@ def run_seed(db: Session):
             _clear_existing_data(db)
         except Exception:
             return
-    users_exist = False
         
     print("🌱 Running data seed...")
     log_event("Data seeding started")

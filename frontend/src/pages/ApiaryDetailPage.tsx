@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
     getApiary,
@@ -18,6 +18,7 @@ import {
     type ApiaryInvitationRead,
     type ApiaryInvitationPage,
 } from "@/api/apiaries";
+import { deleteApiary } from "@/api/apiaries";
 import type { Hive, HiveCreate, HivePage } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -26,6 +27,7 @@ import {
 } from "@/api/apiaries";
 import { formatDateTime } from "@/lib/datetime";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
+import { Button } from "@/components/ui/button";
 
 const getErr = (e: unknown): string => {
     const anyErr = e as
@@ -39,6 +41,7 @@ const getErr = (e: unknown): string => {
 };
 
 export default function ApiaryDetailPage() {
+    const navigate = useNavigate();
     const { id } = useParams();
     const apiaryId = Number(id);
     const { user } = useAuth();
@@ -240,12 +243,14 @@ export default function ApiaryDetailPage() {
             new_owner_user_id: newId,
         };
         try {
-            await toast.promise(transferApiaryOwnership(apiary.id, payload), {
+            const p = transferApiaryOwnership(apiary.id, payload);
+            toast.promise(p, {
                 loading: "Transferring ownership...",
                 success: "Ownership transferred",
                 error: (err: unknown) => getErr(err),
             });
-            await loadMain();
+            const updated = await p;
+            setApiary(updated);
             await loadMembers(1, membersQ);
             setMembersPage(1);
             await loadInvitations(1, invQ);
@@ -415,15 +420,16 @@ export default function ApiaryDetailPage() {
                                         {(isOwner || isAdmin) &&
                                             m.user_id !== user?.id &&
                                             apiary.owner_id !== m.user_id && (
-                                                <button
+                                                <Button
                                                     type="button"
-                                                    className="text-red-600 hover:underline"
+                                                    variant="destructive"
+                                                    size="sm"
                                                     onClick={() =>
                                                         handleRemoveMember(m)
                                                     }
                                                 >
                                                     Remove
-                                                </button>
+                                                </Button>
                                             )}
                                     </td>
                                 </tr>
@@ -553,10 +559,11 @@ export default function ApiaryDetailPage() {
                                         )}
                                     </td>
                                     <td className="px-3 py-2">
-                                        {isOwner &&
+                                        {(isOwner || isAdmin) &&
                                             inv.status === "pending" && (
-                                                <button
-                                                    className="text-red-600 hover:underline"
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
                                                     onClick={() =>
                                                         handleCancelInvitation(
                                                             inv
@@ -564,7 +571,7 @@ export default function ApiaryDetailPage() {
                                                     }
                                                 >
                                                     Cancel
-                                                </button>
+                                                </Button>
                                             )}
                                     </td>
                                 </tr>
@@ -607,6 +614,49 @@ export default function ApiaryDetailPage() {
                     </button>
                 </div>
             </div>
+
+            {(isOwner || isAdmin) && (
+                <div className="rounded-xl border bg-white shadow-sm p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-semibold m-0">
+                                Danger Zone
+                            </h2>
+                            <p className="text-sm text-gray-600">
+                                Deleting an apiary will remove it and unlink its
+                                hives.
+                            </p>
+                        </div>
+                        <Button
+                            variant="destructive"
+                            onClick={async () => {
+                                if (!apiary) return;
+                                const confirmDelete = window.confirm(
+                                    `Delete apiary "${apiary.name}"? This cannot be undone.`
+                                );
+                                if (!confirmDelete) return;
+                                try {
+                                    const p = deleteApiary(apiary.id);
+                                    toast.promise(p, {
+                                        loading: "Deleting apiary...",
+                                        success: "Apiary deleted",
+                                        error: (err: unknown) =>
+                                            err instanceof Error
+                                                ? err.message
+                                                : "Failed to delete",
+                                    });
+                                    await p;
+                                    navigate("/dashboard/apiaries");
+                                } catch {
+                                    // handled by toast
+                                }
+                            }}
+                        >
+                            Delete Apiary
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

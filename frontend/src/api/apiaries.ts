@@ -24,6 +24,12 @@ export interface ApiaryPage {
     items: Apiary[];
 }
 
+export interface ApiaryCreate {
+    name: string;
+    location?: string | null;
+    description?: string | null;
+}
+
 export type ApiaryRole = "owner" | "manager" | "worker";
 
 export interface ApiaryMemberRead {
@@ -96,6 +102,15 @@ export const getApiaryHives = async (
         `/apiaries/${apiaryId}/hives?page=${page}&size=${size}`
     );
     return res.data;
+};
+
+export const createApiary = async (data: ApiaryCreate): Promise<Apiary> => {
+    const res = await api.post<Apiary>(`/apiaries/`, data);
+    return res.data;
+};
+
+export const deleteApiary = async (id: number): Promise<void> => {
+    await api.delete(`/apiaries/${id}`);
 };
 
 export const createHiveInApiary = async (

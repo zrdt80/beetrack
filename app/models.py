@@ -74,7 +74,7 @@ class Hive(Base):
     last_inspection_date = Column(DateTime)
     apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=True, index=True)
 
-    inspections = relationship("Inspection", back_populates="hive")
+    inspections = relationship("Inspection", back_populates="hive", cascade="all, delete-orphan", passive_deletes=True)
     apiary = relationship("Apiary", back_populates="hives")
 
 
@@ -88,7 +88,7 @@ class Inspection(Base):
     temperature = Column(Float)
     disease_detected = Column(String(100), default="none")
 
-    hive = relationship("Hive", back_populates="inspections")
+    hive = relationship("Hive", back_populates="inspections", passive_deletes=True)
 
 
 class Product(Base):
