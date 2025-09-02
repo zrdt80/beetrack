@@ -8,7 +8,7 @@ import {
     type Inspection,
     type InspectionCreate,
 } from "@/api/inspections";
-import { getHives, type HivePage } from "@/api/hives";
+import { getHive } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { useAuth } from "@/context/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
@@ -58,19 +58,17 @@ export default function InspectionsPage() {
 
     useDocumentTitle(hive ? `Inspections: ${hive.name}` : "Inspections");
 
-    const load = useCallback(
-        async (reset: boolean = false) => {
+    const loadPage = useCallback(
+        async (targetPage: number = 1, reset: boolean = false) => {
             if (reset) {
                 setPage(1);
                 setHasNext(false);
                 setInspections([]);
             }
-            const targetPage = reset ? 1 : page;
             if (targetPage === 1) setLoading(true);
             else setLoadingMore(true);
             try {
-                const hivesRes: HivePage = await getHives();
-                const target = hivesRes.items.find((h) => h.id === hiveId);
+                const target = await getHive(hiveId);
                 if (target) setHive(target);
                 const inspRes: InspectionPage = await getInspections(
                     hiveId,
@@ -88,12 +86,12 @@ export default function InspectionsPage() {
                 setLoadingMore(false);
             }
         },
-        [hiveId, page, size]
+        [hiveId, size]
     );
 
     useEffect(() => {
-        load(true);
-    }, [hiveId, load]);
+        loadPage(1, true);
+    }, [hiveId, loadPage]);
 
     useEffect(() => {
         if (!hasNext) return;
@@ -146,7 +144,7 @@ export default function InspectionsPage() {
         });
         const created = await createPromise;
         setInspections((prev) => [created, ...prev]);
-        load(true);
+        loadPage(1, true);
         setForm({
             date: localInputToUtcIso(nowLocalDateTimeInput()),
             temperature: 0,
@@ -164,7 +162,7 @@ export default function InspectionsPage() {
                 success: "Inspection deleted",
                 error: "Failed to delete inspection",
             });
-            load(true);
+            loadPage(1, true);
         }
     };
 
@@ -201,7 +199,7 @@ export default function InspectionsPage() {
                                   inspection={inspection}
                                   onSuccess={() => {
                                       toast.success("Inspection updated");
-                                      load();
+                                      loadPage(page);
                                   }}
                               />
                               <Button

@@ -26,7 +26,9 @@ export default function HiveEditModal({
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    ) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
@@ -37,7 +39,7 @@ export default function HiveEditModal({
             await updateHive(hive.id, form);
             onSuccess();
             setOpen(false);
-        } catch (err) {
+        } catch {
             setError("Failed to update hive.");
         }
     };
@@ -67,11 +69,15 @@ export default function HiveEditModal({
                         onChange={handleChange}
                         required
                     />
-                    <Input
+                    <select
                         name="status"
-                        value={form.status}
+                        className="w-full border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                        value={form.status || "active"}
                         onChange={handleChange}
-                    />
+                    >
+                        <option value="active">active</option>
+                        <option value="inactive">inactive</option>
+                    </select>
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                     <Button type="submit">Save Changes</Button>
                 </form>

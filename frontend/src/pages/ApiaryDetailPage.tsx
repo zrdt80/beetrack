@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
     getApiary,
@@ -21,6 +21,8 @@ import {
 } from "@/api/apiaries";
 import { deleteApiary } from "@/api/apiaries";
 import type { Hive, HiveCreate, HivePage } from "@/api/hives";
+import { deleteHive } from "@/api/hives";
+import HiveEditModal from "@/components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
 import {
     transferApiaryOwnership,
@@ -29,6 +31,8 @@ import {
 import { formatDateTime } from "@/lib/datetime";
 import TimezoneDisplay from "@/components/TimezoneDisplay";
 import { Button } from "@/components/ui/button";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import PaginationControls from "@/components/PaginationControls";
 
 const getErr = (e: unknown): string => {
     const anyErr = e as
@@ -49,6 +53,10 @@ export default function ApiaryDetailPage() {
 
     const [apiary, setApiary] = useState<Apiary | null>(null);
     const [hives, setHives] = useState<Hive[]>([]);
+    const [hivesPage, setHivesPage] = useState(1);
+    const [hivesPages, setHivesPages] = useState(1);
+    const [hivesSize] = useState(20);
+    const [hivesLoading, setHivesLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -83,20 +91,30 @@ export default function ApiaryDetailPage() {
     const [transferUserId, setTransferUserId] = useState<string>("");
     const [transferring, setTransferring] = useState(false);
 
+    const loadHives = useCallback(
+        (p = hivesPage): Promise<void> => {
+            if (!apiaryId) return Promise.resolve();
+            setHivesLoading(true);
+            return getApiaryHives(apiaryId, p, hivesSize)
+                .then((res: HivePage) => {
+                    setHives(res.items);
+                    setHivesPage(res.meta.page);
+                    setHivesPages(res.meta.pages || 1);
+                })
+                .finally(() => setHivesLoading(false));
+        },
+        [apiaryId, hivesPage, hivesSize]
+    );
+
     const loadMain = useCallback((): Promise<void> => {
         if (!apiaryId) return Promise.resolve();
         setLoading(true);
-        return Promise.all([
-            getApiary(apiaryId),
-            getApiaryHives(apiaryId).then((p: HivePage) => p.items),
-        ])
-            .then(([a, hs]) => {
-                setApiary(a);
-                setHives(hs);
-            })
+        return getApiary(apiaryId)
+            .then((a) => setApiary(a))
+            .then(() => loadHives(1))
             .catch(() => setError("Failed to load apiary."))
             .finally(() => setLoading(false));
-    }, [apiaryId]);
+    }, [apiaryId, loadHives]);
 
     const loadMembers = useCallback(
         (p = membersPage, q = membersQ): Promise<void> => {
@@ -176,7 +194,7 @@ export default function ApiaryDetailPage() {
             await createHiveInApiary(apiaryId, form);
             setForm({ name: "", location: "", status: "active" });
             toast.success("Hive created");
-            getApiaryHives(apiaryId).then((p: HivePage) => setHives(p.items));
+            await loadHives(1);
         } catch (err: unknown) {
             setHives(prev);
             toast.error(getErr(err));
@@ -370,6 +388,110 @@ export default function ApiaryDetailPage() {
                     {creating ? "Creating..." : "Create Hive"}
                 </button>
             </form>
+
+            <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold">Hives</h2>
+                </div>
+                <DataTable
+                    data={hives}
+                    columns={
+                        [
+                            {
+                                key: "name",
+                                header: "Name",
+                                sortable: true,
+                            },
+                            {
+                                key: "location",
+                                header: "Location",
+                                sortable: true,
+                            },
+                            { key: "status", header: "Status", sortable: true },
+                            {
+                                key: "last_inspection_date",
+                                header: "Last Inspection",
+                                render: (hive) => (
+                                    <Link
+                                        className="text-blue-600 underline hover:text-blue-800"
+                                        to={`/dashboard/hives/${hive.id}`}
+                                    >
+                                        {hive.last_inspection_date
+                                            ? formatDateTime(
+                                                  hive.last_inspection_date,
+                                                  "date"
+                                              )
+                                            : "N/A"}
+                                    </Link>
+                                ),
+                            },
+                            ...(user?.role === "admin"
+                                ? ([
+                                      {
+                                          key: "actions" as keyof Hive,
+                                          header: "Actions",
+                                          render: (hive: Hive) => (
+                                              <div className="flex gap-2">
+                                                  <HiveEditModal
+                                                      hive={hive}
+                                                      onSuccess={() => {
+                                                          toast.success(
+                                                              "Hive updated"
+                                                          );
+                                                          loadHives(hivesPage);
+                                                      }}
+                                                  />
+                                                  <Button
+                                                      variant="destructive"
+                                                      size="sm"
+                                                      onClick={async () => {
+                                                          if (
+                                                              confirm(
+                                                                  `Are you sure you want to delete ${hive.name}?`
+                                                              )
+                                                          ) {
+                                                              await toast.promise(
+                                                                  deleteHive(
+                                                                      hive.id
+                                                                  ),
+                                                                  {
+                                                                      loading:
+                                                                          "Deleting hive...",
+                                                                      success:
+                                                                          "Hive deleted",
+                                                                      error: "Failed to delete hive",
+                                                                  }
+                                                              );
+                                                              loadHives(1);
+                                                          }
+                                                      }}
+                                                  >
+                                                      Delete
+                                                  </Button>
+                                              </div>
+                                          ),
+                                          className: "w-48",
+                                      },
+                                  ] as DataTableColumn<Hive>[])
+                                : ([] as DataTableColumn<Hive>[])),
+                        ] as DataTableColumn<Hive>[]
+                    }
+                    emptyMessage={
+                        hivesLoading ? "Loading..." : "No hives found."
+                    }
+                    className="mb-2"
+                />
+                <PaginationControls
+                    page={hivesPage}
+                    pages={hivesPages}
+                    onChange={(p) => {
+                        if (p !== hivesPage) {
+                            setHivesPage(p);
+                            loadHives(p);
+                        }
+                    }}
+                />
+            </div>
 
             <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
                 <div className="flex items-center justify-between">
