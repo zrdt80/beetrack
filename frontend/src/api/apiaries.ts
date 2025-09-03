@@ -1,5 +1,5 @@
 import api from "./axios";
-import type { Hive, HiveCreate, HivePage } from "./hives";
+import type { Hive, HivePage } from "./hives";
 
 export interface Apiary {
     id: number;
@@ -115,7 +115,7 @@ export const deleteApiary = async (id: number): Promise<void> => {
 
 export const createHiveInApiary = async (
     apiaryId: number,
-    data: HiveCreate
+    data: { name: string; status?: string }
 ): Promise<Hive> => {
     const res = await api.post<Hive>(`/apiaries/${apiaryId}/hives`, data);
     return res.data;

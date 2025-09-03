@@ -89,6 +89,42 @@ def list_my_apiaries(
     }
 
 
+@router.post("/{apiary_id}/hives", response_model=schemas.HiveRead)
+def create_apiary_hive(
+    apiary_id: int,
+    payload: schemas.ApiaryHiveCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
+    if not apiary:
+        raise HTTPException(status_code=404, detail="Apiary not found")
+
+    if current_user.role != models.UserRole.admin:
+        is_member = db.query(models.ApiaryMember).filter(
+            models.ApiaryMember.apiary_id == apiary_id,
+            models.ApiaryMember.user_id == current_user.id,
+            models.ApiaryMember.is_active == True,
+        ).first()
+        if apiary.owner_id != current_user.id and not is_member:
+            raise HTTPException(status_code=403, detail="Not allowed")
+
+    exists = (
+        db.query(models.Hive)
+        .filter(models.Hive.apiary_id == apiary_id, models.Hive.name == payload.name)
+        .first()
+    )
+    if exists:
+        raise HTTPException(status_code=400, detail="Hive with this name already exists in this apiary")
+
+    hive = models.Hive(name=payload.name, status=payload.status or "active", apiary_id=apiary_id)
+    db.add(hive)
+    db.commit()
+    db.refresh(hive)
+    log_event(f"Hive created in apiary: apiary={apiary_id} name={hive.name} by user={current_user.id}")
+    return hive
+
+
 @router.get("/{apiary_id}", response_model=schemas.ApiaryRead)
 def get_apiary(apiary_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     apiary = db.query(models.Apiary).filter(models.Apiary.id == apiary_id).first()
@@ -525,7 +561,7 @@ def create_apiary_hive(
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Hive with this name already exists in this apiary")
-    hive = models.Hive(name=payload.name, location=payload.location, status=payload.status or "active", apiary_id=apiary_id)
+    hive = models.Hive(name=payload.name, status=payload.status or "active", apiary_id=apiary_id)
     db.add(hive)
     db.commit()
     db.refresh(hive)

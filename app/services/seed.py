@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import random
 import os
@@ -276,12 +276,21 @@ def _seed_hives(db: Session, seed_data: dict):
     apiary_by_name = {a.name: a.id for a in db.query(models.Apiary).all()}
     hives_payload = []
     for hive in seed_data.get("hives", []):
-        apiary_id = apiary_by_name.get(hive.get("location"))
+        apiary_key = hive.get("location") or hive.get("apiary")
+        apiary_id = apiary_by_name.get(apiary_key)
+        if apiary_id is None:
+            continue
+        lid = hive.get("last_inspection_date")
+        lid_dt = None
+        if lid:
+            try:
+                lid_dt = datetime.fromisoformat(lid.replace("Z", "+00:00"))
+            except Exception:
+                lid_dt = None
         hives_payload.append(models.Hive(
             name=hive["name"],
-            location=hive["location"],
-            status=hive["status"],
-            last_inspection_date=None,
+            status=hive.get("status", "active"),
+            last_inspection_date=lid_dt,
             apiary_id=apiary_id,
         ))
     db.add_all(hives_payload)
@@ -290,15 +299,28 @@ def _seed_hives(db: Session, seed_data: dict):
 
 
 def _seed_inspections(db: Session, seed_data: dict):
+    ordered_hives = db.query(models.Hive).order_by(models.Hive.id).all()
+    if not ordered_hives:
+        return
+    index_to_real_id: dict[int, int] = {}
+    for idx, hive in enumerate(ordered_hives, start=1):
+        index_to_real_id[idx] = hive.id
     inspections_count = 0
     for inspection in seed_data.get("inspections", []):
-        hive_obj = db.query(models.Hive).filter_by(id=inspection["hive_id"]).first()
+        raw_idx = int(inspection.get("hive_id", 0) or 0)
+        real_id = index_to_real_id.get(raw_idx)
+        if not real_id:
+            continue
+        try:
+            dt = datetime.fromisoformat(inspection["date"].replace("Z", "+00:00"))
+        except Exception:
+            dt = datetime.now(timezone.utc)
         db.add(models.Inspection(
-            hive=hive_obj,
-            date=datetime.fromisoformat(inspection["date"]),
-            temperature=inspection["temperature"],
-            disease_detected=inspection["disease_detected"],
-            notes=inspection["notes"]
+            hive_id=real_id,
+            date=dt,
+            temperature=inspection.get("temperature"),
+            disease_detected=inspection.get("disease_detected", "none"),
+            notes=inspection.get("notes")
         ))
         inspections_count += 1
     db.commit()

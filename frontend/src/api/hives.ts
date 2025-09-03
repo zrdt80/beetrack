@@ -3,14 +3,14 @@ import api from "./axios";
 export interface Hive {
     id: number;
     name: string;
-    location: string;
     status: string;
+    apiary_id?: number;
     last_inspection_date?: string;
 }
 
 export interface HiveCreate {
     name: string;
-    location: string;
+    apiary_id?: number;
     status?: string;
 }
 

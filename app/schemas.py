@@ -166,20 +166,24 @@ class UserSessionUpdate(BaseModel):
 
 class HiveBase(BaseModel):
     name: str
-    location: Optional[str] = None
     status: Optional[str] = "active"
 
 
 class HiveCreate(HiveBase):
-    pass
+    apiary_id: int | None = None
 
 
 class HiveRead(HiveBase):
     id: int
+    apiary_id: int | None = None
     last_inspection_date: Optional[datetime]
 
     class Config:
         orm_mode = True
+
+
+class ApiaryHiveCreate(HiveBase):
+    pass
 
 
 # --------------------------

@@ -227,7 +227,7 @@ export default function DashboardHome() {
                               ...hives.slice(0, 2).map((hive) => ({
                                   type: "hive" as const,
                                   title: `Hive: ${hive.name}`,
-                                  subtitle: `Location: ${hive.location}`,
+                                  subtitle: `Status: ${hive.status}`,
                                   time: hive.last_inspection_date
                                       ? formatDateTime(
                                             hive.last_inspection_date,
@@ -249,7 +249,7 @@ export default function DashboardHome() {
                               ...hives.slice(0, 3).map((hive) => ({
                                   type: "hive" as const,
                                   title: `Hive: ${hive.name}`,
-                                  subtitle: `Location: ${hive.location}`,
+                                  subtitle: `Status: ${hive.status}`,
                                   time: hive.last_inspection_date
                                       ? formatDateTime(
                                             hive.last_inspection_date,

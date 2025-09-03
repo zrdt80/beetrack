@@ -66,13 +66,15 @@ class UserSession(Base):
 
 class Hive(Base):
     __tablename__ = "hives"
+    __table_args__ = (
+        UniqueConstraint('apiary_id', 'name', name='uq_hives_apiary_name'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    location = Column(String(200))
     status = Column(String(50), default="active")
     last_inspection_date = Column(DateTime)
-    apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=True, index=True)
+    apiary_id = Column(Integer, ForeignKey("apiaries.id"), nullable=False, index=True)
 
     inspections = relationship("Inspection", back_populates="hive", cascade="all, delete-orphan", passive_deletes=True)
     apiary = relationship("Apiary", back_populates="hives")

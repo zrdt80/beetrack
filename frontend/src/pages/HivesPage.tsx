@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { getHives, deleteHive, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { formatDateTime } from "@/lib/datetime";
-import HiveFormModal from "../components/HiveFormModel";
 import HiveEditModal from "../components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -58,11 +57,6 @@ export default function HivesPage() {
         {
             key: "name",
             header: "Name",
-            sortable: true,
-        },
-        {
-            key: "location",
-            header: "Location",
             sortable: true,
         },
         {
@@ -134,16 +128,8 @@ export default function HivesPage() {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-4">
+            <div className="mb-4">
                 <h1 className="text-2xl font-bold">🐝 Hives</h1>
-                {user?.role === "admin" && (
-                    <HiveFormModal
-                        onSuccess={() => {
-                            toast.success("Hive created");
-                            refreshHives(1);
-                        }}
-                    />
-                )}
             </div>
 
             <DataTable

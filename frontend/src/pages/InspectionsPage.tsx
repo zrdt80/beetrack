@@ -224,9 +224,7 @@ export default function InspectionsPage() {
             <h1 className="text-2xl font-bold mb-2">
                 🧪 Inspections for {hive.name}
             </h1>
-            <p className="mb-4 text-gray-600">
-                Location: {hive.location} | Status: {hive.status}
-            </p>
+            <p className="mb-4 text-gray-600">Status: {hive.status}</p>
 
             <div className="mb-8 rounded-xl border bg-card p-8 shadow-md">
                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

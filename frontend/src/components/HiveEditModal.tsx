@@ -20,7 +20,7 @@ export default function HiveEditModal({
 }) {
     const [form, setForm] = useState<HiveCreate>({
         name: hive.name,
-        location: hive.location,
+        apiary_id: hive.apiary_id,
         status: hive.status,
     });
     const [open, setOpen] = useState(false);
@@ -60,12 +60,6 @@ export default function HiveEditModal({
                     <Input
                         name="name"
                         value={form.name}
-                        onChange={handleChange}
-                        required
-                    />
-                    <Input
-                        name="location"
-                        value={form.location}
                         onChange={handleChange}
                         required
                     />

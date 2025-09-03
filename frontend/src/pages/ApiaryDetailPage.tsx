@@ -20,7 +20,7 @@ import {
     addApiaryMemberDirect,
 } from "@/api/apiaries";
 import { deleteApiary } from "@/api/apiaries";
-import type { Hive, HiveCreate, HivePage } from "@/api/hives";
+import type { Hive, HivePage } from "@/api/hives";
 import { deleteHive } from "@/api/hives";
 import HiveEditModal from "@/components/HiveEditModal";
 import { useAuth } from "@/context/AuthContext";
@@ -60,9 +60,8 @@ export default function ApiaryDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [form, setForm] = useState<HiveCreate>({
+    const [form, setForm] = useState<{ name: string; status: string }>({
         name: "",
-        location: "",
         status: "active",
     });
     const [creating, setCreating] = useState(false);
@@ -185,14 +184,13 @@ export default function ApiaryDetailPage() {
         const temp: Partial<Hive> & { id: number } = {
             id: -Date.now(),
             name: form.name,
-            location: form.location,
             status: form.status || "active",
         };
         const prev = [...hives];
         setHives([temp as Hive, ...hives]);
         try {
             await createHiveInApiary(apiaryId, form);
-            setForm({ name: "", location: "", status: "active" });
+            setForm({ name: "", status: "active" });
             toast.success("Hive created");
             await loadHives(1);
         } catch (err: unknown) {
@@ -351,7 +349,7 @@ export default function ApiaryDetailPage() {
                 className="space-y-3 rounded-xl border bg-white shadow-sm p-4"
             >
                 <div className="font-semibold">Add Hive</div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <input
                         className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
                         placeholder="Name"
@@ -360,14 +358,6 @@ export default function ApiaryDetailPage() {
                             setForm((f) => ({ ...f, name: e.target.value }))
                         }
                         required
-                    />
-                    <input
-                        className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
-                        placeholder="Location"
-                        value={form.location || ""}
-                        onChange={(e) =>
-                            setForm((f) => ({ ...f, location: e.target.value }))
-                        }
                     />
                     <select
                         className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
@@ -400,11 +390,6 @@ export default function ApiaryDetailPage() {
                             {
                                 key: "name",
                                 header: "Name",
-                                sortable: true,
-                            },
-                            {
-                                key: "location",
-                                header: "Location",
                                 sortable: true,
                             },
                             { key: "status", header: "Status", sortable: true },

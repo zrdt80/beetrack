@@ -13,12 +13,28 @@ def create_hive(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    existing = db.query(models.Hive).filter(models.Hive.name == hive.name).first()
-    if existing:
-        log_event(f"Hive creation failed: {hive.name} already exists, attempted by admin {current_user.username}")
-        raise HTTPException(status_code=400, detail="Hive with this name already exists")
+    if not hive.apiary_id:
+        raise HTTPException(status_code=400, detail="apiary_id is required")
 
-    new_hive = models.Hive(**hive.dict())
+    apiary = db.query(models.Apiary).filter(models.Apiary.id == hive.apiary_id).first()
+    if not apiary:
+        raise HTTPException(status_code=404, detail="Apiary not found")
+
+    existing = (
+        db.query(models.Hive)
+        .filter(
+            models.Hive.apiary_id == hive.apiary_id,
+            models.Hive.name == hive.name,
+        )
+        .first()
+    )
+    if existing:
+        log_event(
+            f"Hive creation failed: name '{hive.name}' exists in apiary {hive.apiary_id}, attempted by admin {current_user.username}"
+        )
+        raise HTTPException(status_code=400, detail="Hive with this name already exists in this apiary")
+
+    new_hive = models.Hive(name=hive.name, status=hive.status or "active", apiary_id=hive.apiary_id)
     db.add(new_hive)
     db.commit()
     db.refresh(new_hive)
@@ -72,8 +88,23 @@ def update_hive(
         log_event(f"Hive update failed: hive {hive_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Hive not found")
 
-    for key, value in hive_data.dict().items():
-        setattr(hive, key, value)
+    new_apiary_id = hive_data.apiary_id if hive_data.apiary_id is not None else hive.apiary_id
+    new_name = hive_data.name or hive.name
+    exists = (
+        db.query(models.Hive)
+        .filter(
+            models.Hive.apiary_id == new_apiary_id,
+            models.Hive.name == new_name,
+            models.Hive.id != hive.id,
+        )
+        .first()
+    )
+    if exists:
+        raise HTTPException(status_code=400, detail="Hive with this name already exists in this apiary")
+
+    hive.name = new_name
+    hive.status = hive_data.status or hive.status
+    hive.apiary_id = new_apiary_id
 
     db.commit()
     db.refresh(hive)

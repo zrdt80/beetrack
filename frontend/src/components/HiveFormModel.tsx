@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createHive } from "@/api/hives";
 import type { HiveCreate } from "@/api/hives";
+import { getApiaries } from "@/api/apiaries";
+import type { Apiary, ApiaryPage } from "@/api/apiaries";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,15 +18,30 @@ export default function HiveFormModal({
 }: {
     onSuccess: () => void;
 }) {
-    const [form, setForm] = useState<HiveCreate>({
-        name: "",
-        location: "",
-        status: "active",
-    });
+    const [form, setForm] = useState<{
+        name: string;
+        apiary_id: number | "";
+        status: string;
+    }>({ name: "", apiary_id: "", status: "active" });
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [apiaries, setApiaries] = useState<Apiary[]>([]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res: ApiaryPage = await getApiaries(1, 100);
+                setApiaries(res.items);
+            } catch {
+                // ignore
+            }
+        };
+        if (open) load();
+    }, [open]);
+
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    ) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
@@ -32,11 +49,19 @@ export default function HiveFormModal({
         e.preventDefault();
         setError(null);
         try {
-            await createHive(form);
+            const payload: HiveCreate = {
+                name: form.name,
+                apiary_id:
+                    typeof form.apiary_id === "string"
+                        ? Number(form.apiary_id)
+                        : form.apiary_id,
+                status: form.status || "active",
+            };
+            await createHive(payload);
             onSuccess();
-            setForm({ name: "", location: "", status: "active" });
+            setForm({ name: "", apiary_id: "", status: "active" });
             setOpen(false);
-        } catch (err) {
+        } catch {
             setError("Failed to create hive.");
         }
     };
@@ -61,19 +86,30 @@ export default function HiveFormModal({
                         onChange={handleChange}
                         required
                     />
-                    <Input
-                        name="location"
-                        placeholder="Location"
-                        value={form.location}
+                    <select
+                        name="apiary_id"
+                        className="border border-gray-300 rounded-md bg-white p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                        value={form.apiary_id}
                         onChange={handleChange}
                         required
-                    />
-                    <Input
+                    >
+                        <option value="">Select apiary…</option>
+                        {apiaries.map((a) => (
+                            <option key={a.id} value={a.id}>
+                                {a.name}
+                                {a.location ? ` — ${a.location}` : ""}
+                            </option>
+                        ))}
+                    </select>
+                    <select
                         name="status"
-                        placeholder="Status"
+                        className="border border-gray-300 rounded-md bg-white p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
                         value={form.status}
                         onChange={handleChange}
-                    />
+                    >
+                        <option value="active">active</option>
+                        <option value="inactive">inactive</option>
+                    </select>
 
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                     <Button type="submit">Create Hive</Button>

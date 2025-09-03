@@ -40,6 +40,13 @@ const navLinks = [
         workerOnly: true,
     },
     {
+        to: "/dashboard/hives",
+        label: "Hives",
+        icon: Layers3,
+        admin: true,
+        workerOnly: false,
+    },
+    {
         to: "/dashboard/products",
         label: "Products",
         icon: Package,
@@ -82,17 +89,17 @@ const navLinks = [
         workerOnly: false,
     },
     {
-        to: "/dashboard/help",
-        label: "Help",
-        icon: HelpCircle,
-        admin: false,
-        workerOnly: false,
-    },
-    {
         to: "/dashboard/role-requests",
         label: "Role Moderation",
         icon: Bell,
         admin: true,
+        workerOnly: false,
+    },
+    {
+        to: "/dashboard/help",
+        label: "Help",
+        icon: HelpCircle,
+        admin: false,
         workerOnly: false,
     },
 ];
