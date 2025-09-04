@@ -144,7 +144,8 @@ export default function OrdersPage() {
         queueMicrotask(() => {
             isSyncingFromUrl.current = false;
         });
-    }, [location.search, orderPage, sortKey, sortOrder, statusFilter]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
 
     useEffect(() => {
         load(

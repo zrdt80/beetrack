@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
 import type { Product, ProductPage } from "@/api/products";
@@ -25,6 +26,13 @@ export default function ProductsPage() {
     const [size] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(false);
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     useDocumentTitle("Products");
     const [formData, setFormData] = useState({
@@ -51,8 +59,46 @@ export default function ProductsPage() {
     );
 
     useEffect(() => {
-        load(1);
-    }, [load]);
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qPage = parseInt(params.get("page") || "1", 10);
+        const validPage = Math.max(1, qPage);
+
+        if (page !== validPage) setPage(validPage);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        const newSearch = `?${params.toString()}`;
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [page, navigate]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
+
+    useEffect(() => {
+        load(page);
+    }, [page, load]);
 
     const handleSubmit = async () => {
         await toast.promise(
@@ -255,7 +301,7 @@ export default function ProductsPage() {
                 page={page}
                 pages={totalPages}
                 onChange={(p) => {
-                    if (p !== page) load(p);
+                    if (p !== page) setPage(p);
                 }}
             />
         </div>

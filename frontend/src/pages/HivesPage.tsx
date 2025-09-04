@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getHives, deleteHive, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { formatDateTime } from "@/lib/datetime";
@@ -20,6 +20,12 @@ export default function HivesPage() {
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     useDocumentTitle("Hives");
 
@@ -38,9 +44,47 @@ export default function HivesPage() {
     };
 
     useEffect(() => {
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qPage = parseInt(params.get("page") || "1", 10);
+        const validPage = Math.max(1, qPage);
+
+        if (page !== validPage) setPage(validPage);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        const newSearch = `?${params.toString()}`;
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [page, navigate]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
+
+    useEffect(() => {
         const fetch = async () => {
             try {
-                const res = await getHives();
+                const res = await getHives(page, size);
                 setHives(res.items);
                 setPage(res.meta.page);
                 setPages(res.meta.pages || 1);
@@ -51,7 +95,7 @@ export default function HivesPage() {
             }
         };
         fetch();
-    }, []);
+    }, [page, size]);
 
     const columns: DataTableColumn<Hive>[] = [
         {
@@ -143,7 +187,7 @@ export default function HivesPage() {
                 page={page}
                 pages={pages}
                 onChange={(p) => {
-                    if (p !== page) refreshHives(p);
+                    if (p !== page) setPage(p);
                 }}
             />
         </div>

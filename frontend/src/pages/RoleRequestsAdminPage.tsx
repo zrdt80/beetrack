@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     listRoleRequests,
     decideRoleRequest,
@@ -35,6 +36,8 @@ function extractError(e: unknown): string {
 }
 
 export default function RoleRequestsAdminPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [page, setPage] = useState(1);
     const [size] = useState(25);
     const [pages, setPages] = useState<number>(1);
@@ -48,6 +51,11 @@ export default function RoleRequestsAdminPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selected, setSelected] = useState<RoleRequest | null>(null);
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
     const [summary, setSummary] = useState<{
         pending: number;
         approved: number;
@@ -114,6 +122,92 @@ export default function RoleRequestsAdminPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    useEffect(() => {
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qPage = parseInt(params.get("page") || "1", 10);
+        const qStatuses =
+            params.get("statuses")?.split(",").filter(Boolean) || [];
+        const qUsername = params.get("username") || "";
+        const qOrder = params.get("order") || "created_desc";
+        const qDecided = params.get("decided");
+        const qFromDate = params.get("from_date") || "";
+        const qToDate = params.get("to_date") || "";
+
+        const validPage = Math.max(1, qPage);
+        const validDecided =
+            qDecided === "true"
+                ? true
+                : qDecided === "false"
+                ? false
+                : undefined;
+
+        if (page !== validPage) setPage(validPage);
+        if (JSON.stringify(multiStatuses) !== JSON.stringify(qStatuses))
+            setMultiStatuses(qStatuses);
+        if (username !== qUsername) setUsername(qUsername);
+        if (order !== qOrder) setOrder(qOrder);
+        if (decided !== validDecided) setDecided(validDecided);
+        if (fromDate !== qFromDate) setFromDate(qFromDate);
+        if (toDate !== qToDate) setToDate(qToDate);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        if (multiStatuses.length > 0) {
+            params.set("statuses", multiStatuses.join(","));
+        }
+        if (username.trim()) {
+            params.set("username", username.trim());
+        }
+        if (order !== "created_desc") {
+            params.set("order", order);
+        }
+        if (decided !== undefined) {
+            params.set("decided", String(decided));
+        }
+        if (fromDate) {
+            params.set("from_date", fromDate);
+        }
+        if (toDate) {
+            params.set("to_date", toDate);
+        }
+        const newSearch = params.toString() ? `?${params.toString()}` : "";
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [
+        page,
+        multiStatuses,
+        username,
+        order,
+        decided,
+        fromDate,
+        toDate,
+        navigate,
+    ]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
 
     const activeCount = [
         multiStatuses.length,

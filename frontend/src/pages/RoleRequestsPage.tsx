@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     createRoleRequest,
     listMyRoleRequestsPage,
@@ -21,8 +22,16 @@ import PaginationControls from "@/components/PaginationControls";
 import { formatDateTime } from "@/lib/datetime";
 import { toast } from "sonner";
 
+type SortOrder =
+    | "created_desc"
+    | "created_asc"
+    | "decided_desc"
+    | "decided_asc";
+
 export default function RoleRequestsPage() {
     const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const [items, setItems] = useState<RoleRequest[]>([]);
     const [summary, setSummary] = useState<RoleRequestSummary | null>(null);
@@ -40,9 +49,12 @@ export default function RoleRequestsPage() {
     const [page, setPage] = useState(1);
     const [size] = useState(20);
     const [pages, setPages] = useState(1);
-    const [order, setOrder] = useState<
-        "created_desc" | "created_asc" | "decided_desc" | "decided_asc"
-    >("created_desc");
+    const [order, setOrder] = useState<SortOrder>("created_desc");
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -99,6 +111,57 @@ export default function RoleRequestsPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    useEffect(() => {
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qPage = parseInt(params.get("page") || "1", 10);
+        const qOrder = (params.get("order") || "created_desc") as SortOrder;
+        const validPage = Math.max(1, qPage);
+        const validOrder: SortOrder = (
+            [
+                "created_desc",
+                "created_asc",
+                "decided_desc",
+                "decided_asc",
+            ].includes(qOrder)
+                ? qOrder
+                : "created_desc"
+        ) as SortOrder;
+
+        if (page !== validPage) setPage(validPage);
+        if (order !== validOrder) setOrder(validOrder);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("order", order);
+        const newSearch = `?${params.toString()}`;
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [page, order, navigate]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
 
     const onCreate = async () => {
         try {

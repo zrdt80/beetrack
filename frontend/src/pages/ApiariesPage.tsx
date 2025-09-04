@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     getApiaries,
     createApiary,
@@ -9,9 +9,12 @@ import {
 } from "@/api/apiaries";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import PaginationControls from "@/components/PaginationControls";
 
 export default function ApiariesPage() {
     const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [items, setItems] = useState<Apiary[]>([]);
     const [page, setPage] = useState(1);
     const [size] = useState(12);
@@ -25,6 +28,11 @@ export default function ApiariesPage() {
         location: "",
         description: "",
     });
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     const load = useCallback(
         (p = page, query = q) => {
@@ -46,8 +54,51 @@ export default function ApiariesPage() {
     );
 
     useEffect(() => {
-        load(1, q);
-    }, [load, q]);
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qPage = parseInt(params.get("page") || "1", 10);
+        const qQuery = params.get("q") || "";
+        const validPage = Math.max(1, qPage);
+
+        if (page !== validPage) setPage(validPage);
+        if (q !== qQuery) setQ(qQuery);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        if (q.trim()) {
+            params.set("q", q.trim());
+        }
+        const newSearch = params.toString() ? `?${params.toString()}` : "";
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [page, q, navigate]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
+
+    useEffect(() => {
+        load(page, q);
+    }, [page, q, load]);
 
     const onSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -160,31 +211,13 @@ export default function ApiariesPage() {
             </div>
 
             <div className="flex items-center justify-center gap-2">
-                <button
-                    className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                    disabled={page <= 1}
-                    onClick={() => {
-                        const np = page - 1;
-                        setPage(np);
-                        load(np, q);
+                <PaginationControls
+                    page={page}
+                    pages={totalPages}
+                    onChange={(p) => {
+                        if (p !== page) setPage(p);
                     }}
-                >
-                    Prev
-                </button>
-                <span className="text-sm text-gray-600">
-                    Page {page} / {totalPages}
-                </span>
-                <button
-                    className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                    disabled={page >= totalPages}
-                    onClick={() => {
-                        const np = page + 1;
-                        setPage(np);
-                        load(np, q);
-                    }}
-                >
-                    Next
-                </button>
+                />
             </div>
         </div>
     );

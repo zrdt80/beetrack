@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
     getApiary,
@@ -47,6 +47,7 @@ const getErr = (e: unknown): string => {
 
 export default function ApiaryDetailPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
     const apiaryId = Number(id);
     const { user } = useAuth();
@@ -83,6 +84,11 @@ export default function ApiaryDetailPage() {
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState<ApiaryRole>("worker");
     const [inviting, setInviting] = useState(false);
+
+    const isSyncingFromUrl = useRef(false);
+    const isWritingUrl = useRef(false);
+    const locationSearchRef = useRef(location.search);
+    const lastWrittenSearchRef = useRef<string | null>(null);
 
     const isOwner = !!user && !!apiary && apiary.owner_id === user.id;
     const isAdmin = user?.role === "admin";
@@ -177,6 +183,74 @@ export default function ApiaryDetailPage() {
         loadMembers(1, membersQ);
         loadInvitations(1, invQ);
     }, [apiaryId, loadMembers, loadInvitations, membersQ, invQ]);
+
+    useEffect(() => {
+        loadHives(hivesPage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hivesPage]);
+
+    useEffect(() => {
+        if (isWritingUrl.current) {
+            isWritingUrl.current = false;
+            return;
+        }
+        isSyncingFromUrl.current = true;
+        const params = new URLSearchParams(location.search);
+        const qHivesPage = parseInt(params.get("hives_page") || "1", 10);
+        const qMembersPage = parseInt(params.get("members_page") || "1", 10);
+        const qMembersQ = params.get("members_q") || "";
+        const qInvPage = parseInt(params.get("inv_page") || "1", 10);
+        const qInvQ = params.get("inv_q") || "";
+
+        const validHivesPage = Math.max(1, qHivesPage);
+        const validMembersPage = Math.max(1, qMembersPage);
+        const validInvPage = Math.max(1, qInvPage);
+
+        if (hivesPage !== validHivesPage) setHivesPage(validHivesPage);
+        if (membersPage !== validMembersPage) setMembersPage(validMembersPage);
+        if (membersQ !== qMembersQ) setMembersQ(qMembersQ);
+        if (invPage !== validInvPage) setInvPage(validInvPage);
+        if (invQ !== qInvQ) setInvQ(qInvQ);
+        queueMicrotask(() => {
+            isSyncingFromUrl.current = false;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    useEffect(() => {
+        if (isSyncingFromUrl.current) {
+            return;
+        }
+        const params = new URLSearchParams();
+        if (hivesPage > 1) {
+            params.set("hives_page", String(hivesPage));
+        }
+        if (membersPage > 1) {
+            params.set("members_page", String(membersPage));
+        }
+        if (membersQ.trim()) {
+            params.set("members_q", membersQ.trim());
+        }
+        if (invPage > 1) {
+            params.set("inv_page", String(invPage));
+        }
+        if (invQ.trim()) {
+            params.set("inv_q", invQ.trim());
+        }
+        const newSearch = params.toString() ? `?${params.toString()}` : "";
+        if (
+            newSearch !== locationSearchRef.current &&
+            newSearch !== lastWrittenSearchRef.current
+        ) {
+            isWritingUrl.current = true;
+            lastWrittenSearchRef.current = newSearch;
+            navigate({ search: newSearch }, { replace: true });
+        }
+    }, [hivesPage, membersPage, membersQ, invPage, invQ, navigate]);
+
+    useEffect(() => {
+        locationSearchRef.current = location.search;
+    }, [location.search]);
 
     const handleCreateHive = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -472,7 +546,6 @@ export default function ApiaryDetailPage() {
                     onChange={(p) => {
                         if (p !== hivesPage) {
                             setHivesPage(p);
-                            loadHives(p);
                         }
                     }}
                 />
@@ -616,33 +689,13 @@ export default function ApiaryDetailPage() {
                         </tbody>
                     </table>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                        disabled={membersPage <= 1}
-                        onClick={() => {
-                            const np = membersPage - 1;
-                            setMembersPage(np);
-                            loadMembers(np, membersQ);
-                        }}
-                    >
-                        Prev
-                    </button>
-                    <span className="text-sm text-gray-600">
-                        Page {membersPage} / {membersPages}
-                    </span>
-                    <button
-                        className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                        disabled={membersPage >= membersPages}
-                        onClick={() => {
-                            const np = membersPage + 1;
-                            setMembersPage(np);
-                            loadMembers(np, membersQ);
-                        }}
-                    >
-                        Next
-                    </button>
-                </div>
+                <PaginationControls
+                    page={membersPage}
+                    pages={membersPages}
+                    onChange={(p) => {
+                        if (p !== membersPage) setMembersPage(p);
+                    }}
+                />
             </div>
 
             <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
@@ -758,33 +811,13 @@ export default function ApiaryDetailPage() {
                         </tbody>
                     </table>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                        disabled={invPage <= 1}
-                        onClick={() => {
-                            const np = invPage - 1;
-                            setInvPage(np);
-                            loadInvitations(np, invQ);
-                        }}
-                    >
-                        Prev
-                    </button>
-                    <span className="text-sm text-gray-600">
-                        Page {invPage} / {invPages}
-                    </span>
-                    <button
-                        className="px-3 py-1 rounded-md bg-muted hover:bg-accent border disabled:opacity-50"
-                        disabled={invPage >= invPages}
-                        onClick={() => {
-                            const np = invPage + 1;
-                            setInvPage(np);
-                            loadInvitations(np, invQ);
-                        }}
-                    >
-                        Next
-                    </button>
-                </div>
+                <PaginationControls
+                    page={invPage}
+                    pages={invPages}
+                    onChange={(p) => {
+                        if (p !== invPage) setInvPage(p);
+                    }}
+                />
             </div>
 
             {(isOwner || isAdmin) && (
