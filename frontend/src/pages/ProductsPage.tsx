@@ -80,12 +80,38 @@ export default function ProductsPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Delete this product?")) {
-            await toast.promise(deleteProduct(id), {
-                loading: "Deleting product...",
-                success: "Product deleted",
-                error: "Failed to delete product",
-            });
-            load(page);
+            try {
+                await toast.promise(deleteProduct(id), {
+                    loading: "Deleting product...",
+                    success: "Product deleted",
+                    error: (err: unknown) => {
+                        if (
+                            err &&
+                            typeof err === "object" &&
+                            "response" in err
+                        ) {
+                            const response = (
+                                err as {
+                                    response?: { data?: { detail?: string } };
+                                }
+                            ).response;
+                            return (
+                                response?.data?.detail ||
+                                "Failed to delete product"
+                            );
+                        }
+                        if (err instanceof Error) {
+                            return err.message;
+                        }
+                        return "Failed to delete product";
+                    },
+                });
+            } catch {
+                // Error handled by toast
+            } finally {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                await load(page);
+            }
         }
     };
 

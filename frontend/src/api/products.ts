@@ -34,8 +34,9 @@ export const getProducts = async (
     page: number = 1,
     size: number = 20
 ): Promise<ProductPage> => {
+    const cacheBuster = Date.now();
     const res = await api.get<ProductPage>(
-        `/products/?page=${page}&size=${size}`
+        `/products/?page=${page}&size=${size}&_t=${cacheBuster}`
     );
     return res.data;
 };
