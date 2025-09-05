@@ -19,6 +19,7 @@ export default function ApiariesPage() {
     const [page, setPage] = useState(1);
     const [size] = useState(12);
     const [q, setQ] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export default function ApiariesPage() {
 
         if (page !== validPage) setPage(validPage);
         if (q !== qQuery) setQ(qQuery);
+        setSearchTerm(qQuery);
         queueMicrotask(() => {
             isSyncingFromUrl.current = false;
         });
@@ -103,7 +105,8 @@ export default function ApiariesPage() {
     const onSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setPage(1);
-        load(1, q);
+        setQ(searchTerm);
+        load(1, searchTerm);
     };
 
     const onCreate = async (e: React.FormEvent) => {
@@ -144,8 +147,8 @@ export default function ApiariesPage() {
                         <input
                             className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
                             placeholder="Search name or location"
-                            value={q}
-                            onChange={(e) => setQ(e.target.value)}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                         <button className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white">
                             Search
@@ -204,7 +207,17 @@ export default function ApiariesPage() {
                             {a.location}
                         </div>
                         <div className="text-xs text-gray-500">
-                            Owner #{a.owner_id}
+                            Owner{" "}
+                            {user?.role === "admin" ? (
+                                <Link
+                                    to={`/dashboard/user/${a.owner_id}`}
+                                    className="underline font-semibold"
+                                >
+                                    #{a.owner_id}
+                                </Link>
+                            ) : (
+                                a.owner_username || `#${a.owner_id}`
+                            )}
                         </div>
                     </Link>
                 ))}

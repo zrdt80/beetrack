@@ -7,6 +7,7 @@ export interface Apiary {
     location?: string | null;
     description?: string | null;
     owner_id: number;
+    owner_username?: string | null;
     created_at: string;
 }
 
@@ -36,6 +37,7 @@ export interface ApiaryMemberRead {
     id: number;
     apiary_id: number;
     user_id: number;
+    username?: string | null;
     role: ApiaryRole;
     joined_at: string;
     is_active: boolean;

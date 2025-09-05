@@ -94,6 +94,10 @@ export default function ApiaryDetailPage() {
 
     const isOwner = !!user && !!apiary && apiary.owner_id === user.id;
     const isAdmin = user?.role === "admin";
+    const isManager = members.some(
+        (m) => m.user_id === user?.id && m.is_active && m.role === "manager"
+    );
+    const canManageMembers = isOwner || isAdmin;
 
     const [transferUserId, setTransferUserId] = useState<string>("");
     const [transferring, setTransferring] = useState(false);
@@ -183,8 +187,23 @@ export default function ApiaryDetailPage() {
 
     useEffect(() => {
         loadMembers(1, membersQ);
-        loadInvitations(1, invQ);
-    }, [apiaryId, loadMembers, loadInvitations, membersQ, invQ]);
+        if (isOwner || isAdmin || isManager) {
+            loadInvitations(1, invQ);
+        } else {
+            setInvitations([]);
+            setInvPages(1);
+            setInvPage(1);
+        }
+    }, [
+        apiaryId,
+        loadMembers,
+        membersQ,
+        invQ,
+        isOwner,
+        isAdmin,
+        isManager,
+        loadInvitations,
+    ]);
 
     useEffect(() => {
         loadHives(hivesPage);
@@ -281,7 +300,7 @@ export default function ApiaryDetailPage() {
         m: ApiaryMemberRead,
         role: ApiaryRole
     ) => {
-        if (!(isOwner || isAdmin)) return;
+        if (!(isOwner || isAdmin || isManager)) return;
         if (m.user_id === user?.id) return;
         const prev = [...members];
         setMembers(
@@ -299,7 +318,7 @@ export default function ApiaryDetailPage() {
     };
 
     const handleRemoveMember = async (m: ApiaryMemberRead) => {
-        if (!(isOwner || isAdmin)) return;
+        if (!(isOwner || isAdmin || isManager)) return;
         if (m.user_id === user?.id) return;
         const prev = [...members];
         setMembers(prev.filter((x) => x.user_id !== m.user_id));
@@ -316,7 +335,7 @@ export default function ApiaryDetailPage() {
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!(isOwner || isAdmin) || !inviteEmail) return;
+        if (!(isOwner || isAdmin || isManager) || !inviteEmail) return;
         setInviting(true);
         try {
             const p = createApiaryInvitation(apiaryId, {
@@ -338,7 +357,8 @@ export default function ApiaryDetailPage() {
     };
 
     const handleCancelInvitation = async (inv: ApiaryInvitationRead) => {
-        if (!(isOwner || isAdmin) || inv.status !== "pending") return;
+        if (!(isOwner || isAdmin || isManager) || inv.status !== "pending")
+            return;
         const prev = [...invitations];
         setInvitations(
             prev.map((x) =>
@@ -395,7 +415,7 @@ export default function ApiaryDetailPage() {
                 <p className="text-sm text-gray-500">{apiary.description}</p>
             </div>
 
-            {(isOwner || isAdmin) && (
+            {isAdmin && (
                 <form
                     onSubmit={handleTransfer}
                     className="flex flex-wrap gap-2 rounded-xl border bg-white shadow-sm p-4"
@@ -420,40 +440,45 @@ export default function ApiaryDetailPage() {
                 </form>
             )}
 
-            <form
-                onSubmit={handleCreateHive}
-                className="space-y-3 rounded-xl border bg-white shadow-sm p-4"
-            >
-                <div className="font-semibold">Add Hive</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input
-                        className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
-                        placeholder="Name"
-                        value={form.name}
-                        onChange={(e) =>
-                            setForm((f) => ({ ...f, name: e.target.value }))
-                        }
-                        required
-                    />
-                    <select
-                        className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
-                        value={form.status || "active"}
-                        onChange={(e) =>
-                            setForm((f) => ({ ...f, status: e.target.value }))
-                        }
-                    >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
-                    </select>
-                </div>
-                <button
-                    type="submit"
-                    disabled={creating}
-                    className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+            {(isOwner || isAdmin || isManager) && (
+                <form
+                    onSubmit={handleCreateHive}
+                    className="space-y-3 rounded-xl border bg-white shadow-sm p-4"
                 >
-                    {creating ? "Creating..." : "Create Hive"}
-                </button>
-            </form>
+                    <div className="font-semibold">Add Hive</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <input
+                            className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                            placeholder="Name"
+                            value={form.name}
+                            onChange={(e) =>
+                                setForm((f) => ({ ...f, name: e.target.value }))
+                            }
+                            required
+                        />
+                        <select
+                            className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                            value={form.status || "active"}
+                            onChange={(e) =>
+                                setForm((f) => ({
+                                    ...f,
+                                    status: e.target.value,
+                                }))
+                            }
+                        >
+                            <option value="active">active</option>
+                            <option value="inactive">inactive</option>
+                        </select>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={creating}
+                        className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                    >
+                        {creating ? "Creating..." : "Create Hive"}
+                    </button>
+                </form>
+            )}
 
             <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
                 <div className="flex items-center justify-between">
@@ -486,7 +511,7 @@ export default function ApiaryDetailPage() {
                                     </Link>
                                 ),
                             },
-                            ...(user?.role === "admin"
+                            ...(isOwner || isAdmin
                                 ? ([
                                       {
                                           key: "actions" as keyof Hive,
@@ -623,7 +648,7 @@ export default function ApiaryDetailPage() {
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="text-left px-3 py-2">User ID</th>
+                                <th className="text-left px-3 py-2">User</th>
                                 <th className="text-left px-3 py-2">Role</th>
                                 <th className="text-left px-3 py-2">Joined</th>
                                 <th className="text-left px-3 py-2">Actions</th>
@@ -632,13 +657,32 @@ export default function ApiaryDetailPage() {
                         <tbody>
                             {members.map((m) => (
                                 <tr key={m.id} className="border-t">
-                                    <td className="px-3 py-2">{m.user_id}</td>
+                                    <td className="px-3 py-2">
+                                        {user?.role === "admin" ? (
+                                            <Link
+                                                to={`/dashboard/user/${m.user_id}`}
+                                                className="underline font-semibold"
+                                            >
+                                                {m.user_id}
+                                            </Link>
+                                        ) : (
+                                            <span
+                                                className={
+                                                    m.user_id === user?.id
+                                                        ? "font-bold"
+                                                        : ""
+                                                }
+                                            >
+                                                {m.username || m.user_id}
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-3 py-2">
                                         {apiary.owner_id === m.user_id ? (
                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                                                 Owner
                                             </span>
-                                        ) : (isOwner || isAdmin) &&
+                                        ) : canManageMembers &&
                                           m.user_id !== user?.id ? (
                                             <select
                                                 className="border border-gray-300 rounded-md bg-white p-1 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
@@ -652,14 +696,22 @@ export default function ApiaryDetailPage() {
                                                 }
                                             >
                                                 <option value="worker">
-                                                    worker
+                                                    Worker
                                                 </option>
-                                                <option value="manager">
-                                                    manager
-                                                </option>
+                                                {isOwner || isAdmin ? (
+                                                    <option value="manager">
+                                                        Manager
+                                                    </option>
+                                                ) : null}
                                             </select>
                                         ) : (
-                                            <span>{m.role}</span>
+                                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                                {m.role === "manager"
+                                                    ? "Manager"
+                                                    : m.role === "worker"
+                                                    ? "Worker"
+                                                    : m.role}
+                                            </span>
                                         )}
                                     </td>
                                     <td className="px-3 py-2">
@@ -669,9 +721,12 @@ export default function ApiaryDetailPage() {
                                         )}
                                     </td>
                                     <td className="px-3 py-2">
-                                        {(isOwner || isAdmin) &&
+                                        {canManageMembers &&
                                             m.user_id !== user?.id &&
-                                            apiary.owner_id !== m.user_id && (
+                                            apiary.owner_id !== m.user_id &&
+                                            (isOwner ||
+                                                isAdmin ||
+                                                m.role === "worker") && (
                                                 <Button
                                                     type="button"
                                                     variant="destructive"
@@ -705,129 +760,149 @@ export default function ApiaryDetailPage() {
                 />
             </div>
 
-            <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">Invitations</h2>
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            setInvPage(1);
-                            loadInvitations(1, invQ);
-                        }}
-                        className="flex gap-2"
-                    >
-                        <input
-                            className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
-                            placeholder="Search email/status"
-                            value={invQ}
-                            onChange={(e) => setInvQ(e.target.value)}
-                        />
-                        <button className="px-3 py-2 rounded-md bg-muted hover:bg-accent border text-gray-800">
-                            Search
-                        </button>
-                    </form>
-                </div>
-
-                {(isOwner || isAdmin) && (
-                    <form
-                        onSubmit={handleInvite}
-                        className="flex flex-wrap gap-2 rounded-md"
-                    >
-                        <input
-                            className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
-                            type="email"
-                            placeholder="Invitee email"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            required
-                        />
-                        <select
-                            className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
-                            value={inviteRole}
-                            onChange={(e) =>
-                                setInviteRole(e.target.value as ApiaryRole)
-                            }
+            {(isOwner || isAdmin || isManager) && (
+                <div className="space-y-3 rounded-xl border bg-white shadow-sm p-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold">Invitations</h2>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                setInvPage(1);
+                                loadInvitations(1, invQ);
+                            }}
+                            className="flex gap-2"
                         >
-                            <option value="worker">worker</option>
-                            <option value="manager">manager</option>
-                        </select>
-                        <button
-                            type="submit"
-                            disabled={inviting}
-                            className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
-                        >
-                            {inviting ? "Inviting..." : "Send Invite"}
-                        </button>
-                    </form>
-                )}
-
-                <div className="overflow-x-auto border rounded">
-                    <div className="flex justify-end p-2 text-xs text-gray-500">
-                        <span className="mr-1">Times shown in</span>
-                        <TimezoneDisplay showIcon={false} />
+                            <input
+                                className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                                placeholder="Search email/status"
+                                value={invQ}
+                                onChange={(e) => setInvQ(e.target.value)}
+                            />
+                            <button className="px-3 py-2 rounded-md bg-muted hover:bg-accent border text-gray-800">
+                                Search
+                            </button>
+                        </form>
                     </div>
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="text-left px-3 py-2">Email</th>
-                                <th className="text-left px-3 py-2">Role</th>
-                                <th className="text-left px-3 py-2">Status</th>
-                                <th className="text-left px-3 py-2">Created</th>
-                                <th className="text-left px-3 py-2">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {invitations.map((inv) => (
-                                <tr key={inv.id} className="border-t">
-                                    <td className="px-3 py-2">
-                                        {inv.invitee_email}
-                                    </td>
-                                    <td className="px-3 py-2">{inv.role}</td>
-                                    <td className="px-3 py-2">{inv.status}</td>
-                                    <td className="px-3 py-2">
-                                        {formatDateTime(
-                                            inv.created_at,
-                                            "datetime"
-                                        )}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {(isOwner || isAdmin) &&
-                                            inv.status === "pending" && (
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleCancelInvitation(
-                                                            inv
-                                                        )
-                                                    }
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {!invLoading && invitations.length === 0 && (
-                                <tr>
-                                    <td className="px-3 py-3" colSpan={5}>
-                                        No invitations.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-                <PaginationControls
-                    page={invPage}
-                    pages={invPages}
-                    onChange={(p) => {
-                        if (p !== invPage) setInvPage(p);
-                    }}
-                />
-            </div>
 
-            {(isOwner || isAdmin) && (
+                    {(isOwner || isAdmin || isManager) && (
+                        <form
+                            onSubmit={handleInvite}
+                            className="flex flex-wrap gap-2 rounded-md"
+                        >
+                            <input
+                                className="border border-gray-300 rounded-md bg-white p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                                type="email"
+                                placeholder="Invitee email"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                required
+                            />
+                            <select
+                                className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                value={inviteRole}
+                                onChange={(e) =>
+                                    setInviteRole(e.target.value as ApiaryRole)
+                                }
+                            >
+                                <option value="worker">worker</option>
+                                {(isOwner || isAdmin) && (
+                                    <option value="manager">manager</option>
+                                )}
+                            </select>
+                            <button
+                                type="submit"
+                                disabled={inviting}
+                                className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                            >
+                                {inviting ? "Inviting..." : "Send Invite"}
+                            </button>
+                        </form>
+                    )}
+
+                    <div className="overflow-x-auto border rounded">
+                        <div className="flex justify-end p-2 text-xs text-gray-500">
+                            <span className="mr-1">Times shown in</span>
+                            <TimezoneDisplay showIcon={false} />
+                        </div>
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="text-left px-3 py-2">
+                                        Email
+                                    </th>
+                                    <th className="text-left px-3 py-2">
+                                        Role
+                                    </th>
+                                    <th className="text-left px-3 py-2">
+                                        Status
+                                    </th>
+                                    <th className="text-left px-3 py-2">
+                                        Created
+                                    </th>
+                                    <th className="text-left px-3 py-2">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invitations.map((inv) => (
+                                    <tr key={inv.id} className="border-t">
+                                        <td className="px-3 py-2">
+                                            {inv.invitee_email}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {inv.role}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {inv.status}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatDateTime(
+                                                inv.created_at,
+                                                "datetime"
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {(isOwner ||
+                                                isAdmin ||
+                                                isManager) &&
+                                                inv.status === "pending" && (
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleCancelInvitation(
+                                                                inv
+                                                            )
+                                                        }
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {!invLoading && invitations.length === 0 && (
+                                    <tr>
+                                        <td className="px-3 py-3" colSpan={5}>
+                                            No invitations.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <PaginationControls
+                        page={invPage}
+                        pages={invPages}
+                        onChange={(p) => {
+                            if (p !== invPage) setInvPage(p);
+                        }}
+                    />
+                </div>
+            )}
+
+            {(isOwner || isAdmin || isManager) && (
                 <div className="rounded-xl border bg-white shadow-sm p-4">
                     <div className="flex items-center justify-between">
                         <div>

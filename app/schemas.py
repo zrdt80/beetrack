@@ -450,6 +450,7 @@ class ApiaryCreate(ApiaryBase):
 class ApiaryRead(ApiaryBase):
     id: int
     owner_id: int
+    owner_username: str | None = None
     created_at: datetime
 
     class Config:
@@ -460,6 +461,7 @@ class ApiaryMemberRead(BaseModel):
     id: int
     apiary_id: int
     user_id: int
+    username: str | None = None
     role: ApiaryRole
     joined_at: datetime
     is_active: bool
