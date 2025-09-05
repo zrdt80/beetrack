@@ -24,7 +24,7 @@ import { deleteApiary } from "@/api/apiaries";
 import type { Hive, HivePage } from "@/api/hives";
 import { deleteHive } from "@/api/hives";
 import HiveEditModal from "@/components/HiveEditModal";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
     transferApiaryOwnership,
     type ApiaryTransferOwnershipRequest,

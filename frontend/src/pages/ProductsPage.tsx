@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { getProducts, createProduct, deleteProduct } from "@/api/products";
 import type { Product, ProductPage } from "@/api/products";
 import { Button } from "@/components/ui/button";

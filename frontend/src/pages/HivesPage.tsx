@@ -4,7 +4,7 @@ import { getHives, deleteHive, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
 import { formatDateTime } from "@/lib/datetime";
 import HiveEditModal from "../components/HiveEditModal";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";

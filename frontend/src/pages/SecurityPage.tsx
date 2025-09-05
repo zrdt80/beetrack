@@ -10,7 +10,7 @@ import {
     type TwoFASetupStart,
 } from "@/api/users";
 import QRCode from "qrcode";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export default function SecurityPage() {

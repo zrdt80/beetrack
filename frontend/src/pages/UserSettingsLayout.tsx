@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/UserAvatar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";

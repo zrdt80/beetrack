@@ -7,7 +7,7 @@ import {
     type ApiaryPage,
     type ApiaryCreate,
 } from "@/api/apiaries";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import PaginationControls from "@/components/PaginationControls";
 

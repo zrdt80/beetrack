@@ -11,7 +11,7 @@ import type {
     RoleRequestSummary,
     RoleRequest,
 } from "@/api/roleRequests";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { RoleRequestStatusBadge } from "@/components/roleRequests/StatusBadge";
 import { RoleRequestSummaryCards } from "@/components/roleRequests/SummaryCards";
 import { Card, CardContent } from "@/components/ui/card";

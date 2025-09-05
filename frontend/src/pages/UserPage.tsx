@@ -45,7 +45,7 @@ import {
 import { uploadMyAvatar, deleteMyAvatar } from "@/api/users";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PasswordField from "@/components/PasswordField";
 import { evaluatePassword } from "@/lib/password";

@@ -1,7 +1,7 @@
 import { useEffect, useState, Suspense, lazy, useMemo, useRef } from "react";
 import { useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
     getOrders,
     getAllOrders,

@@ -10,7 +10,7 @@ import {
 } from "@/api/inspections";
 import { getHive } from "@/api/hives";
 import type { Hive } from "@/api/hives";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import {
     formatDateTime,
