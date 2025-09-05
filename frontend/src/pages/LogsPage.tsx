@@ -48,6 +48,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 type LogLevel = "all" | "success" | "error" | "info" | "warning";
 
@@ -74,6 +75,7 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 export default function LogsPage() {
+    const confirm = useConfirm();
     const [logs, setLogs] = useState<Log[] | null>(null);
     const [cursor, setCursor] = useState<number | undefined>(undefined);
     const [hasNext, setHasNext] = useState(false);
@@ -141,13 +143,14 @@ export default function LogsPage() {
     }, [loadLogs]);
 
     const handleClearLogs = async () => {
-        if (
-            !confirm(
-                "Are you sure you want to clear all logs? This action cannot be undone."
-            )
-        ) {
-            return;
-        }
+        const ok = await confirm({
+            title: "Clear all logs?",
+            description:
+                "Are you sure you want to clear all logs? This action cannot be undone.",
+            confirmText: "Clear",
+            destructive: true,
+        });
+        if (!ok) return;
 
         try {
             await toast.promise(clearLogs(), {

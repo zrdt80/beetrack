@@ -18,6 +18,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PaginationControls from "@/components/PaginationControls";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export default function ProductsPage() {
     const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function ProductsPage() {
     const [loading, setLoading] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
+    const confirm = useConfirm();
 
     const isSyncingFromUrl = useRef(false);
     const isWritingUrl = useRef(false);
@@ -125,7 +127,14 @@ export default function ProductsPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm("Delete this product?")) {
+        const ok = await confirm({
+            title: "Delete product?",
+            description:
+                "Are you sure you want to delete this product? This cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+        });
+        if (ok) {
             try {
                 await toast.promise(deleteProduct(id), {
                     loading: "Deleting product...",

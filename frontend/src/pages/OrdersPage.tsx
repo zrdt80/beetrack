@@ -36,6 +36,7 @@ import { ArrowUp, ArrowDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import PaginationControls from "@/components/PaginationControls";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 type SortKey = "date" | "status" | "id";
 type SortOrder = "asc" | "desc";
@@ -61,6 +62,7 @@ export default function OrdersPage() {
     const isWritingUrl = useRef(false);
     const locationSearchRef = useRef(location.search);
     const lastWrittenSearchRef = useRef<string | null>(null);
+    const confirm = useConfirm();
 
     useDocumentTitle("Orders");
 
@@ -245,7 +247,14 @@ export default function OrdersPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm("Delete this order?")) {
+        const ok = await confirm({
+            title: "Delete order?",
+            description:
+                "Are you sure you want to delete this order? This cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+        });
+        if (ok) {
             await toast.promise(deleteOrder(id), {
                 loading: "Deleting order...",
                 success: "Order deleted",

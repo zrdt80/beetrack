@@ -25,6 +25,7 @@ import TimezoneDisplay from "@/components/TimezoneDisplay";
 import DiseaseSelector from "@/components/DiseaseSelector";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export default function InspectionsPage() {
     const { id } = useParams();
@@ -55,6 +56,7 @@ export default function InspectionsPage() {
     const [formError, setFormError] = useState<string | null>(null);
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
+    const confirm = useConfirm();
 
     useDocumentTitle(hive ? `Inspections: ${hive.name}` : "Inspections");
 
@@ -155,7 +157,14 @@ export default function InspectionsPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm("Delete this inspection?")) {
+        const ok = await confirm({
+            title: "Delete inspection?",
+            description:
+                "Are you sure you want to delete this inspection? This cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+        });
+        if (ok) {
             setInspections((prev) => prev.filter((i) => i.id !== id));
             await toast.promise(deleteInspection(id), {
                 loading: "Deleting inspection...",

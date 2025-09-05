@@ -10,6 +10,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import PaginationControls from "@/components/PaginationControls";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
@@ -21,6 +22,7 @@ export default function HivesPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const confirm = useConfirm();
 
     const isSyncingFromUrl = useRef(false);
     const isWritingUrl = useRef(false);
@@ -140,11 +142,13 @@ export default function HivesPage() {
                                   variant="destructive"
                                   size="sm"
                                   onClick={async () => {
-                                      if (
-                                          confirm(
-                                              `Are you sure you want to delete ${hive.name}?`
-                                          )
-                                      ) {
+                                      const ok = await confirm({
+                                          title: "Delete hive?",
+                                          description: `Are you sure you want to delete ${hive.name}? This cannot be undone.`,
+                                          confirmText: "Delete",
+                                          destructive: true,
+                                      });
+                                      if (ok) {
                                           await toast.promise(
                                               deleteHive(hive.id),
                                               {

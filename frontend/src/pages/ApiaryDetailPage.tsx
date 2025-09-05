@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 import {
     getApiary,
     getApiaryHives,
@@ -46,6 +47,7 @@ const getErr = (e: unknown): string => {
 };
 
 export default function ApiaryDetailPage() {
+    const confirm = useConfirm();
     const navigate = useNavigate();
     const location = useLocation();
     const { id } = useParams();
@@ -504,11 +506,16 @@ export default function ApiaryDetailPage() {
                                                       variant="destructive"
                                                       size="sm"
                                                       onClick={async () => {
-                                                          if (
-                                                              confirm(
-                                                                  `Are you sure you want to delete ${hive.name}?`
-                                                              )
-                                                          ) {
+                                                          const ok =
+                                                              await confirm({
+                                                                  title: "Delete hive?",
+                                                                  description: `Are you sure you want to delete ${hive.name}? This cannot be undone.`,
+                                                                  confirmText:
+                                                                      "Delete",
+                                                                  destructive:
+                                                                      true,
+                                                              });
+                                                          if (ok) {
                                                               await toast.promise(
                                                                   deleteHive(
                                                                       hive.id
@@ -836,10 +843,13 @@ export default function ApiaryDetailPage() {
                             variant="destructive"
                             onClick={async () => {
                                 if (!apiary) return;
-                                const confirmDelete = window.confirm(
-                                    `Delete apiary "${apiary.name}"? This cannot be undone.`
-                                );
-                                if (!confirmDelete) return;
+                                const ok = await confirm({
+                                    title: "Delete apiary?",
+                                    description: `Delete apiary "${apiary.name}"? This cannot be undone.`,
+                                    confirmText: "Delete",
+                                    destructive: true,
+                                });
+                                if (!ok) return;
                                 try {
                                     const p = deleteApiary(apiary.id);
                                     toast.promise(p, {
