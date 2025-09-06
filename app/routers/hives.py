@@ -47,13 +47,32 @@ def create_hive(
 def list_hives(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    q: str | None = Query(None, description="Search by hive name or apiary name"),
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.Hive).order_by(models.Hive.id)
+    query = db.query(
+        models.Hive,
+        models.Apiary.name.label("apiary_name")
+    ).outerjoin(
+        models.Apiary, models.Hive.apiary_id == models.Apiary.id
+    ).order_by(models.Hive.id)
+    
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (models.Hive.name.ilike(like)) | (models.Apiary.name.ilike(like))
+        )
+    
     total = query.order_by(None).count()
     items = query.limit(size).offset((page - 1) * size).all()
+    
+    hives = []
+    for hive, apiary_name in items:
+        hive.apiary_name = apiary_name
+        hives.append(hive)
+    
     pages = (total + size - 1) // size if size else 0
-    log_event(f"Hives list requested page={page} size={size} total={total}")
+    log_event(f"Hives list requested page={page} size={size} total={total} q={q}")
     return {
         "meta": {
             "page": page,
@@ -63,16 +82,25 @@ def list_hives(
             "has_next": page < pages,
             "has_prev": page > 1,
         },
-        "items": items,
+        "items": hives,
     }
 
 
 @router.get("/{hive_id}", response_model=schemas.HiveRead)
 def get_hive(hive_id: int, db: Session = Depends(get_db)):
-    hive = db.query(models.Hive).get(hive_id)
-    if not hive:
+    result = db.query(
+        models.Hive,
+        models.Apiary.name.label("apiary_name")
+    ).outerjoin(
+        models.Apiary, models.Hive.apiary_id == models.Apiary.id
+    ).filter(models.Hive.id == hive_id).first()
+    
+    if not result:
         log_event(f"Hive not found: {hive_id}")
         raise HTTPException(status_code=404, detail="Hive not found")
+    
+    hive, apiary_name = result
+    hive.apiary_name = apiary_name
     log_event(f"Hive details requested: {hive.name} (ID: {hive_id})")
     return hive
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getHives, deleteHive, type HivePage } from "@/api/hives";
 import type { Hive } from "@/api/hives";
@@ -16,6 +16,8 @@ export default function HivesPage() {
     const [hives, setHives] = useState<Hive[]>([]);
     const [page, setPage] = useState(1);
     const [size] = useState(20);
+    const [q, setQ] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
     const [pages, setPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -31,19 +33,29 @@ export default function HivesPage() {
 
     useDocumentTitle("Hives");
 
+    const load = useCallback(
+        (p = page, query = q) => {
+            setLoading(true);
+            getHives(p, size, query)
+                .then((res: HivePage) => {
+                    setHives(res.items);
+                    setPage(res.meta.page);
+                    setPages(res.meta.pages || 1);
+                    setError(null);
+                })
+                .catch(() => {
+                    setError("Failed to load hives.");
+                })
+                .finally(() => setLoading(false));
+        },
+        [page, q, size]
+    );
+
     useEffect(() => {
         if (user?.role === "user") {
             navigate("/dashboard");
         }
     }, [user, navigate]);
-
-    const refreshHives = (p: number = page) => {
-        getHives(p, size).then((res: HivePage) => {
-            setHives(res.items);
-            setPage(res.meta.page);
-            setPages(res.meta.pages || 1);
-        });
-    };
 
     useEffect(() => {
         if (isWritingUrl.current) {
@@ -53,9 +65,12 @@ export default function HivesPage() {
         isSyncingFromUrl.current = true;
         const params = new URLSearchParams(location.search);
         const qPage = parseInt(params.get("page") || "1", 10);
+        const qQuery = params.get("q") || "";
         const validPage = Math.max(1, qPage);
 
         if (page !== validPage) setPage(validPage);
+        if (q !== qQuery) setQ(qQuery);
+        setSearchTerm(qQuery);
         queueMicrotask(() => {
             isSyncingFromUrl.current = false;
         });
@@ -68,7 +83,10 @@ export default function HivesPage() {
         }
         const params = new URLSearchParams();
         params.set("page", String(page));
-        const newSearch = `?${params.toString()}`;
+        if (q.trim()) {
+            params.set("q", q.trim());
+        }
+        const newSearch = params.toString() ? `?${params.toString()}` : "";
         if (
             newSearch !== locationSearchRef.current &&
             newSearch !== lastWrittenSearchRef.current
@@ -77,33 +95,47 @@ export default function HivesPage() {
             lastWrittenSearchRef.current = newSearch;
             navigate({ search: newSearch }, { replace: true });
         }
-    }, [page, navigate]);
+    }, [page, q, navigate]);
 
     useEffect(() => {
         locationSearchRef.current = location.search;
     }, [location.search]);
 
     useEffect(() => {
-        const fetch = async () => {
-            try {
-                const res = await getHives(page, size);
-                setHives(res.items);
-                setPage(res.meta.page);
-                setPages(res.meta.pages || 1);
-            } catch {
-                setError("Failed to load hives.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetch();
-    }, [page, size]);
+        load(page, q);
+    }, [page, q, load]);
+
+    const onSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        setPage(1);
+        setQ(searchTerm);
+        load(1, searchTerm);
+    };
+
+    const refreshHives = (p: number = page) => {
+        load(p, q);
+    };
 
     const columns: DataTableColumn<Hive>[] = [
         {
             key: "name",
             header: "Name",
             sortable: true,
+        },
+        {
+            key: "apiary_name",
+            header: "Apiary",
+            render: (hive) =>
+                hive.apiary_name ? (
+                    <Link
+                        className="text-blue-600 underline hover:text-blue-800"
+                        to={`/dashboard/apiaries/${hive.apiary_id}`}
+                    >
+                        {hive.apiary_name}
+                    </Link>
+                ) : (
+                    <span className="text-gray-500">N/A</span>
+                ),
         },
         {
             key: "status",
@@ -176,8 +208,19 @@ export default function HivesPage() {
 
     return (
         <div>
-            <div className="mb-4">
-                <h1 className="text-2xl font-bold">🐝 Hives</h1>
+            <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold m-0">🐝 Hives</h1>
+                <form onSubmit={onSearch} className="flex gap-2">
+                    <input
+                        className="border border-gray-300 rounded-md bg-white p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
+                        placeholder="Search by name or apiary"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <button className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white">
+                        Search
+                    </button>
+                </form>
             </div>
 
             <DataTable

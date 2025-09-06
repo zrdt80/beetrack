@@ -176,6 +176,7 @@ class HiveCreate(HiveBase):
 class HiveRead(HiveBase):
     id: int
     apiary_id: int | None = None
+    apiary_name: str | None = None
     last_inspection_date: Optional[datetime]
 
     class Config:

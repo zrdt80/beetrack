@@ -5,6 +5,7 @@ export interface Hive {
     name: string;
     status: string;
     apiary_id?: number;
+    apiary_name?: string;
     last_inspection_date?: string;
 }
 
@@ -30,9 +31,15 @@ export interface HivePage {
 
 export const getHives = async (
     page: number = 1,
-    size: number = 20
+    size: number = 20,
+    q?: string
 ): Promise<HivePage> => {
-    const res = await api.get<HivePage>(`/hives/?page=${page}&size=${size}`);
+    const params = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+    });
+    if (q && q.trim()) params.set("q", q.trim());
+    const res = await api.get<HivePage>(`/hives/?${params.toString()}`);
     return res.data;
 };
 
