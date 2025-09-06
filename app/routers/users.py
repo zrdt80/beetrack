@@ -363,6 +363,75 @@ def revoke_all_sessions(
         log_event(f"All sessions revoked for user: {current_user.username}")
         return {"message": "All sessions revoked successfully"}
 
+@router.get("/{user_id}/sessions", response_model=List[schemas.UserSessionRead])
+def get_user_sessions_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    sessions = db.query(models.UserSession).filter(
+        models.UserSession.user_id == user_id,
+        models.UserSession.is_valid == True
+    ).all()
+    
+    log_event(f"Admin {current_admin.username} viewed sessions for user: {user.username}")
+    return sessions
+
+@router.delete("/{user_id}/sessions/{session_id}")
+def revoke_user_session_admin(
+    user_id: int,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session = db.query(models.UserSession).filter(
+        models.UserSession.id == session_id,
+        models.UserSession.user_id == user_id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.is_valid = False
+    db.commit()
+    
+    log_event(f"Admin {current_admin.username} revoked session {session_id} for user: {user.username}")
+    return {"message": "Session revoked successfully"}
+
+@router.delete("/{user_id}/sessions")
+def revoke_all_user_sessions_admin(
+    user_id: int,
+    keep_current: bool = Query(True),
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if keep_current:
+        recent_session = db.query(models.UserSession).filter(
+            models.UserSession.user_id == user_id,
+            models.UserSession.is_valid == True
+        ).order_by(models.UserSession.last_activity.desc()).first()
+        
+        if recent_session:
+            auth.invalidate_all_user_sessions(db, user_id, recent_session.id)
+            log_event(f"Admin {current_admin.username} revoked all sessions except current for user: {user.username}")
+            return {"message": "All other sessions revoked successfully"}
+    
+    auth.invalidate_all_user_sessions(db, user_id)
+    log_event(f"Admin {current_admin.username} revoked all sessions for user: {user.username}")
+    return {"message": "All sessions revoked successfully"}
+
 @router.post("/logout")
 def logout(
     response: Response,
@@ -506,6 +575,46 @@ def twofa_regenerate(current_user: models.User = Depends(auth.get_current_user),
     log_event(f"2FA recovery codes regenerated for user: {current_user.username}")
     return {"recovery_codes": recovery_codes}
 
+@router.get("/{user_id}/2fa/status")
+def get_user_2fa_status(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    log_event(f"Admin {current_admin.username} checked 2FA status for user: {user.username}")
+    return {
+        "two_factor_enabled": user.two_factor_enabled,
+        "two_factor_confirmed_at": user.two_factor_confirmed_at
+    }
+
+@router.post("/{user_id}/2fa/disable")
+def disable_user_2fa_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.requires_role("admin"))
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="2FA not enabled for this user")
+    
+    user.two_factor_enabled = False
+    user.two_factor_secret = None
+    user.two_factor_confirmed_at = None
+    user.two_factor_recovery_codes = None
+    db.add(user)
+    db.commit()
+    
+    auth.invalidate_all_user_sessions(db, user.id)
+    
+    log_event(f"Admin {current_admin.username} disabled 2FA for user: {user.username}")
+    return {"message": "2FA disabled for user"}
 
 @router.post("/me/avatar")
 def upload_avatar(

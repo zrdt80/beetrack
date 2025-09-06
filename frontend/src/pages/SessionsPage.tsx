@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,37 +14,87 @@ import { Trash2, ShieldAlert, Clock, Shield, LogOut } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "@/lib/datetime";
 import useDocumentTitle from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
+import {
+    getUserSessionsAdmin,
+    revokeSession,
+    revokeUserSessionAdmin,
+    revokeAllSessions,
+    revokeAllUserSessionsAdmin,
+    type UserSession,
+} from "@/api/auth";
 
 export default function SessionsPage() {
-    const {
-        sessions,
-        loadingSessions,
-        fetchSessions,
-        revokeUserSession,
-        revokeAllUserSessions,
-        currentSessionId,
-    } = useAuth();
+    const { id } = useParams<{ id: string }>();
+    const { user, sessions, fetchSessions, currentSessionId } = useAuth();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState<number | null>(null);
     const [revokeAllLoading, setRevokeAllLoading] = useState(false);
     const [fetchAttempted, setFetchAttempted] = useState(false);
+    const [userSessions, setUserSessions] = useState<UserSession[]>([]);
+    const [userSessionsLoading, setUserSessionsLoading] = useState(false);
 
-    useDocumentTitle("Active Sessions");
+    const isMe = user ? String(user.id) === id : false;
+    const isAdmin = user?.role === "admin";
+    const userId = id ? Number(id) : null;
+
+    useDocumentTitle(isMe ? "My Sessions" : "User Sessions");
 
     useEffect(() => {
-        if (!fetchAttempted) {
-            fetchSessions();
-            setFetchAttempted(true);
+        if (!isMe && !isAdmin) {
+            navigate(-1);
+            return;
         }
-    }, [fetchSessions, fetchAttempted]);
+    }, [isMe, isAdmin, navigate]);
+
+    useEffect(() => {
+        const loadSessions = async () => {
+            if (!userId) return;
+
+            setUserSessionsLoading(true);
+            try {
+                if (isMe) {
+                    if (!fetchAttempted) {
+                        fetchSessions();
+                        setFetchAttempted(true);
+                    }
+                    setUserSessions(sessions);
+                } else {
+                    const userSessionsData = await getUserSessionsAdmin(userId);
+                    setUserSessions(userSessionsData);
+                }
+            } catch (error) {
+                console.error("Failed to load sessions:", error);
+                toast.error("Failed to load sessions");
+            } finally {
+                setUserSessionsLoading(false);
+            }
+        };
+
+        loadSessions();
+    }, [userId, isMe, sessions, fetchSessions, fetchAttempted]);
 
     const handleRevokeSession = async (sessionId: number) => {
         setLoading(sessionId);
         try {
-            await toast.promise(revokeUserSession(sessionId), {
-                loading: "Revoking session...",
-                success: "Session revoked",
-                error: "Failed to revoke session",
-            });
+            if (isMe) {
+                await toast.promise(revokeSession(sessionId), {
+                    loading: "Revoking session...",
+                    success: "Session revoked",
+                    error: "Failed to revoke session",
+                });
+            } else if (userId) {
+                await toast.promise(revokeUserSessionAdmin(userId, sessionId), {
+                    loading: "Revoking session...",
+                    success: "Session revoked",
+                    error: "Failed to revoke session",
+                });
+            }
+            if (isMe) {
+                fetchSessions();
+            } else if (userId) {
+                const updatedSessions = await getUserSessionsAdmin(userId);
+                setUserSessions(updatedSessions);
+            }
         } finally {
             setLoading(null);
         }
@@ -52,15 +103,31 @@ export default function SessionsPage() {
     const handleRevokeAllSessions = async () => {
         setRevokeAllLoading(true);
         try {
-            await toast.promise(revokeAllUserSessions(true), {
-                loading: "Revoking other sessions...",
-                success: "All other sessions revoked",
-                error: "Failed to revoke all sessions",
-            });
+            if (isMe) {
+                await toast.promise(revokeAllSessions(true), {
+                    loading: "Revoking other sessions...",
+                    success: "All other sessions revoked",
+                    error: "Failed to revoke all sessions",
+                });
+            } else if (userId) {
+                await toast.promise(revokeAllUserSessionsAdmin(userId, true), {
+                    loading: "Revoking other sessions...",
+                    success: "All other sessions revoked",
+                    error: "Failed to revoke all sessions",
+                });
+            }
+            if (isMe) {
+                fetchSessions();
+            } else if (userId) {
+                const updatedSessions = await getUserSessionsAdmin(userId);
+                setUserSessions(updatedSessions);
+            }
         } finally {
             setRevokeAllLoading(false);
         }
     };
+
+    const displaySessions = isMe ? sessions : userSessions;
 
     const getDeviceIcon = (userAgent: string) => {
         if (!userAgent) return <Shield />;
@@ -74,15 +141,19 @@ export default function SessionsPage() {
         <div className="container mx-auto py-8">
             <div className="mb-8 flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold mb-2">My Sessions</h1>
+                    <h1 className="text-3xl font-bold mb-2">
+                        {isMe ? "My Sessions" : "User Sessions"}
+                    </h1>
                     <p className="text-gray-600">
-                        Manage all sessions where you are logged in.
+                        {isMe
+                            ? "Manage all sessions where you are logged in."
+                            : "Manage sessions for this user."}
                     </p>
                 </div>
                 <Button
                     variant="destructive"
                     onClick={handleRevokeAllSessions}
-                    disabled={revokeAllLoading || loadingSessions}
+                    disabled={revokeAllLoading || userSessionsLoading}
                 >
                     {revokeAllLoading ? (
                         <>
@@ -111,13 +182,15 @@ export default function SessionsPage() {
                     ) : (
                         <>
                             <LogOut className="w-4 h-4 mr-2" />
-                            Logout all other sessions
+                            {isMe
+                                ? "Logout all other sessions"
+                                : "Revoke all other sessions"}
                         </>
                     )}
                 </Button>
             </div>
 
-            {loadingSessions && (
+            {userSessionsLoading && (
                 <div className="flex justify-center py-8">
                     <svg
                         className="animate-spin h-8 w-8 text-amber-600"
@@ -142,37 +215,42 @@ export default function SessionsPage() {
                 </div>
             )}
 
-            {!loadingSessions && sessions.length === 0 && (
+            {!userSessionsLoading && displaySessions.length === 0 && (
                 <div className="text-center py-12 bg-slate-50 rounded-lg">
                     <ShieldAlert className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-slate-900 mb-1">
                         No saved sessions
                     </h3>
                     <p className="text-slate-500 mb-2">
-                        You are currently using a temporary session that will
-                        expire when you close your browser.
+                        {isMe
+                            ? "You are currently using a temporary session that will expire when you close your browser."
+                            : "This user has no saved sessions."}
                     </p>
-                    <p className="text-amber-600 font-medium">
-                        To save your session and manage multiple devices, log in
-                        with the "Remember me" option checked.
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => {
-                            if (fetchAttempted) {
-                                setFetchAttempted(false);
-                                fetchSessions();
-                            }
-                        }}
-                    >
-                        Refresh session list
-                    </Button>
+                    {isMe && (
+                        <p className="text-amber-600 font-medium">
+                            To save your session and manage multiple devices,
+                            log in with the "Remember me" option checked.
+                        </p>
+                    )}
+                    {isMe && (
+                        <Button
+                            variant="outline"
+                            className="mt-4"
+                            onClick={() => {
+                                if (fetchAttempted) {
+                                    setFetchAttempted(false);
+                                    fetchSessions();
+                                }
+                            }}
+                        >
+                            Refresh session list
+                        </Button>
+                    )}
                 </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sessions.map((session) => (
+                {displaySessions.map((session) => (
                     <Card key={session.id} className="relative overflow-hidden">
                         <div className="absolute top-0 right-0 mt-2 mr-2">
                             {getDeviceIcon(session.user_agent)}
@@ -180,7 +258,7 @@ export default function SessionsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center">
                                 Session{" "}
-                                {session.id === currentSessionId
+                                {isMe && session.id === currentSessionId
                                     ? "(current)"
                                     : ""}
                             </CardTitle>
@@ -219,10 +297,10 @@ export default function SessionsPage() {
                                 onClick={() => handleRevokeSession(session.id)}
                                 disabled={
                                     loading === session.id ||
-                                    session.id === currentSessionId
+                                    (isMe && session.id === currentSessionId)
                                 }
                                 className={
-                                    session.id === currentSessionId
+                                    isMe && session.id === currentSessionId
                                         ? "cursor-not-allowed opacity-50"
                                         : ""
                                 }
@@ -254,7 +332,7 @@ export default function SessionsPage() {
                                 ) : (
                                     <>
                                         <Trash2 className="h-4 w-4 mr-2" />
-                                        {session.id === currentSessionId
+                                        {isMe && session.id === currentSessionId
                                             ? "Current session"
                                             : "Revoke session"}
                                     </>

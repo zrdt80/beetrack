@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,8 @@ import {
     verifyTwoFASetup,
     regenerateTwoFARecovery,
     disableTwoFA,
+    getUserTwoFAStatus,
+    disableUserTwoFAAdmin,
     type TwoFASetupStart,
 } from "@/api/users";
 import QRCode from "qrcode";
@@ -14,7 +17,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export default function SecurityPage() {
+    const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [setup, setSetup] = useState<TwoFASetupStart | null>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string>("");
     const [code, setCode] = useState("");
@@ -23,15 +28,49 @@ export default function SecurityPage() {
     const [loading, setLoading] = useState(false);
     const [disablePassword, setDisablePassword] = useState("");
     const [disableCode, setDisableCode] = useState("");
-    const [enabled, setEnabled] = useState<boolean>(
-        Boolean(user?.two_factor_enabled)
-    );
+    const [enabled, setEnabled] = useState<boolean>(false);
+    const [user2FAStatus, setUser2FAStatus] = useState<{
+        two_factor_enabled: boolean;
+        two_factor_confirmed_at: string | null;
+    } | null>(null);
+
+    const isMe = user ? String(user.id) === id : false;
+    const isAdmin = user?.role === "admin";
+    const userId = id ? Number(id) : null;
 
     useEffect(() => {
-        setEnabled(Boolean(user?.two_factor_enabled));
-    }, [user?.two_factor_enabled]);
+        if (!isMe && !isAdmin) {
+            navigate(-1);
+            return;
+        }
+    }, [isMe, isAdmin, navigate]);
+
+    useEffect(() => {
+        const loadUser2FAStatus = async () => {
+            if (!userId) return;
+
+            try {
+                if (isMe) {
+                    setEnabled(Boolean(user?.two_factor_enabled));
+                } else {
+                    const status = await getUserTwoFAStatus(userId);
+                    setUser2FAStatus(status);
+                    setEnabled(status.two_factor_enabled);
+                }
+            } catch (error) {
+                console.error("Failed to load 2FA status:", error);
+            }
+        };
+
+        loadUser2FAStatus();
+    }, [userId, isMe, user?.two_factor_enabled]);
 
     const beginSetup = async () => {
+        if (!isMe) {
+            toast.error("Only the user can set up their own 2FA");
+            return;
+        }
+
         setError(null);
         setLoading(true);
         try {
@@ -75,11 +114,16 @@ export default function SecurityPage() {
         setError(null);
         setLoading(true);
         try {
-            const payload: { password?: string; code?: string } = {};
-            if (disablePassword.trim())
-                payload.password = disablePassword.trim();
-            if (disableCode.trim()) payload.code = disableCode.trim();
-            await disableTwoFA(payload);
+            if (isMe) {
+                const payload: { password?: string; code?: string } = {};
+                if (disablePassword.trim())
+                    payload.password = disablePassword.trim();
+                if (disableCode.trim()) payload.code = disableCode.trim();
+                await disableTwoFA(payload);
+            } else if (userId) {
+                await disableUserTwoFAAdmin(userId);
+            }
+
             setSetup(null);
             setRecovery(null);
             setQrDataUrl("");
@@ -87,6 +131,12 @@ export default function SecurityPage() {
             setDisablePassword("");
             setDisableCode("");
             setEnabled(false);
+            if (user2FAStatus) {
+                setUser2FAStatus({
+                    ...user2FAStatus,
+                    two_factor_enabled: false,
+                });
+            }
             toast.success("2FA disabled");
         } catch (e: unknown) {
             const msg =
@@ -101,6 +151,13 @@ export default function SecurityPage() {
     };
 
     const regenerate = async () => {
+        if (!isMe) {
+            toast.error(
+                "Only the user can regenerate their own recovery codes"
+            );
+            return;
+        }
+
         setError(null);
         setLoading(true);
         try {
@@ -123,15 +180,23 @@ export default function SecurityPage() {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Two-Factor Authentication (TOTP)</CardTitle>
+                    <CardTitle>
+                        Two-Factor Authentication (TOTP)
+                        {isMe ? "" : " - Admin View"}
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {!enabled && !setup && (
+                    {!enabled && !setup && isMe && (
                         <Button onClick={beginSetup} disabled={loading}>
                             {loading ? "Starting..." : "Enable 2FA"}
                         </Button>
                     )}
-                    {!enabled && setup && (
+                    {!enabled && !setup && !isMe && (
+                        <div className="text-sm text-gray-600">
+                            2FA is not enabled for this user.
+                        </div>
+                    )}
+                    {!enabled && setup && isMe && (
                         <div className="space-y-4">
                             {qrDataUrl && (
                                 <img
@@ -167,60 +232,80 @@ export default function SecurityPage() {
                     {enabled && (
                         <div className="space-y-2">
                             <div className="text-sm text-green-700">
-                                2FA is currently enabled on your account.
+                                2FA is currently enabled
+                                {isMe ? " on your account" : " for this user"}.
                             </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={regenerate}
-                                    disabled={loading}
-                                >
-                                    Regenerate Codes
-                                </Button>
-                            </div>
+                            {isMe && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={regenerate}
+                                        disabled={loading}
+                                    >
+                                        Regenerate Codes
+                                    </Button>
+                                </div>
+                            )}
                             <div className="mt-2 space-y-2">
                                 <div className="text-sm text-gray-600">
-                                    To disable 2FA, confirm with password or a
-                                    valid code:
+                                    {isMe
+                                        ? "To disable 2FA, confirm with password or a valid code:"
+                                        : "Disable 2FA for this user:"}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        type="password"
-                                        placeholder="Current password"
-                                        value={disablePassword}
-                                        onChange={(e) =>
-                                            setDisablePassword(e.target.value)
-                                        }
-                                        className="max-w-[260px]"
-                                    />
-                                    <span className="text-xs text-gray-500">
-                                        or
-                                    </span>
-                                    <Input
-                                        placeholder="6-digit / recovery code"
-                                        value={disableCode}
-                                        onChange={(e) =>
-                                            setDisableCode(e.target.value)
-                                        }
-                                        className="max-w-[220px]"
-                                    />
+                                {isMe && (
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="password"
+                                            placeholder="Current password"
+                                            value={disablePassword}
+                                            onChange={(e) =>
+                                                setDisablePassword(
+                                                    e.target.value
+                                                )
+                                            }
+                                            className="max-w-[260px]"
+                                        />
+                                        <span className="text-xs text-gray-500">
+                                            or
+                                        </span>
+                                        <Input
+                                            placeholder="6-digit / recovery code"
+                                            value={disableCode}
+                                            onChange={(e) =>
+                                                setDisableCode(e.target.value)
+                                            }
+                                            className="max-w-[220px]"
+                                        />
+                                        <Button
+                                            variant="destructive"
+                                            onClick={onDisable}
+                                            disabled={
+                                                loading ||
+                                                (!disablePassword &&
+                                                    !disableCode)
+                                            }
+                                        >
+                                            {loading
+                                                ? "Disabling..."
+                                                : "Disable 2FA"}
+                                        </Button>
+                                    </div>
+                                )}
+                                {!isMe && (
                                     <Button
                                         variant="destructive"
                                         onClick={onDisable}
-                                        disabled={
-                                            loading ||
-                                            (!disablePassword && !disableCode)
-                                        }
+                                        disabled={loading}
                                     >
                                         {loading
                                             ? "Disabling..."
                                             : "Disable 2FA"}
                                     </Button>
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}
-                    {recovery && (
+                    {recovery && isMe && (
                         <div className="mt-4">
                             <div className="font-medium mb-2">
                                 Recovery Codes

@@ -93,6 +93,13 @@ export const getUserSessions = async (): Promise<UserSession[]> => {
     return res.data;
 };
 
+export const getUserSessionsAdmin = async (
+    userId: number
+): Promise<UserSession[]> => {
+    const res = await api.get<UserSession[]>(`/users/${userId}/sessions`);
+    return res.data;
+};
+
 export interface TwoFALoginVerifyRequest {
     code: string;
     twofa_token: string;
@@ -113,6 +120,16 @@ export const revokeSession = async (
 ): Promise<{ message: string }> => {
     const res = await api.delete<{ message: string }>(
         `/users/sessions/${sessionId}`
+    );
+    return res.data;
+};
+
+export const revokeUserSessionAdmin = async (
+    userId: number,
+    sessionId: number
+): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(
+        `/users/${userId}/sessions/${sessionId}`
     );
     return res.data;
 };
@@ -138,6 +155,15 @@ export const revokeAllSessions = async (
         ? `/users/sessions?keep_current=${keepCurrent}&current_session_id=${currentSessionId}`
         : `/users/sessions?keep_current=${keepCurrent}`;
 
+    const res = await api.delete<{ message: string }>(url);
+    return res.data;
+};
+
+export const revokeAllUserSessionsAdmin = async (
+    userId: number,
+    keepCurrent: boolean = true
+): Promise<{ message: string }> => {
+    const url = `/users/${userId}/sessions?keep_current=${keepCurrent}`;
     const res = await api.delete<{ message: string }>(url);
     return res.data;
 };

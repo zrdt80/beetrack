@@ -51,7 +51,6 @@ import PasswordField from "@/components/PasswordField";
 import { evaluatePassword } from "@/lib/password";
 import { TIMEZONES } from "@/lib/timezones";
 import { LOCALES } from "@/lib/locales";
-import StatusBadge from "@/components/StatusBadge";
 import axios from "axios";
 import { toast } from "sonner";
 
@@ -93,9 +92,10 @@ export default function UserPage() {
         null
     );
     const isMe = user ? String(user.id) === id : false;
+    const isAdmin = user?.role === "admin";
     const passwordEval = evaluatePassword(form.password || "");
     const passwordValid = !form.password || passwordEval.isValid;
-    const canEdit = isMe || user?.role === "admin";
+    const canEdit = isMe || isAdmin;
 
     useDocumentTitle(
         userInfo ? `${userInfo.username} – Profile` : "User Profile"
@@ -265,6 +265,99 @@ export default function UserPage() {
         return (
             <div className="flex justify-center items-center min-h-[80vh]">
                 <span>User not found.</span>
+            </div>
+        );
+    }
+
+    if (!canEdit) {
+        return (
+            <div className="w-full max-w-2xl mx-auto">
+                <Card className="shadow-sm border-0 p-0">
+                    <CardHeader className="flex flex-row items-center gap-6 pb-4">
+                        <UserAvatar
+                            className="w-16 h-16 text-2xl"
+                            avatarUrl={userInfo.avatar_url}
+                            username={userInfo.username}
+                            alt={userInfo.username}
+                        />
+                        <div>
+                            <CardTitle className="text-xl font-bold mb-1">
+                                {userInfo.username}
+                                {!userInfo.is_active && (
+                                    <Badge
+                                        variant="destructive"
+                                        className="text-xs px-2 py-1 ml-2"
+                                    >
+                                        Inactive
+                                    </Badge>
+                                )}
+                            </CardTitle>
+                            <CardDescription className="text-sm text-muted-foreground">
+                                {userInfo.email}
+                            </CardDescription>
+                        </div>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="pt-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-700">
+                                    Role
+                                </label>
+                                <div className="mt-1">
+                                    <Badge
+                                        variant={
+                                            userInfo.role === "admin"
+                                                ? "default"
+                                                : "secondary"
+                                        }
+                                        className="capitalize"
+                                    >
+                                        {userInfo.role}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-700">
+                                    Status
+                                </label>
+                                <div className="mt-1">
+                                    <Badge
+                                        variant={
+                                            userInfo.is_active
+                                                ? "default"
+                                                : "destructive"
+                                        }
+                                        className="capitalize"
+                                    >
+                                        {userInfo.is_active
+                                            ? "Active"
+                                            : "Inactive"}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-700">
+                                    Member Since
+                                </label>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    {formatDateTime(
+                                        userInfo.created_at,
+                                        "date"
+                                    )}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-700">
+                                    Timezone
+                                </label>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    {userInfo.timezone || "Not set"}
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
@@ -537,11 +630,12 @@ export default function UserPage() {
                                 <div>
                                     <label className="block text-sm font-medium mb-1 flex items-center gap-2">
                                         <span>Theme</span>
-                                        <StatusBadge
-                                            status="not-implemented"
-                                            showIcon={false}
+                                        <Badge
+                                            variant="secondary"
                                             className="text-[10px]"
-                                        />
+                                        >
+                                            Not Implemented
+                                        </Badge>
                                     </label>
                                     <Combobox
                                         data={[
@@ -581,11 +675,12 @@ export default function UserPage() {
                                 <div>
                                     <label className="block text-sm font-medium mb-1 flex items-center gap-2">
                                         <span>Timezone</span>
-                                        <StatusBadge
-                                            status="not-implemented"
-                                            showIcon={false}
+                                        <Badge
+                                            variant="secondary"
                                             className="text-[10px]"
-                                        />
+                                        >
+                                            Not Implemented
+                                        </Badge>
                                     </label>
                                     <Combobox
                                         data={TIMEZONES.map((tz) => ({
@@ -620,11 +715,12 @@ export default function UserPage() {
                                 <div>
                                     <label className="block text-sm font-medium mb-1 flex items-center gap-2">
                                         <span>Locale</span>
-                                        <StatusBadge
-                                            status="not-implemented"
-                                            showIcon={false}
+                                        <Badge
+                                            variant="secondary"
                                             className="text-[10px]"
-                                        />
+                                        >
+                                            Not Implemented
+                                        </Badge>
                                     </label>
                                     <Combobox
                                         data={LOCALES.map((l) => ({

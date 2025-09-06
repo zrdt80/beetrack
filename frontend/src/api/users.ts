@@ -146,3 +146,25 @@ export const regenerateTwoFARecovery = async (): Promise<{
     );
     return res.data;
 };
+
+export const getUserTwoFAStatus = async (
+    userId: number
+): Promise<{
+    two_factor_enabled: boolean;
+    two_factor_confirmed_at: string | null;
+}> => {
+    const res = await api.get<{
+        two_factor_enabled: boolean;
+        two_factor_confirmed_at: string | null;
+    }>(`/users/${userId}/2fa/status`);
+    return res.data;
+};
+
+export const disableUserTwoFAAdmin = async (
+    userId: number
+): Promise<{ message: string }> => {
+    const res = await api.post<{ message: string }>(
+        `/users/${userId}/2fa/disable`
+    );
+    return res.data;
+};

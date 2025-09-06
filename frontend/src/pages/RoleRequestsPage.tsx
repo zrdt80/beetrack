@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
     createRoleRequest,
     listMyRoleRequestsPage,
     getMyRoleRequestSummary,
     getMyRoleRequestNotifications,
+    listRoleRequests,
 } from "@/api/roleRequests";
 import type {
     RoleRequestNotification,
@@ -29,6 +30,7 @@ type SortOrder =
     | "decided_asc";
 
 export default function RoleRequestsPage() {
+    const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
@@ -48,6 +50,17 @@ export default function RoleRequestsPage() {
 
     const [page, setPage] = useState(1);
     const [size] = useState(20);
+
+    const isMe = user ? String(user.id) === id : false;
+    const isAdmin = user?.role === "admin";
+    const userId = id ? Number(id) : null;
+
+    useEffect(() => {
+        if (!isMe && !isAdmin) {
+            navigate(-1);
+            return;
+        }
+    }, [isMe, isAdmin, navigate]);
     const [pages, setPages] = useState(1);
     const [order, setOrder] = useState<SortOrder>("created_desc");
 
@@ -78,6 +91,8 @@ export default function RoleRequestsPage() {
     }, []);
 
     const load = useCallback(async () => {
+        if (!userId) return;
+
         try {
             setLoading(true);
             const apiOrder =
@@ -88,13 +103,24 @@ export default function RoleRequestsPage() {
                     : order === "decided_desc"
                     ? "-decided_at"
                     : "decided_at";
-            const [pageData, sum] = await Promise.all([
-                listMyRoleRequestsPage(page, size, apiOrder),
-                getMyRoleRequestSummary(),
-            ]);
-            setItems(pageData.items);
-            setPages(pageData.meta.pages || 1);
-            setSummary(sum);
+
+            if (isMe) {
+                const [pageData, sum] = await Promise.all([
+                    listMyRoleRequestsPage(page, size, apiOrder),
+                    getMyRoleRequestSummary(),
+                ]);
+                setItems(pageData.items);
+                setPages(pageData.meta.pages || 1);
+                setSummary(sum);
+            } else {
+                const pageData = await listRoleRequests(page, size, {
+                    user_id: userId,
+                    order: apiOrder,
+                });
+                setItems(pageData.items);
+                setPages(pageData.meta.pages || 1);
+                setSummary(null);
+            }
             setError(null);
         } catch (e: unknown) {
             const msg =
@@ -106,7 +132,7 @@ export default function RoleRequestsPage() {
         } finally {
             setLoading(false);
         }
-    }, [order, page, size]);
+    }, [order, page, size, userId, isMe]);
 
     useEffect(() => {
         load();
@@ -164,6 +190,11 @@ export default function RoleRequestsPage() {
     }, [location.search]);
 
     const onCreate = async () => {
+        if (!isMe) {
+            toast.error("Only the user can create their own role requests");
+            return;
+        }
+
         try {
             setCreating(true);
             await toast.promise(
@@ -250,7 +281,7 @@ export default function RoleRequestsPage() {
         <div className="p-4 space-y-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <h1 className="text-xl font-semibold tracking-tight">
-                    Role Requests
+                    {isMe ? "Role Requests" : "User Role Requests"}
                 </h1>
                 {notifications.length > 0 && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
@@ -290,7 +321,7 @@ export default function RoleRequestsPage() {
                 loading={loading}
             />
 
-            {user?.role === "user" && (
+            {isMe && user?.role === "user" && (
                 <Card className="shadow-sm">
                     <CardContent className="p-4 space-y-3">
                         <div>
