@@ -518,3 +518,115 @@ class ApiaryMemberAdd(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# ----------------------
+# --- EXPORT SCHEMAS ---
+# ----------------------
+
+class ExportFormat(str, Enum):
+    csv = "csv"
+    pdf = "pdf"
+
+
+class ExportDataType(str, Enum):
+    orders = "orders"
+    inspections = "inspections"
+    hives = "hives"
+    apiaries = "apiaries"
+
+
+class ExportFilterBase(BaseModel):
+    apiary_ids: Optional[List[int]] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    format: ExportFormat = ExportFormat.csv
+    
+    @field_validator("apiary_ids")
+    @classmethod
+    def validate_apiary_ids(cls, v):
+        if v is not None and len(v) == 0:
+            return None
+        return v
+
+
+class OrderExportFilter(ExportFilterBase):
+    user_ids: Optional[List[int]] = None
+    status_filter: Optional[List[str]] = None
+    
+    
+class InspectionExportFilter(ExportFilterBase):
+    hive_ids: Optional[List[int]] = None
+    temperature_min: Optional[float] = None
+    temperature_max: Optional[float] = None
+    disease_filter: Optional[List[str]] = None
+
+
+class HiveExportFilter(ExportFilterBase):
+    status_filter: Optional[List[str]] = None
+    last_inspection_days: Optional[int] = None
+
+
+class ApiaryExportFilter(BaseModel):
+    owner_ids: Optional[List[int]] = None
+    format: ExportFormat = ExportFormat.csv
+    include_member_count: bool = True
+    include_hive_count: bool = True
+
+
+class ExportRequest(BaseModel):
+    data_type: ExportDataType
+    filters: dict = {}
+    
+    
+class ExportResponse(BaseModel):
+    success: bool
+    message: str
+    filename: Optional[str] = None
+    record_count: Optional[int] = None
+    generated_at: datetime
+
+
+class UserAccessibleApiaries(BaseModel):
+    apiary_ids: List[int]
+    is_admin: bool
+    total_count: int
+
+
+class ExportPermissionCheck(BaseModel):
+    allowed: bool
+    accessible_apiary_ids: List[int]
+    error_message: Optional[str] = None
+
+
+class DateRangeValidation(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    
+    @field_validator("end_date")
+    @classmethod
+    def validate_date_range(cls, v, values):
+        if v and values.get("start_date") and v < values.get("start_date"):
+            raise ValueError("end_date must be after start_date")
+        return v
+
+
+class ApiaryOption(BaseModel):
+    id: int
+    name: str
+    location: Optional[str] = None
+
+
+class HiveOption(BaseModel):
+    id: int
+    name: str
+    apiary_id: int
+    apiary_name: str
+
+
+class ExportPreview(BaseModel):
+    data_type: ExportDataType
+    estimated_records: int
+    apiary_count: int
+    date_range: Optional[str] = None
+    filters_applied: List[str] = []
