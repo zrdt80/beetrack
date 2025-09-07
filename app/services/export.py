@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 from sqlalchemy.orm import Session
-from app import models
+from sqlalchemy import and_, or_
+from app import models, schemas
 from app.utils.logger import log_event
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -12,7 +13,8 @@ from reportlab.platypus.flowables import HRFlowable
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 UNICODE_FONT = 'Helvetica'
 log_event("Using standard Helvetica font for PDF generation")
@@ -321,9 +323,6 @@ def export_inspections_to_pdf(db: Session, path: str = "exports/inspections.pdf"
     table_data = [['Date', 'Hive ID', 'Temperature', 'Disease', 'Notes']]
     
     def get_disease_display(disease_detected):
-        """
-        Convert disease status to display format with appropriate symbols
-        """
         if not disease_detected or disease_detected.lower() in ['none', '', 'healthy']:
             return '[HEALTHY] Healthy'
         
@@ -425,4 +424,449 @@ def export_inspections_to_pdf(db: Session, path: str = "exports/inspections.pdf"
     doc.build(elements)
     
     log_event(f"Inspections PDF exported successfully: {len(inspections)} inspections to {path}")
+    return path
+
+
+def get_user_accessible_apiaries(db: Session, user: models.User) -> List[int]:
+    if user.role == models.UserRole.admin:
+        all_apiaries = db.query(models.Apiary.id).all()
+        return [apiary.id for apiary in all_apiaries]
+    
+    memberships = db.query(models.ApiaryMember.apiary_id).filter(
+        models.ApiaryMember.user_id == user.id,
+        models.ApiaryMember.is_active == True
+    ).all()
+    
+    return [membership.apiary_id for membership in memberships]
+
+
+def validate_export_permissions(
+    db: Session, 
+    user: models.User, 
+    requested_apiary_ids: Optional[List[int]] = None
+) -> schemas.ExportPermissionCheck:
+    
+    accessible_apiary_ids = get_user_accessible_apiaries(db, user)
+    
+    if not accessible_apiary_ids:
+        return schemas.ExportPermissionCheck(
+            allowed=False,
+            accessible_apiary_ids=[],
+            error_message="No accessible apiaries found"
+        )
+    
+    if requested_apiary_ids is None:
+        return schemas.ExportPermissionCheck(
+            allowed=True,
+            accessible_apiary_ids=accessible_apiary_ids
+        )
+    
+    unauthorized_apiaries = set(requested_apiary_ids) - set(accessible_apiary_ids)
+    
+    if unauthorized_apiaries:
+        return schemas.ExportPermissionCheck(
+            allowed=False,
+            accessible_apiary_ids=accessible_apiary_ids,
+            error_message=f"Access denied to apiaries: {list(unauthorized_apiaries)}"
+        )
+    
+    return schemas.ExportPermissionCheck(
+        allowed=True,
+        accessible_apiary_ids=requested_apiary_ids
+    )
+
+
+def build_orders_query(db: Session, filter_params: schemas.OrderExportFilter, apiary_ids: List[int]):
+    
+    query = db.query(models.Order)
+    
+    if filter_params.start_date:
+        query = query.filter(models.Order.date >= filter_params.start_date)
+    if filter_params.end_date:
+        query = query.filter(models.Order.date <= filter_params.end_date)
+    
+    if filter_params.user_ids:
+        query = query.filter(models.Order.user_id.in_(filter_params.user_ids))
+    
+    if filter_params.status_filter:
+        query = query.filter(models.Order.status.in_(filter_params.status_filter))
+    
+    if apiary_ids:
+        accessible_users = db.query(models.ApiaryMember.user_id).filter(
+            models.ApiaryMember.apiary_id.in_(apiary_ids),
+            models.ApiaryMember.is_active == True
+        ).distinct()
+        query = query.filter(models.Order.user_id.in_(accessible_users))
+    
+    return query
+
+
+def build_inspections_query(db: Session, filter_params: schemas.InspectionExportFilter, apiary_ids: List[int]):
+    query = db.query(models.Inspection).join(models.Hive)
+    
+    if apiary_ids:
+        query = query.filter(models.Hive.apiary_id.in_(apiary_ids))
+    
+    if filter_params.start_date:
+        query = query.filter(models.Inspection.date >= filter_params.start_date)
+    if filter_params.end_date:
+        query = query.filter(models.Inspection.date <= filter_params.end_date)
+    
+    if filter_params.hive_ids:
+        query = query.filter(models.Inspection.hive_id.in_(filter_params.hive_ids))
+    
+    if filter_params.temperature_min is not None:
+        query = query.filter(models.Inspection.temperature >= filter_params.temperature_min)
+    if filter_params.temperature_max is not None:
+        query = query.filter(models.Inspection.temperature <= filter_params.temperature_max)
+    
+    if filter_params.disease_filter:
+        disease_conditions = [
+            models.Inspection.disease_detected.ilike(f"%{disease}%") 
+            for disease in filter_params.disease_filter
+        ]
+        query = query.filter(or_(*disease_conditions))
+    
+    return query
+
+
+def build_hives_query(db: Session, filter_params: schemas.HiveExportFilter, apiary_ids: List[int]):
+    query = db.query(models.Hive)
+    
+    if apiary_ids:
+        query = query.filter(models.Hive.apiary_id.in_(apiary_ids))
+    
+    if filter_params.status_filter:
+        query = query.filter(models.Hive.status.in_(filter_params.status_filter))
+    
+    if filter_params.last_inspection_days is not None:
+        cutoff_date = datetime.now() - timedelta(days=filter_params.last_inspection_days)
+        query = query.filter(
+            or_(
+                models.Hive.last_inspection_date == None,
+                models.Hive.last_inspection_date < cutoff_date
+            )
+        )
+    
+    return query
+
+
+def export_orders_filtered(
+    db: Session, 
+    user: models.User,
+    filter_params: schemas.OrderExportFilter,
+    path: Optional[str] = None
+) -> Optional[str]:
+    
+    permission_check = validate_export_permissions(db, user, filter_params.apiary_ids)
+    if not permission_check.allowed:
+        log_event(f"Export denied for user {user.username}: {permission_check.error_message}")
+        return None
+    
+    query = build_orders_query(db, filter_params, permission_check.accessible_apiary_ids)
+    orders = query.all()
+    
+    if not orders:
+        log_event(f"No orders found for filtered export by user {user.username}")
+        return None
+    
+    if not path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = "csv" if filter_params.format == schemas.ExportFormat.csv else "pdf"
+        path = f"exports/orders_filtered_{timestamp}.{extension}"
+    
+    os.makedirs("exports", exist_ok=True)
+    
+    if filter_params.format == schemas.ExportFormat.csv:
+        return _export_orders_to_csv_filtered(orders, path, user, filter_params)
+    else:
+        return _export_orders_to_pdf_filtered(orders, path, user, filter_params)
+
+
+def _export_orders_to_csv_filtered(orders, path: str, user: models.User, filter_params: schemas.OrderExportFilter) -> str:
+    
+    rows = []
+    for order in orders:
+        for item in order.items:
+            rows.append({
+                "Order ID": order.id,
+                "User ID": order.user_id,
+                "Date": order.date.strftime("%Y-%m-%d"),
+                "Status": order.status.title(),
+                "Product ID": item.product_id,
+                "Quantity": item.quantity,
+                "Price Each": f"${item.price_each:.2f}",
+                "Total": f"${item.quantity * item.price_each:.2f}"
+            })
+    
+    df = pd.DataFrame(rows)
+    df.to_csv(path, index=False)
+    
+    log_event(f"Filtered orders CSV exported by {user.username}: {len(orders)} orders, {len(rows)} items to {path}")
+    return path
+
+
+def _export_orders_to_pdf_filtered(orders, path: str, user: models.User, filter_params: schemas.OrderExportFilter) -> str:
+    doc = SimpleDocTemplate(path, pagesize=A4, 
+                          rightMargin=2*cm, leftMargin=2*cm,
+                          topMargin=2*cm, bottomMargin=2*cm)
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    title = Paragraph(f"Orders Export - {user.username}", styles['Title'])
+    elements.append(title)
+    
+    total_revenue = sum(sum(item.quantity * item.price_each for item in order.items) for order in orders)
+    summary = Paragraph(f"""
+        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>
+        Total Orders: {len(orders)}<br/>
+        Total Revenue: ${total_revenue:.2f}
+    """, styles['Normal'])
+    elements.append(summary)
+    elements.append(Spacer(1, 20))
+    
+    table_data = [['Order ID', 'Date', 'Status', 'Items', 'Total']]
+    for order in sorted(orders, key=lambda x: x.date, reverse=True):
+        order_total = sum(item.quantity * item.price_each for item in order.items)
+        item_count = len(order.items)
+        table_data.append([
+            f'#{order.id}',
+            order.date.strftime('%Y-%m-%d'),
+            order.status.title(),
+            f'{item_count} items',
+            f'${order_total:.2f}'
+        ])
+    
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 14),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    log_event(f"Filtered orders PDF exported by {user.username}: {len(orders)} orders to {path}")
+    return path
+
+
+def export_inspections_filtered(
+    db: Session,
+    user: models.User, 
+    filter_params: schemas.InspectionExportFilter,
+    path: Optional[str] = None
+) -> Optional[str]:
+    
+    permission_check = validate_export_permissions(db, user, filter_params.apiary_ids)
+    if not permission_check.allowed:
+        log_event(f"Inspection export denied for user {user.username}: {permission_check.error_message}")
+        return None
+    
+    query = build_inspections_query(db, filter_params, permission_check.accessible_apiary_ids)
+    inspections = query.all()
+    
+    if not inspections:
+        log_event(f"No inspections found for filtered export by user {user.username}")
+        return None
+    
+    if not path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = "csv" if filter_params.format == schemas.ExportFormat.csv else "pdf"
+        path = f"exports/inspections_filtered_{timestamp}.{extension}"
+    
+    os.makedirs("exports", exist_ok=True)
+    
+    if filter_params.format == schemas.ExportFormat.csv:
+        return _export_inspections_to_csv_filtered(inspections, path, user, filter_params)
+    else:
+        return _export_inspections_to_pdf_filtered(inspections, path, user, filter_params)
+
+
+def _export_inspections_to_csv_filtered(inspections, path: str, user: models.User, filter_params: schemas.InspectionExportFilter) -> str:
+    
+    rows = []
+    for inspection in inspections:
+        rows.append({
+            "Inspection ID": inspection.id,
+            "Hive ID": inspection.hive_id,
+            "Date": inspection.date.strftime("%Y-%m-%d %H:%M"),
+            "Temperature": inspection.temperature if inspection.temperature else "N/A",
+            "Disease Detected": inspection.disease_detected or "None",
+            "Notes": inspection.notes or ""
+        })
+    
+    df = pd.DataFrame(rows)
+    df.to_csv(path, index=False)
+    
+    log_event(f"Filtered inspections CSV exported by {user.username}: {len(inspections)} inspections to {path}")
+    return path
+
+
+def _export_inspections_to_pdf_filtered(inspections, path: str, user: models.User, filter_params: schemas.InspectionExportFilter) -> str:
+    doc = SimpleDocTemplate(path, pagesize=A4,
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title = Paragraph(f"Inspections Export - {user.username}", styles['Title'])
+    elements.append(title)
+
+    total = len(inspections)
+    avg_temp = sum(i.temperature for i in inspections if i.temperature) / total if total else 0
+    summary = Paragraph(f"""
+        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>
+        Total Inspections: {total}<br/>
+        Average Temperature: {avg_temp:.1f}°C
+    """, styles['Normal'])
+    elements.append(summary)
+    elements.append(Spacer(1, 20))
+
+    table_data = [['Date', 'Hive ID', 'Temperature', 'Disease', 'Notes']]
+    for i in sorted(inspections, key=lambda x: x.date, reverse=True):
+        table_data.append([
+            i.date.strftime('%Y-%m-%d'),
+            f'Hive #{i.hive_id}',
+            f"{i.temperature}°C" if i.temperature is not None else 'N/A',
+            (i.disease_detected or 'None').title(),
+            (i.notes[:60] + '...') if i.notes and len(i.notes) > 60 else (i.notes or '')
+        ])
+
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey)
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+
+    log_event(f"Filtered inspections PDF exported by {user.username}: {len(inspections)} inspections to {path}")
+    return path
+
+
+def export_hives_filtered(
+    db: Session,
+    user: models.User,
+    filter_params: schemas.HiveExportFilter, 
+    path: Optional[str] = None
+) -> Optional[str]:
+    
+    permission_check = validate_export_permissions(db, user, filter_params.apiary_ids)
+    if not permission_check.allowed:
+        log_event(f"Hive export denied for user {user.username}: {permission_check.error_message}")
+        return None
+    
+    query = build_hives_query(db, filter_params, permission_check.accessible_apiary_ids)
+    hives = query.all()
+    
+    if not hives:
+        log_event(f"No hives found for filtered export by user {user.username}")
+        return None
+    
+    if not path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = "csv" if filter_params.format == schemas.ExportFormat.csv else "pdf"
+        path = f"exports/hives_filtered_{timestamp}.{extension}"
+    
+    os.makedirs("exports", exist_ok=True)
+    
+    return _export_hives_to_csv_filtered(hives, path, user, filter_params)
+
+
+def _export_hives_to_csv_filtered(hives, path: str, user: models.User, filter_params: schemas.HiveExportFilter) -> str:
+    
+    rows = []
+    for hive in hives:
+        rows.append({
+            "Hive ID": hive.id,
+            "Name": hive.name,
+            "Apiary ID": hive.apiary_id,
+            "Status": hive.status,
+            "Last Inspection": hive.last_inspection_date.strftime("%Y-%m-%d") if hive.last_inspection_date else "Never"
+        })
+    
+    df = pd.DataFrame(rows)
+    df.to_csv(path, index=False)
+    
+    log_event(f"Filtered hives CSV exported by {user.username}: {len(hives)} hives to {path}")
+    return path
+
+
+def export_apiaries_filtered(
+    db: Session,
+    user: models.User,
+    filter_params: schemas.ApiaryExportFilter,
+    path: Optional[str] = None
+) -> Optional[str]:
+    
+    accessible_apiary_ids = get_user_accessible_apiaries(db, user)
+    
+    if not accessible_apiary_ids:
+        log_event(f"No accessible apiaries for export by user {user.username}")
+        return None
+    
+    query = db.query(models.Apiary).filter(models.Apiary.id.in_(accessible_apiary_ids))
+    
+    if filter_params.owner_ids:
+        query = query.filter(models.Apiary.owner_id.in_(filter_params.owner_ids))
+    
+    apiaries = query.all()
+    
+    if not apiaries:
+        log_event(f"No apiaries found for filtered export by user {user.username}")
+        return None
+    
+    if not path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = "csv" if filter_params.format == schemas.ExportFormat.csv else "pdf"
+        path = f"exports/apiaries_filtered_{timestamp}.{extension}"
+    
+    os.makedirs("exports", exist_ok=True)
+    
+    return _export_apiaries_to_csv_filtered(db, apiaries, path, user, filter_params)
+
+
+def _export_apiaries_to_csv_filtered(db: Session, apiaries, path: str, user: models.User, filter_params: schemas.ApiaryExportFilter) -> str:
+    rows = []
+    for apiary in apiaries:
+        row = {
+            "Apiary ID": apiary.id,
+            "Name": apiary.name,
+            "Location": apiary.location or "",
+            "Owner ID": apiary.owner_id,
+            "Created At": apiary.created_at.strftime("%Y-%m-%d"),
+            "Description": apiary.description or ""
+        }
+        
+        if filter_params.include_member_count:
+            member_count = db.query(models.ApiaryMember).filter(
+                models.ApiaryMember.apiary_id == apiary.id,
+                models.ApiaryMember.is_active == True
+            ).count()
+            row["Member Count"] = member_count
+        
+        if filter_params.include_hive_count:
+            hive_count = db.query(models.Hive).filter(models.Hive.apiary_id == apiary.id).count()
+            row["Hive Count"] = hive_count
+        
+        rows.append(row)
+    
+    df = pd.DataFrame(rows)
+    df.to_csv(path, index=False)
+    
+    log_event(f"Filtered apiaries CSV exported by {user.username}: {len(apiaries)} apiaries to {path}")
     return path
