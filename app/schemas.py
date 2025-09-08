@@ -541,6 +541,7 @@ class ExportFilterBase(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     format: ExportFormat = ExportFormat.csv
+    timezone: Optional[str] = None
     
     @field_validator("apiary_ids")
     @classmethod
@@ -550,7 +551,11 @@ class ExportFilterBase(BaseModel):
         return v
 
 
-class OrderExportFilter(ExportFilterBase):
+class OrderExportFilter(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    format: ExportFormat = ExportFormat.csv
+    timezone: Optional[str] = None
     user_ids: Optional[List[int]] = None
     status_filter: Optional[List[str]] = None
     
@@ -562,14 +567,25 @@ class InspectionExportFilter(ExportFilterBase):
     disease_filter: Optional[List[str]] = None
 
 
-class HiveExportFilter(ExportFilterBase):
+class HiveExportFilter(BaseModel):
+    apiary_ids: Optional[List[int]] = None
+    format: ExportFormat = ExportFormat.csv
+    timezone: Optional[str] = None
     status_filter: Optional[List[str]] = None
     last_inspection_days: Optional[int] = None
+    
+    @field_validator("apiary_ids")
+    @classmethod
+    def validate_apiary_ids(cls, v):
+        if v is not None and len(v) == 0:
+            return None
+        return v
 
 
 class ApiaryExportFilter(BaseModel):
-    owner_ids: Optional[List[int]] = None
     format: ExportFormat = ExportFormat.csv
+    timezone: Optional[str] = None
+    owner_ids: Optional[List[int]] = None
     include_member_count: bool = True
     include_hive_count: bool = True
 

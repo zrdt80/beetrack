@@ -71,8 +71,8 @@ const navLinks = [
         to: "/dashboard/export",
         label: "Export",
         icon: Download,
-        admin: true,
-        workerOnly: false,
+        admin: false,
+        workerOnly: true,
     },
     {
         to: "/dashboard/users",

@@ -13,11 +13,37 @@ from reportlab.platypus.flowables import HRFlowable
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+import pytz
 
 UNICODE_FONT = 'Helvetica'
 log_event("Using standard Helvetica font for PDF generation")
+
+
+def format_datetime_for_user(dt: datetime, user_timezone: Optional[str] = None, format_string: str = "%Y-%m-%d %H:%M") -> str:
+    if dt is None:
+        return ""
+    
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    
+    if user_timezone:
+        try:
+            user_tz = pytz.timezone(user_timezone)
+            dt = dt.astimezone(user_tz)
+        except Exception:
+            pass
+    
+    return dt.strftime(format_string)
+
+
+def format_date_for_user(dt: datetime, user_timezone: Optional[str] = None) -> str:
+    return format_datetime_for_user(dt, user_timezone, "%Y-%m-%d")
+
+
+def get_user_timezone(user: models.User) -> Optional[str]:
+    return user.timezone if user.timezone and user.timezone != "UTC" else None
 
 
 def export_orders_to_csv(db: Session, path: str = "exports/orders.csv"):
@@ -476,7 +502,7 @@ def validate_export_permissions(
     )
 
 
-def build_orders_query(db: Session, filter_params: schemas.OrderExportFilter, apiary_ids: List[int]):
+def build_orders_query(db: Session, filter_params: schemas.OrderExportFilter, apiary_ids: Optional[List[int]], user_restriction: Optional[int]):
     
     query = db.query(models.Order)
     
@@ -485,18 +511,14 @@ def build_orders_query(db: Session, filter_params: schemas.OrderExportFilter, ap
     if filter_params.end_date:
         query = query.filter(models.Order.date <= filter_params.end_date)
     
+    if user_restriction is not None:
+        query = query.filter(models.Order.user_id == user_restriction)
+    
     if filter_params.user_ids:
         query = query.filter(models.Order.user_id.in_(filter_params.user_ids))
     
     if filter_params.status_filter:
         query = query.filter(models.Order.status.in_(filter_params.status_filter))
-    
-    if apiary_ids:
-        accessible_users = db.query(models.ApiaryMember.user_id).filter(
-            models.ApiaryMember.apiary_id.in_(apiary_ids),
-            models.ApiaryMember.is_active == True
-        ).distinct()
-        query = query.filter(models.Order.user_id.in_(accessible_users))
     
     return query
 
@@ -557,13 +579,12 @@ def export_orders_filtered(
     filter_params: schemas.OrderExportFilter,
     path: Optional[str] = None
 ) -> Optional[str]:
+    if user.role != models.UserRole.admin:
+        user_restriction = user.id
+    else:
+        user_restriction = None
     
-    permission_check = validate_export_permissions(db, user, filter_params.apiary_ids)
-    if not permission_check.allowed:
-        log_event(f"Export denied for user {user.username}: {permission_check.error_message}")
-        return None
-    
-    query = build_orders_query(db, filter_params, permission_check.accessible_apiary_ids)
+    query = build_orders_query(db, filter_params, None, user_restriction)
     orders = query.all()
     
     if not orders:
@@ -584,6 +605,7 @@ def export_orders_filtered(
 
 
 def _export_orders_to_csv_filtered(orders, path: str, user: models.User, filter_params: schemas.OrderExportFilter) -> str:
+    user_timezone = filter_params.timezone or get_user_timezone(user)
     
     rows = []
     for order in orders:
@@ -591,7 +613,7 @@ def _export_orders_to_csv_filtered(orders, path: str, user: models.User, filter_
             rows.append({
                 "Order ID": order.id,
                 "User ID": order.user_id,
-                "Date": order.date.strftime("%Y-%m-%d"),
+                "Date": format_date_for_user(order.date, user_timezone),
                 "Status": order.status.title(),
                 "Product ID": item.product_id,
                 "Quantity": item.quantity,
@@ -611,6 +633,8 @@ def _export_orders_to_pdf_filtered(orders, path: str, user: models.User, filter_
                           rightMargin=2*cm, leftMargin=2*cm,
                           topMargin=2*cm, bottomMargin=2*cm)
     
+    user_timezone = filter_params.timezone or get_user_timezone(user)
+    
     elements = []
     styles = getSampleStyleSheet()
     
@@ -619,7 +643,7 @@ def _export_orders_to_pdf_filtered(orders, path: str, user: models.User, filter_
     
     total_revenue = sum(sum(item.quantity * item.price_each for item in order.items) for order in orders)
     summary = Paragraph(f"""
-        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>
+        Generated: {format_datetime_for_user(datetime.now(timezone.utc), user_timezone)}<br/>
         Total Orders: {len(orders)}<br/>
         Total Revenue: ${total_revenue:.2f}
     """, styles['Normal'])
@@ -632,7 +656,7 @@ def _export_orders_to_pdf_filtered(orders, path: str, user: models.User, filter_
         item_count = len(order.items)
         table_data.append([
             f'#{order.id}',
-            order.date.strftime('%Y-%m-%d'),
+            format_date_for_user(order.date, user_timezone),
             order.status.title(),
             f'{item_count} items',
             f'${order_total:.2f}'
@@ -690,13 +714,14 @@ def export_inspections_filtered(
 
 
 def _export_inspections_to_csv_filtered(inspections, path: str, user: models.User, filter_params: schemas.InspectionExportFilter) -> str:
+    user_timezone = filter_params.timezone or get_user_timezone(user)
     
     rows = []
     for inspection in inspections:
         rows.append({
             "Inspection ID": inspection.id,
             "Hive ID": inspection.hive_id,
-            "Date": inspection.date.strftime("%Y-%m-%d %H:%M"),
+            "Date": format_datetime_for_user(inspection.date, user_timezone),
             "Temperature": inspection.temperature if inspection.temperature else "N/A",
             "Disease Detected": inspection.disease_detected or "None",
             "Notes": inspection.notes or ""
@@ -710,9 +735,11 @@ def _export_inspections_to_csv_filtered(inspections, path: str, user: models.Use
 
 
 def _export_inspections_to_pdf_filtered(inspections, path: str, user: models.User, filter_params: schemas.InspectionExportFilter) -> str:
-    doc = SimpleDocTemplate(path, pagesize=A4,
+    doc = SimpleDocTemplate(path, pagesize=A4, 
                             rightMargin=2*cm, leftMargin=2*cm,
                             topMargin=2*cm, bottomMargin=2*cm)
+
+    user_timezone = filter_params.timezone or get_user_timezone(user)
 
     elements = []
     styles = getSampleStyleSheet()
@@ -723,7 +750,7 @@ def _export_inspections_to_pdf_filtered(inspections, path: str, user: models.Use
     total = len(inspections)
     avg_temp = sum(i.temperature for i in inspections if i.temperature) / total if total else 0
     summary = Paragraph(f"""
-        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>
+        Generated: {format_datetime_for_user(datetime.now(timezone.utc), user_timezone)}<br/>
         Total Inspections: {total}<br/>
         Average Temperature: {avg_temp:.1f}°C
     """, styles['Normal'])
@@ -733,7 +760,7 @@ def _export_inspections_to_pdf_filtered(inspections, path: str, user: models.Use
     table_data = [['Date', 'Hive ID', 'Temperature', 'Disease', 'Notes']]
     for i in sorted(inspections, key=lambda x: x.date, reverse=True):
         table_data.append([
-            i.date.strftime('%Y-%m-%d'),
+            format_date_for_user(i.date, user_timezone),
             f'Hive #{i.hive_id}',
             f"{i.temperature}°C" if i.temperature is not None else 'N/A',
             (i.disease_detected or 'None').title(),
@@ -784,10 +811,14 @@ def export_hives_filtered(
     
     os.makedirs("exports", exist_ok=True)
     
-    return _export_hives_to_csv_filtered(hives, path, user, filter_params)
+    if filter_params.format == schemas.ExportFormat.csv:
+        return _export_hives_to_csv_filtered(hives, path, user, filter_params)
+    else:
+        return _export_hives_to_pdf_filtered(hives, path, user, filter_params)
 
 
 def _export_hives_to_csv_filtered(hives, path: str, user: models.User, filter_params: schemas.HiveExportFilter) -> str:
+    user_timezone = filter_params.timezone or get_user_timezone(user)
     
     rows = []
     for hive in hives:
@@ -796,13 +827,66 @@ def _export_hives_to_csv_filtered(hives, path: str, user: models.User, filter_pa
             "Name": hive.name,
             "Apiary ID": hive.apiary_id,
             "Status": hive.status,
-            "Last Inspection": hive.last_inspection_date.strftime("%Y-%m-%d") if hive.last_inspection_date else "Never"
+            "Last Inspection": format_date_for_user(hive.last_inspection_date, user_timezone) if hive.last_inspection_date else "Never"
         })
     
     df = pd.DataFrame(rows)
     df.to_csv(path, index=False)
     
     log_event(f"Filtered hives CSV exported by {user.username}: {len(hives)} hives to {path}")
+    return path
+
+
+def _export_hives_to_pdf_filtered(hives, path: str, user: models.User, filter_params: schemas.HiveExportFilter) -> str:
+    doc = SimpleDocTemplate(path, pagesize=A4, 
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+
+    user_timezone = filter_params.timezone or get_user_timezone(user)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title = Paragraph(f"Hives Export - {user.username}", styles['Title'])
+    elements.append(title)
+
+    total = len(hives)
+    active_count = sum(1 for h in hives if h.status == "active")
+    summary = Paragraph(f"""
+        Generated: {format_datetime_for_user(datetime.now(timezone.utc), user_timezone)}<br/>
+        Total Hives: {total}<br/>
+        Active Hives: {active_count}<br/>
+        Inactive Hives: {total - active_count}
+    """, styles['Normal'])
+    elements.append(summary)
+    elements.append(Spacer(1, 20))
+
+    table_data = [['Hive ID', 'Name', 'Apiary ID', 'Status', 'Last Inspection']]
+    for hive in sorted(hives, key=lambda x: x.id):
+        table_data.append([
+            f'#{hive.id}',
+            hive.name,
+            f'Apiary #{hive.apiary_id}' if hive.apiary_id else 'No Apiary',
+            hive.status.title(),
+            format_date_for_user(hive.last_inspection_date, user_timezone) if hive.last_inspection_date else 'Never'
+        ])
+
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    log_event(f"Filtered hives PDF exported by {user.username}: {len(hives)} hives to {path}")
     return path
 
 
@@ -837,10 +921,15 @@ def export_apiaries_filtered(
     
     os.makedirs("exports", exist_ok=True)
     
-    return _export_apiaries_to_csv_filtered(db, apiaries, path, user, filter_params)
+    if filter_params.format == schemas.ExportFormat.csv:
+        return _export_apiaries_to_csv_filtered(db, apiaries, path, user, filter_params)
+    else:
+        return _export_apiaries_to_pdf_filtered(db, apiaries, path, user, filter_params)
 
 
 def _export_apiaries_to_csv_filtered(db: Session, apiaries, path: str, user: models.User, filter_params: schemas.ApiaryExportFilter) -> str:
+    user_timezone = filter_params.timezone or get_user_timezone(user)
+    
     rows = []
     for apiary in apiaries:
         row = {
@@ -848,7 +937,7 @@ def _export_apiaries_to_csv_filtered(db: Session, apiaries, path: str, user: mod
             "Name": apiary.name,
             "Location": apiary.location or "",
             "Owner ID": apiary.owner_id,
-            "Created At": apiary.created_at.strftime("%Y-%m-%d"),
+            "Created At": format_date_for_user(apiary.created_at, user_timezone),
             "Description": apiary.description or ""
         }
         
@@ -869,4 +958,88 @@ def _export_apiaries_to_csv_filtered(db: Session, apiaries, path: str, user: mod
     df.to_csv(path, index=False)
     
     log_event(f"Filtered apiaries CSV exported by {user.username}: {len(apiaries)} apiaries to {path}")
+    return path
+
+
+def _export_apiaries_to_pdf_filtered(db: Session, apiaries, path: str, user: models.User, filter_params: schemas.ApiaryExportFilter) -> str:
+    doc = SimpleDocTemplate(path, pagesize=A4, 
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+
+    user_timezone = filter_params.timezone or get_user_timezone(user)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title = Paragraph(f"Apiaries Export - {user.username}", styles['Title'])
+    elements.append(title)
+
+    total = len(apiaries)
+    total_hives = 0
+    total_members = 0
+    
+    if filter_params.include_hive_count:
+        total_hives = sum(db.query(models.Hive).filter(models.Hive.apiary_id == apiary.id).count() for apiary in apiaries)
+    
+    if filter_params.include_member_count:
+        total_members = sum(db.query(models.ApiaryMember).filter(
+            models.ApiaryMember.apiary_id == apiary.id,
+            models.ApiaryMember.is_active == True
+        ).count() for apiary in apiaries)
+    
+    summary = Paragraph(f"""
+        Generated: {format_datetime_for_user(datetime.now(timezone.utc), user_timezone)}<br/>
+        Total Apiaries: {total}<br/>
+        Total Hives: {total_hives}<br/>
+        Total Active Members: {total_members}
+    """, styles['Normal'])
+    elements.append(summary)
+    elements.append(Spacer(1, 20))
+
+    headers = ['Apiary ID', 'Name', 'Location', 'Owner', 'Created']
+    if filter_params.include_member_count:
+        headers.append('Members')
+    if filter_params.include_hive_count:
+        headers.append('Hives')
+    
+    table_data = [headers]
+    
+    for apiary in sorted(apiaries, key=lambda x: x.id):
+        row = [
+            f'#{apiary.id}',
+            apiary.name,
+            apiary.location or 'Not specified',
+            f'User #{apiary.owner_id}',
+            format_date_for_user(apiary.created_at, user_timezone)
+        ]
+        
+        if filter_params.include_member_count:
+            member_count = db.query(models.ApiaryMember).filter(
+                models.ApiaryMember.apiary_id == apiary.id,
+                models.ApiaryMember.is_active == True
+            ).count()
+            row.append(str(member_count))
+        
+        if filter_params.include_hive_count:
+            hive_count = db.query(models.Hive).filter(models.Hive.apiary_id == apiary.id).count()
+            row.append(str(hive_count))
+        
+        table_data.append(row)
+
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    log_event(f"Filtered apiaries PDF exported by {user.username}: {len(apiaries)} apiaries to {path}")
     return path
