@@ -81,12 +81,8 @@ logs/
 # Exports
 exports/
 
-# Alembic
-alembic/versions/
-
-# Misc
-*.bak
-*.tmp
+# Local development database
+beetrack.db
 
 # Todo files
 todo.txt

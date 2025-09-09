@@ -10,10 +10,19 @@ if [[ $# -gt 0 && "$1" == "alembic" ]]; then
 fi
 
 echo "📦 Running Alembic migrations (upgrade head)..."
-alembic upgrade head || {
-    echo "❌ Migration failed." >&2
-    exit 1
-}
+if ! alembic upgrade head; then
+    echo "❌ Migration failed. Attempting to create tables directly..."
+    python -c "
+from app.database import engine
+from app.models import Base
+try:
+    Base.metadata.create_all(bind=engine)
+    print('✅ Tables created directly via SQLAlchemy')
+except Exception as e:
+    print(f'❌ Failed to create tables: {e}')
+    exit(1)
+"
+fi
 
 echo "🗂️ Ensuring static directories exist..."
 mkdir -p static/avatars || true
