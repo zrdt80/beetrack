@@ -6,6 +6,16 @@ Built for real-world use with FastAPI, PostgreSQL, Docker, cron jobs, Alembic, J
 
 ---
 
+## 🎥 Live Demo
+
+<p align="center">
+    <img src="screenshots/Beetrack.gif" alt="BeeTrack animated walkthrough" width="900" />
+</p>
+
+<p align="center"><em>A publicly hosted live demo environment is planned for a future milestone. Until then, the animated walkthrough above showcases the current UI and core workflows.</em></p>
+
+---
+
 ## ✨ Features
 
 ### 🔐 **Advanced Authentication & Security**
@@ -238,7 +248,7 @@ For the complete and up-to-date specification, use Swagger UI at: http://localho
 
 ---
 
-## � Authentication & Security Features
+## 🔐 Authentication & Security Features
 
 ### 🛡️ Multi-Factor Authentication (2FA)
 
@@ -488,6 +498,7 @@ After launch:
 -   [ ] **Webhooks** – External system integration via webhooks
 -   [ ] **Multi-language** – Full internationalization support
 -   [ ] **Advanced Security** – Additional security features and compliance tools
+-   [ ] **Responsive UI Enhancements** – Continued refinement of mobile and tablet breakpoints, performance optimizations for low-bandwidth devices, and accessibility improvements (WCAG alignment)
 
 ---
 
