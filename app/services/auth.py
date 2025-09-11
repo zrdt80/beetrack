@@ -5,18 +5,16 @@ from fastapi import Depends, HTTPException, status, Request, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app import models, schemas
+from app import models
 from app.utils.hashing import Hasher
 from app.utils.logger import log_event
-import os
+from app.config import settings
 import secrets
-import uuid
 from typing import Optional
 
-SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login", auto_error=False)
 
@@ -25,7 +23,7 @@ def get_token_data(email: str, token: Optional[str] = None) -> Optional[TokenDat
     if not token:
         return None
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         email_from_token: str = payload.get("sub")
         if email_from_token != email:
             return None
@@ -56,16 +54,20 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    # TODO: include jti for revocation lists / introspection if needed later
+    return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: int, session_id: int = None, expires_delta: timedelta = None):
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-    
-    token_bytes = secrets.token_bytes(32)
-    refresh_token = secrets.token_urlsafe(32)
-    
-    return refresh_token, expire
+        """Create a new refresh token.
+
+        NOTE (future rotation plan):
+            - Each refresh token will be one-time use. Upon rotation, mark previous session row with replaced_by=new_session.id.
+            - Detect reuse: if a refresh token already used (session invalid or replaced_by set) -> revoke entire chain for that user.
+        """
+        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+        refresh_token = secrets.token_urlsafe(48)
+        return refresh_token, expire
 
 
 def create_user_session(db: Session, user_id: int, refresh_token: str, expires_at: datetime, 
@@ -148,7 +150,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         session_id: int = payload.get("session_id")
         

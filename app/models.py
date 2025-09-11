@@ -59,7 +59,7 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
     last_activity = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_valid = Column(Boolean, default=True)
-    replaced_by = Column(Integer, nullable=True)
+    replaced_by = Column(Integer, nullable=True)  # points to new session.id when rotated (future refresh rotation)
 
     user = relationship("User", back_populates="sessions")
 

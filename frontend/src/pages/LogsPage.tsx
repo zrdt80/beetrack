@@ -50,7 +50,7 @@ import {
 import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
 
-type LogLevel = "all" | "success" | "error" | "info" | "warning";
+type LogLevel = "all" | "error" | "info" | "warning";
 
 const getLogIcon = (event: string) => {
     const eventLower = event.toLowerCase();
@@ -211,7 +211,6 @@ export default function LogsPage() {
 
     const logCounts = stats || {
         total: 0,
-        success: 0,
         error: 0,
         warning: 0,
         info: 0,
@@ -233,7 +232,7 @@ export default function LogsPage() {
                 </CardHeader>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <Card>
                     <CardContent className="pt-6">
                         <div className="text-center">
@@ -243,16 +242,6 @@ export default function LogsPage() {
                             <div className="text-sm text-gray-500">
                                 Total Logs
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">
-                                {logCounts.success}
-                            </div>
-                            <div className="text-sm text-gray-500">Success</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -316,9 +305,6 @@ export default function LogsPage() {
                                 <SelectContent>
                                     <SelectItem value="all">
                                         All Levels
-                                    </SelectItem>
-                                    <SelectItem value="success">
-                                        Success
                                     </SelectItem>
                                     <SelectItem value="error">
                                         Errors

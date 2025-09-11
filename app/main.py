@@ -6,15 +6,19 @@ from app.utils.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries
 from app.services.scheduler import start_scheduler
-
-
-start_scheduler()
+from app.config import settings
 
 app = FastAPI(
     title="BeeTrack API",
     description="Apiary and order management system for beekeepers",
     version="1.0.0"
 )
+
+
+@app.on_event("startup")
+def _startup():
+    if settings.enable_scheduler:
+        start_scheduler()
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
