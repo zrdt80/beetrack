@@ -646,3 +646,23 @@ class ExportPreview(BaseModel):
     apiary_count: int
     date_range: Optional[str] = None
     filters_applied: List[str] = []
+
+# -----------------------
+# --- ERROR RESPONSES ---
+# -----------------------
+
+class ErrorDetail(BaseModel):
+    loc: List[str] | None = None
+    msg: str
+    type: str | None = None
+
+
+class ErrorResponse(BaseModel):
+    code: str
+    message: str
+    details: List[ErrorDetail] | None = None
+    trace_id: str | None = None  # future correlation id
+
+    @classmethod
+    def simple(cls, code: str, message: str) -> "ErrorResponse":
+        return cls(code=code, message=message)

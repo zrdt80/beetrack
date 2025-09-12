@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -7,6 +7,9 @@ from slowapi import _rate_limit_exceeded_handler
 from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries
 from app.services.scheduler import start_scheduler
 from app.config import settings
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+from app.schemas import ErrorResponse, ErrorDetail
 
 app = FastAPI(
     title="BeeTrack API",
@@ -22,6 +25,33 @@ def _startup():
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    details = [ErrorDetail(loc=[str(p) for p in err.get('loc', [])], msg=err.get('msg', ''), type=err.get('type')) for err in exc.errors()]  # type: ignore[arg-type]
+    return JSONResponse(status_code=422, content=ErrorResponse(code="VALIDATION_ERROR", message="Validation failed", details=details).model_dump())
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        413: "PAYLOAD_TOO_LARGE",
+        422: "UNPROCESSABLE_ENTITY",
+    }
+    code = code_map.get(exc.status_code, "HTTP_ERROR")
+    message = exc.detail if isinstance(exc.detail, str) else code.replace("_", " ").title()
+    return JSONResponse(status_code=exc.status_code, content=ErrorResponse.simple(code, message).model_dump())
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content=ErrorResponse.simple("INTERNAL_ERROR", "Internal server error").model_dump())
 
 origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
