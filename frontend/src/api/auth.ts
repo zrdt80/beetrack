@@ -7,12 +7,6 @@ export interface LoginForm {
     remember_me?: boolean;
 }
 
-export interface TokenPair {
-    access_token: string;
-    refresh_token: string;
-    token_type: string;
-}
-
 export interface LoginRequires2FA {
     requires_2fa: true;
     twofa_token: string;
@@ -36,12 +30,11 @@ export interface UserSession {
 
 export const login = async (
     data: LoginForm
-): Promise<TokenPair | LoginRequires2FA> => {
+): Promise<Token | LoginRequires2FA> => {
     if (!data.remember_me) {
         const form = new URLSearchParams();
         form.append("username", data.email);
         form.append("password", data.password);
-
         const res = await api.post<Token | LoginRequires2FA>(
             "/users/login",
             form,
@@ -52,30 +45,24 @@ export const login = async (
             }
         );
         const maybe2fa = res.data as Partial<LoginRequires2FA>;
-        if (
-            "requires_2fa" in maybe2fa &&
-            maybe2fa.requires_2fa &&
-            typeof maybe2fa.twofa_token === "string"
-        ) {
+        if (maybe2fa.requires_2fa && typeof maybe2fa.twofa_token === "string") {
             return maybe2fa as LoginRequires2FA;
         }
-        const token = res.data as Token;
-        return {
-            access_token: token.access_token,
-            refresh_token: "",
-            token_type: token.token_type,
-        };
-    } else {
-        const res = await api.post<TokenPair | LoginRequires2FA>(
-            "/users/login-with-remember",
-            {
-                email: data.email,
-                password: data.password,
-                remember_me: data.remember_me,
-            }
-        );
-        return res.data;
+        return res.data as Token;
     }
+    const res = await api.post<Token | LoginRequires2FA>(
+        "/users/login-with-remember",
+        {
+            email: data.email,
+            password: data.password,
+            remember_me: data.remember_me,
+        }
+    );
+    const maybe2fa = res.data as Partial<LoginRequires2FA>;
+    if (maybe2fa.requires_2fa && typeof maybe2fa.twofa_token === "string") {
+        return maybe2fa as LoginRequires2FA;
+    }
+    return res.data as Token;
 };
 
 export const refreshToken = async (): Promise<Token> => {
@@ -107,8 +94,8 @@ export interface TwoFALoginVerifyRequest {
 
 export const login2faVerify = async (
     payload: TwoFALoginVerifyRequest
-): Promise<TokenPair | Token> => {
-    const res = await api.post<TokenPair | Token>("/users/login/2fa-verify", {
+): Promise<Token> => {
+    const res = await api.post<Token>("/users/login/2fa-verify", {
         code: payload.code,
         setup_token: payload.twofa_token,
     });

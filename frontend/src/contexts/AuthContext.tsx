@@ -4,7 +4,6 @@ import {
     login,
     register,
     logout as apiLogout,
-    refreshToken,
     getUserSessions,
     revokeSession,
     revokeAllSessions,
@@ -14,6 +13,7 @@ import type {
     RegisterForm,
     UserSession,
     LoginRequires2FA,
+    Token,
 } from "@/api/auth";
 import { login2faVerify, type TwoFALoginVerifyRequest } from "@/api/auth";
 import { setAuthToken } from "@/api/axios";
@@ -85,34 +85,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const loginUser = async (data: LoginForm) => {
         try {
-            const tokenData = await login(data);
-
-            if ((tokenData as LoginRequires2FA).requires_2fa) {
-                const info = tokenData as LoginRequires2FA;
+            const result = await login(data);
+            if ((result as LoginRequires2FA).requires_2fa) {
+                const info = result as LoginRequires2FA;
                 const err = new Error("TwoFARequired") as Error & {
                     twofa_token: string;
                 };
                 err.twofa_token = info.twofa_token;
                 throw err;
             }
-
-            const pair = tokenData as {
-                access_token: string;
-                refresh_token?: string;
-                token_type: string;
-            };
-            setAuthToken(pair.access_token);
-
+            const token = result as Token;
+            setAuthToken(token.access_token);
             if (data.remember_me) {
-                localStorage.setItem("access_token", pair.access_token);
-                const decodedToken = decodeJwt(pair.access_token);
-                if (decodedToken && decodedToken.session_id) {
-                    setCurrentSessionId(decodedToken.session_id);
-                }
+                localStorage.setItem("access_token", token.access_token);
             } else {
-                sessionStorage.setItem("access_token", pair.access_token);
+                sessionStorage.setItem("access_token", token.access_token);
             }
-
+            const decodedToken = decodeJwt(token.access_token);
+            if (decodedToken?.session_id)
+                setCurrentSessionId(decodedToken.session_id);
             const profile = await getMe();
             setUser(profile);
         } catch (error) {
@@ -127,22 +118,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             code,
         };
         const res = await login2faVerify(payload);
-        const hasRefresh =
-            "refresh_token" in res &&
-            (res as { refresh_token?: string }).refresh_token !== "";
-
-        const accessToken = (res as { access_token: string }).access_token;
-        setAuthToken(accessToken);
-
-        if (hasRefresh) {
-            localStorage.setItem("access_token", accessToken);
-            const decoded = decodeJwt(accessToken);
-            if (decoded && decoded.session_id)
-                setCurrentSessionId(decoded.session_id);
+        setAuthToken(res.access_token);
+        if (localStorage.getItem("access_token")) {
+            localStorage.setItem("access_token", res.access_token);
         } else {
-            sessionStorage.setItem("access_token", accessToken);
+            sessionStorage.setItem("access_token", res.access_token);
         }
-
+        const decoded = decodeJwt(res.access_token);
+        if (decoded?.session_id) setCurrentSessionId(decoded.session_id);
         const profile = await getMe();
         setUser(profile);
     };
@@ -228,64 +211,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const initAuth = async () => {
             setIsLoading(true);
-
             const token =
                 localStorage.getItem("access_token") ||
                 sessionStorage.getItem("access_token");
-
-            if (token) {
-                try {
-                    setAuthToken(token);
-                    const decodedToken = decodeJwt(token);
-                    if (decodedToken && decodedToken.session_id) {
-                        setCurrentSessionId(decodedToken.session_id);
-                    }
-
-                    const profile = await getMe();
-                    setUser(profile);
-                } catch (error) {
-                    console.error("Token validation failed:", error);
-
-                    try {
-                        const refreshData = await refreshToken();
-                        setAuthToken(refreshData.access_token);
-
-                        const decodedRefreshToken = decodeJwt(
-                            refreshData.access_token
-                        );
-                        if (
-                            decodedRefreshToken &&
-                            decodedRefreshToken.session_id
-                        ) {
-                            setCurrentSessionId(decodedRefreshToken.session_id);
-                        }
-
-                        if (localStorage.getItem("access_token")) {
-                            localStorage.setItem(
-                                "access_token",
-                                refreshData.access_token
-                            );
-                        } else {
-                            sessionStorage.setItem(
-                                "access_token",
-                                refreshData.access_token
-                            );
-                        }
-
-                        const profile = await getMe();
-                        setUser(profile);
-                    } catch (refreshError) {
-                        console.error("Token refresh failed:", refreshError);
-                        localStorage.removeItem("access_token");
-                        sessionStorage.removeItem("access_token");
-                        setAuthToken(null);
-                    }
-                }
+            if (!token) {
+                setIsLoading(false);
+                return;
             }
-
+            try {
+                setAuthToken(token);
+                const decodedToken = decodeJwt(token);
+                if (decodedToken?.session_id)
+                    setCurrentSessionId(decodedToken.session_id);
+                const profile = await getMe();
+                setUser(profile);
+            } catch (error) {
+                console.error("Initial token invalid, clearing:", error);
+                localStorage.removeItem("access_token");
+                sessionStorage.removeItem("access_token");
+                setAuthToken(null);
+            }
             setIsLoading(false);
         };
-
         initAuth();
     }, []);
 
