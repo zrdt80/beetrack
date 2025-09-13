@@ -11,10 +11,12 @@ from app.utils.logger import log_event
 from app.config import settings
 import secrets
 from typing import Optional, Tuple
+from passlib.context import CryptContext
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login", auto_error=False)
 
@@ -63,11 +65,13 @@ def create_refresh_token(user_id: int, session_id: int = None, expires_delta: ti
     return refresh_token, expire
 
 
-def create_user_session(db: Session, user_id: int, refresh_token: str, expires_at: datetime, 
+def create_user_session(db: Session, user_id: int, refresh_token: str, expires_at: datetime,
                         user_agent: str = None, ip_address: str = None, device_info: str = None):
+    hashed = pwd_context.hash(refresh_token)
     user_session = models.UserSession(
         user_id=user_id,
-        refresh_token=refresh_token,
+        refresh_token=None,
+        hashed_refresh_token=hashed,
         expires_at=expires_at,
         user_agent=user_agent,
         ip_address=ip_address,
@@ -80,9 +84,14 @@ def create_user_session(db: Session, user_id: int, refresh_token: str, expires_a
 
 
 def get_session_by_refresh_token(db: Session, refresh_token: str):
-    return db.query(models.UserSession).filter(
-        models.UserSession.refresh_token == refresh_token
-    ).first()
+    candidates = db.query(models.UserSession).filter(
+        models.UserSession.is_valid == True,
+        models.UserSession.expires_at > datetime.now(timezone.utc)
+    ).all()
+    for s in candidates:
+        if s.hashed_refresh_token and pwd_context.verify(refresh_token, s.hashed_refresh_token):
+            return s
+    return None
 
 
 def rotate_refresh_token(
@@ -92,9 +101,7 @@ def rotate_refresh_token(
     ip_address: Optional[str] = None,
     device_info: Optional[str] = None,
 ) -> Optional[Tuple[str, str, models.UserSession]]:
-    session = db.query(models.UserSession).filter(
-        models.UserSession.refresh_token == refresh_token
-    ).first()
+    session = get_session_by_refresh_token(db, refresh_token)
 
     if not session:
         return None
@@ -112,7 +119,8 @@ def rotate_refresh_token(
     new_refresh, new_exp = create_refresh_token(user.id)
     new_session = models.UserSession(
         user_id=user.id,
-        refresh_token=new_refresh,
+        refresh_token=None,
+        hashed_refresh_token=pwd_context.hash(new_refresh),
         expires_at=new_exp,
         user_agent=user_agent or session.user_agent,
         ip_address=ip_address or session.ip_address,

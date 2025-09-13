@@ -51,7 +51,8 @@ class UserSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    refresh_token = Column(String(256), unique=True, nullable=False)
+    refresh_token = Column(String(256), unique=True, nullable=True)
+    hashed_refresh_token = Column(String(256), nullable=True, index=True)
     user_agent = Column(String(256))
     ip_address = Column(String(50))
     device_info = Column(String(256))
@@ -59,7 +60,7 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
     last_activity = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_valid = Column(Boolean, default=True)
-    replaced_by = Column(Integer, nullable=True)  # points to new session.id when rotated (future refresh rotation)
+    replaced_by = Column(Integer, nullable=True)
 
     user = relationship("User", back_populates="sessions")
 

@@ -74,12 +74,6 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-class TokenPair(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
 class TokenData(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -137,7 +131,6 @@ class UserSessionBase(BaseModel):
 
 class UserSessionCreate(UserSessionBase):
     user_id: int
-    refresh_token: str
     expires_at: datetime
 
 

@@ -7,9 +7,11 @@ from app.utils.limiter import limiter
 from app.utils.hashing import Hasher
 from app.utils.password import validate_password_strength, is_password_breached, PasswordPolicyError
 from app.services import auth
+from app.services.session_service import SessionService
+from app.config import settings
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime, timezone
-from app.utils.logger import log_event
+from app.utils.logger import log_event, record_audit_event
 from typing import List, Optional, Dict, Tuple
 import pyotp
 import secrets
@@ -84,7 +86,8 @@ def login_user(
     db: Session = Depends(get_db)
 ):
     email = form_data.username
-    user = auth.authenticate_user(db, email, form_data.password)
+    svc = SessionService(db)
+    user = svc.authenticate(email, form_data.password)
     if not user:
         log_event(f"Login failed: email {email} not found or incorrect password")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -101,13 +104,14 @@ def login_user(
                 "remember": False,
                 "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
             },
-            auth.SECRET_KEY,
+            settings.secret_key,
             algorithm=auth.ALGORITHM,
         )
         log_event(f"2FA required at login for user: {user.username}")
+        svc.mark_twofa_required(user)
         return {"requires_2fa": True, "twofa_token": twofa_token}
 
-    access_token = auth.create_access_token(data={"sub": user.email})
+    access_token = svc.create_access_token(user=user)
     log_event(f"User logged in: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -120,7 +124,8 @@ def login_with_remember(
     response: Response,
     db: Session = Depends(get_db)
 ):
-    user = auth.authenticate_user(db, login_data.email, login_data.password)
+    svc = SessionService(db)
+    user = svc.authenticate(login_data.email, login_data.password)
     if not user:
         log_event(f"Login failed: email {login_data.email} not found or incorrect password")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -143,24 +148,17 @@ def login_with_remember(
                 "remember": bool(login_data.remember_me),
                 "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
             },
-            auth.SECRET_KEY,
+            settings.secret_key,
             algorithm=auth.ALGORITHM,
         )
         log_event(f"2FA required at login (remember) for user: {user.username}")
+        svc.mark_twofa_required(user)
         return {"requires_2fa": True, "twofa_token": twofa_token}
 
     if login_data.remember_me:
         refresh_token, expires_at = auth.create_refresh_token(user.id)
-        
-        session = auth.create_user_session(
-            db, user.id, refresh_token, expires_at, 
-            user_agent, ip_address, device_info
-        )
-        
-        access_token = auth.create_access_token(
-            data={"sub": user.email, "session_id": session.id}
-        )
-        
+        session = svc.start_session(user, refresh_token, expires_at, user_agent=user_agent, ip=ip_address, device=device_info)
+        access_token = svc.create_access_token(user=user, session_id=session.id)
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
@@ -173,22 +171,11 @@ def login_with_remember(
         
         log_event(f"User logged in with remember-me: {user.username}, suspicious: {is_suspicious}")
         
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        }
+        return {"access_token": access_token, "token_type": "bearer"}
     else:
-        access_token = auth.create_access_token(
-            data={"sub": user.email}
-        )
+        access_token = svc.create_access_token(user=user)
         log_event(f"User logged in without remember-me: {user.username}")
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": "",
-            "token_type": "bearer"
-        }
+        return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login/2fa-verify")
@@ -205,7 +192,7 @@ def login_twofa_verify(
     if not twofa_token:
         raise HTTPException(status_code=400, detail="Missing twofa token")
     try:
-        data = jwt.decode(twofa_token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        data = jwt.decode(twofa_token, settings.secret_key, algorithms=[auth.ALGORITHM])
         email = data.get("sub")
         remember = bool(data.get("remember"))
         twofa_flag = data.get("twofa")
@@ -245,6 +232,9 @@ def login_twofa_verify(
             db.commit()
 
     if not verified:
+        svc = SessionService(db)
+        svc.mark_twofa_failure(user)
+        record_audit_event("2FA_FAILURE", user_id=user.id)
         raise HTTPException(status_code=400, detail="Invalid code")
 
     user_agent = request.headers.get("user-agent", "")
@@ -252,11 +242,11 @@ def login_twofa_verify(
     device_info = f"{user_agent[:100]}"
 
     if remember:
+        svc = SessionService(db)
+        svc.mark_twofa_verified(user)
         refresh_token, expires_at = auth.create_refresh_token(user.id)
-        session = auth.create_user_session(
-            db, user.id, refresh_token, expires_at, user_agent, ip_address, device_info
-        )
-        access_token = auth.create_access_token(data={"sub": user.email, "session_id": session.id})
+        session = svc.start_session(user, refresh_token, expires_at, user_agent=user_agent, ip=ip_address, device=device_info)
+        access_token = svc.create_access_token(user=user, session_id=session.id)
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
@@ -266,9 +256,11 @@ def login_twofa_verify(
             max_age=60 * 60 * 24 * auth.REFRESH_TOKEN_EXPIRE_DAYS,
             path="/",
         )
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer"}
     else:
-        access_token = auth.create_access_token(data={"sub": user.email})
+        svc = SessionService(db)
+        svc.mark_twofa_verified(user)
+        access_token = svc.create_access_token(user=user)
         return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -292,7 +284,8 @@ def refresh_token_endpoint(
     ip = request.client.host if request.client else None
     device_info = ua[:100]
 
-    rotated = auth.rotate_refresh_token(db, refresh_token, ua, ip, device_info)
+    svc = SessionService(db)
+    rotated = svc.rotate(refresh_token, user_agent=ua, ip=ip, device=device_info)
     if not rotated:
         response.delete_cookie(key="refresh_token")
         raise HTTPException(status_code=401, detail="Invalid or reused refresh token")
@@ -330,19 +323,17 @@ def revoke_session(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
+    svc = SessionService(db)
     session = db.query(models.UserSession).filter(
         models.UserSession.id == session_id,
         models.UserSession.user_id == current_user.id
     ).first()
-    
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    session.is_valid = False
-    db.commit()
-    
-    log_event(f"Session {session_id} revoked for user: {current_user.username}")
-    return {"message": "Session revoked successfully"}
+    if svc.revoke(session_id, actor_user_id=current_user.id):
+        log_event(f"Session {session_id} revoked for user: {current_user.username}")
+        return {"message": "Session revoked successfully"}
+    raise HTTPException(status_code=400, detail="Unable to revoke session")
 
 
 @router.delete("/sessions")
@@ -361,19 +352,20 @@ def revoke_all_sessions(
     
     if keep_current and current_session_id is None and token:
         try:
-            payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+            payload = jwt.decode(token, settings.secret_key, algorithms=[auth.ALGORITHM])
             session_id = payload.get("session_id")
             if session_id:
                 current_session_id = session_id
         except Exception as e:
             log_event(f"Error decoding token: {str(e)}")
     
+    svc = SessionService(db)
     if keep_current and current_session_id:
-        auth.invalidate_all_user_sessions(db, current_user.id, current_session_id)
+        svc.revoke_all(current_user.id, keep_session_id=current_session_id, actor_user_id=current_user.id)
         log_event(f"All sessions except current revoked for user: {current_user.username}, kept session ID: {current_session_id}")
         return {"message": "All other sessions revoked successfully"}
     else:
-        auth.invalidate_all_user_sessions(db, current_user.id)
+        svc.revoke_all(current_user.id, actor_user_id=current_user.id)
         log_event(f"All sessions revoked for user: {current_user.username}")
         return {"message": "All sessions revoked successfully"}
 
@@ -431,18 +423,17 @@ def revoke_all_user_sessions_admin(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    svc = SessionService(db)
     if keep_current:
         recent_session = db.query(models.UserSession).filter(
             models.UserSession.user_id == user_id,
             models.UserSession.is_valid == True
         ).order_by(models.UserSession.last_activity.desc()).first()
-        
         if recent_session:
-            auth.invalidate_all_user_sessions(db, user_id, recent_session.id)
+            svc.revoke_all(user_id, keep_session_id=recent_session.id, actor_user_id=current_admin.id)
             log_event(f"Admin {current_admin.username} revoked all sessions except current for user: {user.username}")
             return {"message": "All other sessions revoked successfully"}
-    
-    auth.invalidate_all_user_sessions(db, user_id)
+    svc.revoke_all(user_id, actor_user_id=current_admin.id)
     log_event(f"Admin {current_admin.username} revoked all sessions for user: {user.username}")
     return {"message": "All sessions revoked successfully"}
 
@@ -456,10 +447,10 @@ def logout(
     response.delete_cookie(key="refresh_token")
     
     if refresh_token:
+        svc = SessionService(db)
         session = auth.get_session_by_refresh_token(db, refresh_token)
         if session:
-            session.is_valid = False
-            db.commit()
+            svc.revoke(session.id, actor_user_id=current_user.id)
             log_event(f"User logged out, session invalidated: {current_user.username}")
             return {"message": "Logged out successfully, session invalidated"}
     
@@ -487,6 +478,7 @@ def twofa_setup_start(current_user: models.User = Depends(auth.get_current_user)
     db.commit()
 
     log_event(f"2FA setup started for user: {current_user.username}")
+    record_audit_event("2FA_SETUP_START", user_id=current_user.id)
     return {"provisioning_uri": provisioning_uri, "secret": secret, "setup_token": setup_token}
 
 
@@ -509,6 +501,7 @@ def twofa_setup_verify(payload: schemas.TwoFAVerifyRequest, current_user: models
     db.refresh(current_user)
 
     log_event(f"2FA enabled for user: {current_user.username}")
+    record_audit_event("2FA_ENABLED", user_id=current_user.id)
     return {"recovery_codes": recovery_codes}
 
 
@@ -553,6 +546,7 @@ def twofa_disable(payload: schemas.TwoFADisableRequest, current_user: models.Use
                     continue
 
     if not authorized:
+        record_audit_event("2FA_DISABLE_FAILURE", user_id=current_user.id)
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
     if consumed_recovery_index is not None:
@@ -571,9 +565,11 @@ def twofa_disable(payload: schemas.TwoFADisableRequest, current_user: models.Use
     db.add(current_user)
     db.commit()
 
-    auth.invalidate_all_user_sessions(db, current_user.id)
+    svc = SessionService(db)
+    svc.revoke_all(current_user.id, actor_user_id=current_user.id)
 
     log_event(f"2FA disabled for user: {current_user.username}")
+    record_audit_event("2FA_DISABLED", user_id=current_user.id)
     return {"message": "2FA disabled"}
 
 
@@ -587,6 +583,7 @@ def twofa_regenerate(current_user: models.User = Depends(auth.get_current_user),
     db.add(current_user)
     db.commit()
     log_event(f"2FA recovery codes regenerated for user: {current_user.username}")
+    record_audit_event("2FA_CODES_REGENERATED", user_id=current_user.id)
     return {"recovery_codes": recovery_codes}
 
 @router.get("/{user_id}/2fa/status")
@@ -625,9 +622,11 @@ def disable_user_2fa_admin(
     db.add(user)
     db.commit()
     
-    auth.invalidate_all_user_sessions(db, user.id)
+    svc = SessionService(db)
+    svc.revoke_all(user.id, actor_user_id=current_admin.id)
     
     log_event(f"Admin {current_admin.username} disabled 2FA for user: {user.username}")
+    record_audit_event("2FA_DISABLED_ADMIN", user_id=user.id, actor_user_id=current_admin.id)
     return {"message": "2FA disabled for user"}
 
 @router.post("/me/avatar")
@@ -767,10 +766,8 @@ def update_me(
         log_event(f"User update failed: {current_user.username} not found")
         raise HTTPException(status_code=404, detail="User not found")
     
-    access_token = auth.create_access_token(
-        data={"sub": current_user.email},
-        expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    svc = SessionService(db)
+    access_token = svc.create_access_token(user=current_user)
 
     log_event(f"User updated: {current_user.username}")
     
