@@ -279,23 +279,37 @@ def get_me(current_user: models.User = Depends(auth.get_current_user)):
 
 
 @router.post("/refresh-token", response_model=schemas.Token)
-def refresh_token(request: Request, response: Response, refresh_token: str = Cookie(None, alias="refresh_token"), db: Session = Depends(get_db)):
+def refresh_token_endpoint(
+    request: Request,
+    response: Response,
+    refresh_token: str = Cookie(None, alias="refresh_token"),
+    db: Session = Depends(get_db)
+):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token provided")
-    
-    session = auth.get_session_by_refresh_token(db, refresh_token)
-    if not session:
+
+    ua = request.headers.get("user-agent", "")
+    ip = request.client.host if request.client else None
+    device_info = ua[:100]
+
+    rotated = auth.rotate_refresh_token(db, refresh_token, ua, ip, device_info)
+    if not rotated:
         response.delete_cookie(key="refresh_token")
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
-    session.last_activity = datetime.now(timezone.utc)
-    db.commit()
-    
-    access_token = auth.create_access_token(
-        data={"sub": session.user.email, "session_id": session.id}
+        raise HTTPException(status_code=401, detail="Invalid or reused refresh token")
+
+    access_token, new_refresh, new_session = rotated
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=60 * 60 * 24 * auth.REFRESH_TOKEN_EXPIRE_DAYS,
+        path="/",
     )
-    
-    log_event(f"Token refreshed for user: {session.user.username}")
+
+    log_event(f"Refresh token rotated for user: {new_session.user.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 

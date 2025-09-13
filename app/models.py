@@ -225,3 +225,21 @@ class RoleChangeRequest(Base):
 
     user = relationship("User", foreign_keys=[user_id], back_populates="role_change_requests")
     admin = relationship("User", foreign_keys=[decided_by], viewonly=True)
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    session_id = Column(Integer, ForeignKey("user_sessions.id"), nullable=True, index=True)
+    event_code = Column(String(64), nullable=False, index=True)
+    severity = Column(String(16), nullable=False, default="info", index=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(256), nullable=True)
+    metadata = Column(Text, nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    actor = relationship("User", foreign_keys=[actor_user_id])

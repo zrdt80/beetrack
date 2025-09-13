@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from app.schemas import TokenData
-from fastapi import Depends, HTTPException, status, Request, Cookie
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -10,7 +10,7 @@ from app.utils.hashing import Hasher
 from app.utils.logger import log_event
 from app.config import settings
 import secrets
-from typing import Optional
+from typing import Optional, Tuple
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
@@ -54,20 +54,13 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    # TODO: include jti for revocation lists / introspection if needed later
     return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: int, session_id: int = None, expires_delta: timedelta = None):
-        """Create a new refresh token.
-
-        NOTE (future rotation plan):
-            - Each refresh token will be one-time use. Upon rotation, mark previous session row with replaced_by=new_session.id.
-            - Detect reuse: if a refresh token already used (session invalid or replaced_by set) -> revoke entire chain for that user.
-        """
-        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-        refresh_token = secrets.token_urlsafe(48)
-        return refresh_token, expire
+def create_refresh_token(user_id: int, session_id: int = None, expires_delta: timedelta = None) -> Tuple[str, datetime]:
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+    refresh_token = secrets.token_urlsafe(48)
+    return refresh_token, expire
 
 
 def create_user_session(db: Session, user_id: int, refresh_token: str, expires_at: datetime, 
@@ -88,21 +81,68 @@ def create_user_session(db: Session, user_id: int, refresh_token: str, expires_a
 
 def get_session_by_refresh_token(db: Session, refresh_token: str):
     return db.query(models.UserSession).filter(
-        models.UserSession.refresh_token == refresh_token,
-        models.UserSession.is_valid == True,
-        models.UserSession.expires_at > datetime.now(timezone.utc)
+        models.UserSession.refresh_token == refresh_token
     ).first()
 
 
-def refresh_access_token(db: Session, refresh_token: str):
-    session = get_session_by_refresh_token(db, refresh_token)
+def rotate_refresh_token(
+    db: Session,
+    refresh_token: str,
+    user_agent: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    device_info: Optional[str] = None,
+) -> Optional[Tuple[str, str, models.UserSession]]:
+    session = db.query(models.UserSession).filter(
+        models.UserSession.refresh_token == refresh_token
+    ).first()
+
     if not session:
         return None
-    
-    session.last_activity = datetime.now(timezone.utc)
+
+    if not session.is_valid or session.expires_at <= datetime.now(timezone.utc):
+        return None
+
+    if session.replaced_by is not None:
+        log_event(f"Refresh token reuse detected for user_id={session.user_id}; revoking all sessions")
+        invalidate_all_user_sessions(db, session.user_id)
+        return None
+
+    user = session.user
+
+    new_refresh, new_exp = create_refresh_token(user.id)
+    new_session = models.UserSession(
+        user_id=user.id,
+        refresh_token=new_refresh,
+        expires_at=new_exp,
+        user_agent=user_agent or session.user_agent,
+        ip_address=ip_address or session.ip_address,
+        device_info=device_info or session.device_info,
+    )
+    db.add(new_session)
+
+    session.is_valid = False
+    session.replaced_by = None
     db.commit()
-    
-    return create_access_token(data={"sub": session.user.email, "session_id": session.id})
+    db.refresh(new_session)
+    session.replaced_by = new_session.id
+    db.add(session)
+    db.commit()
+
+    access_token = create_access_token({"sub": user.email, "session_id": new_session.id})
+    return access_token, new_refresh, new_session
+
+
+def refresh_access_token(db: Session, refresh_token: str):
+    """Backward-compatible helper (deprecated) using rotation internally.
+
+    Returns new access token; DOES NOT return new refresh token (for legacy implicit flow). If rotation occurs, caller cannot update cookie -> should migrate to explicit endpoint.
+    """
+    rotated = rotate_refresh_token(db, refresh_token)
+    if not rotated:
+        return None
+    access_token, new_refresh, new_session = rotated
+    log_event("Implicit refresh performed without cookie update (deprecated path)")
+    return access_token
 
 
 def invalidate_session(db: Session, session_id: int):
@@ -138,13 +178,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="Invalid token",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    if not token and refresh_token:
-        new_token = refresh_access_token(db, refresh_token)
-        if new_token:
-            token = new_token
-        else:
-            raise credentials_exception
     
     if not token:
         raise credentials_exception

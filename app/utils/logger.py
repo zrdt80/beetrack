@@ -60,3 +60,32 @@ def log_event(event: str, *, level: Optional[str] = None):
                 db.commit()
         except Exception:
             _logger.debug("Failed to persist log event", exc_info=True)
+
+
+def record_audit_event(event_code: str, *, user_id: int | None = None, actor_user_id: int | None = None,
+                       session_id: int | None = None, severity: str = "info", ip: str | None = None,
+                       user_agent: str | None = None, metadata: Dict[str, Any] | None = None):
+    if not settings.log_db_events:
+        return
+    payload = None
+    if metadata:
+        try:
+            payload = json.dumps(metadata, separators=(",", ":"))
+        except Exception:
+            payload = None
+    try:
+        with SessionLocal() as db:
+            evt = models.AuditEvent(
+                user_id=user_id,
+                actor_user_id=actor_user_id,
+                session_id=session_id,
+                event_code=event_code,
+                severity=severity,
+                ip_address=ip,
+                user_agent=user_agent,
+                metadata=payload,
+            )
+            db.add(evt)
+            db.commit()
+    except Exception:
+        pass
