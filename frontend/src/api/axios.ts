@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
@@ -8,6 +8,18 @@ const api = axios.create({
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 
+const tokenRefreshEventTarget = new EventTarget();
+
+export const addTokenRefreshListener = (callback: (token: string) => void) => {
+    const handler = (event: Event) => {
+        const customEvent = event as CustomEvent<{ token: string }>;
+        callback(customEvent.detail.token);
+    };
+    tokenRefreshEventTarget.addEventListener("tokenRefreshed", handler);
+    return () =>
+        tokenRefreshEventTarget.removeEventListener("tokenRefreshed", handler);
+};
+
 const subscribeTokenRefresh = (callback: (token: string) => void) => {
     refreshSubscribers.push(callback);
 };
@@ -15,6 +27,10 @@ const subscribeTokenRefresh = (callback: (token: string) => void) => {
 const onRefreshed = (token: string) => {
     refreshSubscribers.forEach((callback) => callback(token));
     refreshSubscribers = [];
+
+    tokenRefreshEventTarget.dispatchEvent(
+        new CustomEvent("tokenRefreshed", { detail: { token } })
+    );
 };
 
 export const setAuthToken = (token: string | null) => {
@@ -28,7 +44,9 @@ export const setAuthToken = (token: string | null) => {
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        const originalRequest: any = error.config;
+        const originalRequest = error.config as AxiosRequestConfig & {
+            _retry?: boolean;
+        };
 
         if (
             error.response?.status === 401 &&
@@ -74,14 +92,21 @@ api.interceptors.response.use(
                     const { access_token } = response.data;
 
                     setAuthToken(access_token);
-                    localStorage.setItem("access_token", access_token);
+
+                    if (sessionStorage.getItem("access_token")) {
+                        sessionStorage.setItem("access_token", access_token);
+                    } else {
+                        localStorage.setItem("access_token", access_token);
+                    }
 
                     onRefreshed(access_token);
                     isRefreshing = false;
 
-                    originalRequest.headers[
-                        "Authorization"
-                    ] = `Bearer ${access_token}`;
+                    if (originalRequest.headers) {
+                        originalRequest.headers[
+                            "Authorization"
+                        ] = `Bearer ${access_token}`;
+                    }
                     return axios(originalRequest);
                 } catch (refreshError) {
                     isRefreshing = false;
@@ -101,9 +126,11 @@ api.interceptors.response.use(
             } else {
                 return new Promise((resolve) => {
                     subscribeTokenRefresh((token: string) => {
-                        originalRequest.headers[
-                            "Authorization"
-                        ] = `Bearer ${token}`;
+                        if (originalRequest.headers) {
+                            originalRequest.headers[
+                                "Authorization"
+                            ] = `Bearer ${token}`;
+                        }
                         resolve(axios(originalRequest));
                     });
                 });

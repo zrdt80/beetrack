@@ -106,7 +106,12 @@ def rotate_refresh_token(
     if not session:
         return None
 
-    if not session.is_valid or session.expires_at <= datetime.now(timezone.utc):
+    now_utc = datetime.now(timezone.utc)
+    expires_at_utc = session.expires_at
+    if expires_at_utc.tzinfo is None:
+        expires_at_utc = expires_at_utc.replace(tzinfo=timezone.utc)
+
+    if not session.is_valid or expires_at_utc <= now_utc:
         return None
 
     if session.replaced_by is not None:

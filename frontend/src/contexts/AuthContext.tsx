@@ -16,7 +16,7 @@ import type {
     Token,
 } from "@/api/auth";
 import { login2faVerify, type TwoFALoginVerifyRequest } from "@/api/auth";
-import { setAuthToken } from "@/api/axios";
+import { setAuthToken, addTokenRefreshListener } from "@/api/axios";
 import { useNavigate } from "react-router-dom";
 
 function decodeJwt(token: string) {
@@ -234,6 +234,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setIsLoading(false);
         };
         initAuth();
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = addTokenRefreshListener(
+            async (newToken: string) => {
+                try {
+                    const decodedToken = decodeJwt(newToken);
+                    if (decodedToken?.session_id)
+                        setCurrentSessionId(decodedToken.session_id);
+                    const profile = await getMe();
+                    setUser(profile);
+                } catch (error) {
+                    console.error(
+                        "Failed to update user after token refresh:",
+                        error
+                    );
+                }
+            }
+        );
+
+        return unsubscribe;
     }, []);
 
     return (
