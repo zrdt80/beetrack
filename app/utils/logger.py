@@ -83,7 +83,7 @@ def record_audit_event(event_code: str, *, user_id: int | None = None, actor_use
                 severity=severity,
                 ip_address=ip,
                 user_agent=user_agent,
-                metadata=payload,
+                metadata_json=payload,
             )
             db.add(evt)
             db.commit()

@@ -217,10 +217,11 @@ class RoleChangeRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     from_role = Column(Enum(UserRole), nullable=False)
     to_role = Column(Enum(UserRole), nullable=False)
-    status = Column(Enum(RoleRequestStatus), default=RoleRequestStatus.pending, nullable=False, index=True)
+    # Use existing database enum type name 'requeststatus' created in initial migration
+    status = Column(Enum(RoleRequestStatus, name="requeststatus"), default=RoleRequestStatus.pending, nullable=False, index=True)
     reason = Column(String(500), nullable=True)
     admin_comment = Column(String(500), nullable=True)
-    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # renamed from decided_by_id in migration rcr_20250818_01
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     decided_at = Column(DateTime, nullable=True)
 
@@ -240,7 +241,7 @@ class AuditEvent(Base):
     severity = Column(String(16), nullable=False, default="info", index=True)
     ip_address = Column(String(50), nullable=True)
     user_agent = Column(String(256), nullable=True)
-    metadata = Column(Text, nullable=True)
+    metadata_json = Column("metadata", Text, nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])
     actor = relationship("User", foreign_keys=[actor_user_id])
