@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from app.utils.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
@@ -10,6 +9,9 @@ from app.config import settings
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from app.schemas import ErrorResponse, ErrorDetail
+
+from app.middleware.rate_limiting import GlobalRateLimitMiddleware
+from app.middleware.security import SecurityHeadersMiddleware, CORSSecurityMiddleware, IPFilteringMiddleware
 
 app = FastAPI(
     title="BeeTrack API",
@@ -53,18 +55,65 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content=ErrorResponse.simple("INTERNAL_ERROR", "Internal server error").model_dump())
 
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Session-Revoked", "Content-Disposition"],
-)
+app.add_middleware(GlobalRateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CORSSecurityMiddleware)
+app.add_middleware(IPFilteringMiddleware)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/health")
+async def health_check():
+    from app.services.auth_security import auth_failure_tracker
+    
+    failure_stats = auth_failure_tracker.get_failure_stats()
+    
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": settings.environment,
+        "security": {
+            "rate_limiting_enabled": settings.rate_limiting_enabled,
+            "security_headers_enabled": settings.security_headers_enabled,
+            "tracked_failures": failure_stats['total_tracked_combinations'],
+            "currently_locked": failure_stats['currently_locked'],
+            "suspicious_ips": failure_stats['suspicious_ips']
+        }
+    }
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    from app.services.auth_security import auth_failure_tracker
+    from app.database import get_db
+    
+    try:
+        db = next(get_db())
+        try:
+            from app.models import User
+            _user_count = db.query(User).count()
+            db_status = "connected"
+        finally:
+            db.close()
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    failure_stats = auth_failure_tracker.get_failure_stats()
+    
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "checks": {
+            "database": db_status,
+            "rate_limiter": "active" if settings.rate_limiting_enabled else "disabled",
+            "scheduler": "active" if settings.enable_scheduler else "disabled"
+        },
+        "security_metrics": failure_stats,
+        "configuration": {
+            "environment": settings.environment,
+            "rate_limit_per_minute": settings.rate_limit_requests_per_minute,
+            "max_login_attempts": settings.max_login_attempts,
+            "lockout_duration_minutes": settings.lockout_duration_minutes
+        }
+    }
 
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(products.router, prefix="/products", tags=["Products"])

@@ -85,16 +85,38 @@ def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    from app.services.auth_security import auth_failure_tracker
+    
     email = form_data.username
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+    
+    is_locked, lock_info = auth_failure_tracker.is_locked(email, ip_address)
+    if is_locked:
+        log_event(f"Login blocked for {email} from {ip_address}: {lock_info['remaining_seconds']}s remaining")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {lock_info['remaining_seconds']} seconds.",
+            headers={"Retry-After": str(lock_info['remaining_seconds'])}
+        )
+    
     svc = SessionService(db)
     user = svc.authenticate(email, form_data.password)
     if not user:
-        log_event(f"Login failed: email {email} not found or incorrect password")
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        penalty_info = auth_failure_tracker.record_failure(email, ip_address, user_agent)
+        log_event(f"Login failed: email {email} not found or incorrect password (attempt #{penalty_info['attempts']})")
+        
+        error_msg = "Incorrect email or password"
+        if penalty_info['is_locked']:
+            error_msg += f". Too many attempts - try again in {penalty_info['penalty_seconds']} seconds."
+        
+        raise HTTPException(status_code=401, detail=error_msg)
 
     if not user.is_active:
         log_event(f"Login failed: user with email {email} is not active")
         raise HTTPException(status_code=403, detail="User account is not active")
+
+    auth_failure_tracker.record_success(email, ip_address)
 
     if getattr(user, "two_factor_enabled", False):
         twofa_token = jwt.encode(
@@ -124,15 +146,38 @@ def login_with_remember(
     response: Response,
     db: Session = Depends(get_db)
 ):
+    from app.services.auth_security import auth_failure_tracker
+    
+    email = login_data.email
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+    
+    is_locked, lock_info = auth_failure_tracker.is_locked(email, ip_address)
+    if is_locked:
+        log_event(f"Remember-me login blocked for {email} from {ip_address}: {lock_info['remaining_seconds']}s remaining")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {lock_info['remaining_seconds']} seconds.",
+            headers={"Retry-After": str(lock_info['remaining_seconds'])}
+        )
+    
     svc = SessionService(db)
     user = svc.authenticate(login_data.email, login_data.password)
     if not user:
-        log_event(f"Login failed: email {login_data.email} not found or incorrect password")
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        penalty_info = auth_failure_tracker.record_failure(email, ip_address, user_agent)
+        log_event(f"Remember-me login failed: email {login_data.email} not found or incorrect password (attempt #{penalty_info['attempts']})")
+        
+        error_msg = "Incorrect email or password"
+        if penalty_info['is_locked']:
+            error_msg += f". Too many attempts - try again in {penalty_info['penalty_seconds']} seconds."
+        
+        raise HTTPException(status_code=401, detail=error_msg)
 
     if not user.is_active:
-        log_event(f"Login failed: user with email {login_data.email} is not active")
+        log_event(f"Remember-me login failed: user with email {login_data.email} is not active")
         raise HTTPException(status_code=403, detail="User account is not active")
+
+    auth_failure_tracker.record_success(email, ip_address)
 
     user_agent = request.headers.get("user-agent", "")
     ip_address = request.client.host
@@ -268,6 +313,27 @@ def login_twofa_verify(
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     log_event(f"User details requested: {current_user.username}")
     return current_user
+
+
+@router.get("/security/stats")
+def get_security_stats(current_user: models.User = Depends(auth.requires_role("admin"))):
+    from app.services.auth_security import auth_failure_tracker
+    
+    stats = auth_failure_tracker.get_failure_stats()
+    
+    return {
+        "failure_tracking": stats,
+        "rate_limiting": {
+            "enabled": settings.rate_limiting_enabled,
+            "requests_per_minute": settings.rate_limit_requests_per_minute,
+            "burst_requests": settings.rate_limit_burst_requests
+        },
+        "security_config": {
+            "max_login_attempts": settings.max_login_attempts,
+            "lockout_duration_minutes": settings.lockout_duration_minutes,
+            "suspicious_threshold": settings.suspicious_activity_threshold
+        }
+    }
 
 
 @router.post("/refresh-token", response_model=schemas.Token)

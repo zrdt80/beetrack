@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     secret_key: str
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 10
     refresh_token_expire_days: int = 30
     password_hash_algorithm: str = "bcrypt"
 
@@ -18,6 +18,20 @@ class Settings(BaseSettings):
     log_db_events: bool = True
 
     enable_scheduler: bool = True
+
+    rate_limiting_enabled: bool = True
+    rate_limit_requests_per_minute: int = 60
+    rate_limit_burst_requests: int = 10
+    rate_limit_storage: str = "memory"
+    redis_url: str = "redis://localhost:6379/0"
+    
+    security_headers_enabled: bool = True
+    cors_allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    trusted_proxies: list[str] = []
+    
+    max_login_attempts: int = 5
+    lockout_duration_minutes: int = 15
+    suspicious_activity_threshold: int = 100
 
     class Config:
         env_file = ".env"
