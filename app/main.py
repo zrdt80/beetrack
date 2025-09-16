@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from app.utils.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
-from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries
+from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries, monitoring
 from app.services.scheduler import start_scheduler
 from app.config import settings
 from fastapi.responses import JSONResponse
@@ -12,6 +12,7 @@ from app.schemas import ErrorResponse, ErrorDetail
 
 from app.middleware.rate_limiting import GlobalRateLimitMiddleware
 from app.middleware.security import SecurityHeadersMiddleware, CORSSecurityMiddleware, IPFilteringMiddleware
+from app.middleware.monitoring import PrometheusMiddleware, CorrelationIdMiddleware, DetailedLoggingMiddleware
 
 app = FastAPI(
     title="BeeTrack API",
@@ -24,6 +25,21 @@ app = FastAPI(
 def _startup():
     if settings.enable_scheduler:
         start_scheduler()
+    
+    if settings.metrics_enabled and settings.system_metrics_collection:
+        from app.services.metrics import app_metrics
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+        
+        metrics_scheduler = BackgroundScheduler()
+        metrics_scheduler.add_job(
+            func=app_metrics.update_system_metrics,
+            trigger=IntervalTrigger(seconds=settings.metrics_update_interval),
+            id="system_metrics_update",
+            name="Update system metrics",
+            replace_existing=True
+        )
+        metrics_scheduler.start()
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -31,7 +47,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(ValidationError)
 async def validation_exception_handler(request: Request, exc: ValidationError):
-    details = [ErrorDetail(loc=[str(p) for p in err.get('loc', [])], msg=err.get('msg', ''), type=err.get('type')) for err in exc.errors()]  # type: ignore[arg-type]
+    details = [ErrorDetail(loc=[str(p) for p in err.get('loc', [])], msg=err.get('msg', ''), type=err.get('type')) for err in exc.errors()]
     return JSONResponse(status_code=422, content=ErrorResponse(code="VALIDATION_ERROR", message="Validation failed", details=details).model_dump())
 
 
@@ -55,6 +71,15 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content=ErrorResponse.simple("INTERNAL_ERROR", "Internal server error").model_dump())
 
+if settings.detailed_logging_enabled:
+    app.add_middleware(DetailedLoggingMiddleware)
+
+if settings.correlation_ids_enabled:
+    app.add_middleware(CorrelationIdMiddleware)
+
+if settings.metrics_enabled:
+    app.add_middleware(PrometheusMiddleware)
+
 app.add_middleware(GlobalRateLimitMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CORSSecurityMiddleware)
@@ -62,59 +87,7 @@ app.add_middleware(IPFilteringMiddleware)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/health")
-async def health_check():
-    from app.services.auth_security import auth_failure_tracker
-    
-    failure_stats = auth_failure_tracker.get_failure_stats()
-    
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-        "environment": settings.environment,
-        "security": {
-            "rate_limiting_enabled": settings.rate_limiting_enabled,
-            "security_headers_enabled": settings.security_headers_enabled,
-            "tracked_failures": failure_stats['total_tracked_combinations'],
-            "currently_locked": failure_stats['currently_locked'],
-            "suspicious_ips": failure_stats['suspicious_ips']
-        }
-    }
-
-@app.get("/health/detailed")
-async def detailed_health_check():
-    from app.services.auth_security import auth_failure_tracker
-    from app.database import get_db
-    
-    try:
-        db = next(get_db())
-        try:
-            from app.models import User
-            _user_count = db.query(User).count()
-            db_status = "connected"
-        finally:
-            db.close()
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-    
-    failure_stats = auth_failure_tracker.get_failure_stats()
-    
-    return {
-        "status": "healthy" if db_status == "connected" else "degraded",
-        "checks": {
-            "database": db_status,
-            "rate_limiter": "active" if settings.rate_limiting_enabled else "disabled",
-            "scheduler": "active" if settings.enable_scheduler else "disabled"
-        },
-        "security_metrics": failure_stats,
-        "configuration": {
-            "environment": settings.environment,
-            "rate_limit_per_minute": settings.rate_limit_requests_per_minute,
-            "max_login_attempts": settings.max_login_attempts,
-            "lockout_duration_minutes": settings.lockout_duration_minutes
-        }
-    }
-
+app.include_router(monitoring.router, tags=["Monitoring"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(products.router, prefix="/products", tags=["Products"])
 app.include_router(hives.router, prefix="/hives", tags=["Hives"])

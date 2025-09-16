@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     max_login_attempts: int = 5
     lockout_duration_minutes: int = 15
     suspicious_activity_threshold: int = 100
+    
+    metrics_enabled: bool = True
+    metrics_update_interval: int = 30
+    prometheus_endpoint_enabled: bool = True
+    correlation_ids_enabled: bool = True
+    detailed_logging_enabled: bool = True
+    system_metrics_collection: bool = True
+    slow_query_threshold_seconds: float = 1.0
 
     class Config:
         env_file = ".env"

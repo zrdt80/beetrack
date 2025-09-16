@@ -41,6 +41,12 @@ class AuthFailureTracker:
         
         log_event(f"Auth failure #{record['attempts']} for {email} from {ip}", level="WARNING")
         
+        from app.services.metrics import app_metrics
+        app_metrics.record_auth_failure(ip, "invalid_credentials")
+        
+        if record['escalation_level'] in ['high', 'critical']:
+            app_metrics.record_security_escalation(record['escalation_level'])
+        
         record_audit_event(
             "LOGIN_FAILURE_TRACKED",
             metadata={

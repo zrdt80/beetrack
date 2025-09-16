@@ -189,7 +189,16 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
         return False
     
     def _create_rate_limit_response(self, metadata: Dict, suspicious: bool = False) -> JSONResponse:
+        from app.services.metrics import app_metrics
+        
         status_code = status.HTTP_429_TOO_MANY_REQUESTS
+        
+        limit_type = "suspicious" if suspicious else "standard"
+        endpoint = metadata.get('endpoint', 'unknown')
+        app_metrics.record_rate_limit_hit(endpoint, limit_type)
+        
+        if suspicious:
+            app_metrics.record_suspicious_activity("rate_limit_exceeded", "medium")
         
         headers = {
             "X-RateLimit-Limit": str(metadata.get('limit', 0)),
