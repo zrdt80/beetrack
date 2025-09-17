@@ -4,6 +4,7 @@ from slowapi.errors import RateLimitExceeded
 from app.utils.limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from app.routers import users, products, hives, inspections, orders, export, stats, logs, role_requests, apiaries, monitoring
+from app.routers import admin_monitoring, dashboard
 from app.services.scheduler import start_scheduler
 from app.config import settings
 from fastapi.responses import JSONResponse
@@ -88,6 +89,8 @@ app.add_middleware(IPFilteringMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(monitoring.router, tags=["Monitoring"])
+app.include_router(admin_monitoring.router)
+app.include_router(dashboard.router)
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(products.router, prefix="/products", tags=["Products"])
 app.include_router(hives.router, prefix="/hives", tags=["Hives"])
