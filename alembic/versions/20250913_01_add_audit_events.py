@@ -1,14 +1,14 @@
 """Add audit_events table
 
 Revision ID: 20250913_01_add_audit_events
-Revises: 20250911_01_indexes_and_constraints
+Revises: 20250911_01_idx_and_cnstrnt
 Create Date: 2025-09-13
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = '20250913_01_add_audit_events'
-down_revision = '20250911_01_indexes_and_constraints'
+down_revision = '20250911_01_idx_and_cnstrnt'
 branch_labels = None
 depends_on = None
 

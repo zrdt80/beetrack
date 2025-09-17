@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from app import models, schemas
 from app.database import get_db
 from app.services import auth
+from app.services.rbac import requires_permission, Perm, check_permission
 from app.utils.logger import log_event
 import secrets
 
@@ -24,10 +25,8 @@ def _ensure_owner(db: Session, apiary_id: int, user: models.User) -> models.Apia
 def create_apiary(
     payload: schemas.ApiaryCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(requires_permission(Perm.APIARIES_CREATE)),
 ):
-    if current_user.role not in (models.UserRole.worker, models.UserRole.admin):
-        raise HTTPException(status_code=403, detail="Only workers can create apiaries")
     apiary = models.Apiary(
         name=payload.name,
         location=payload.location,
@@ -55,9 +54,11 @@ def list_my_apiaries(
     size: int = Query(20, ge=1, le=100),
     q: str | None = Query(None, description="Search by name/location"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(requires_permission(Perm.APIARIES_VIEW)),
 ):
-    if current_user.role == models.UserRole.admin:
+    from app.services.rbac import check_permission
+    
+    if check_permission(current_user, Perm.ADMIN_VIEW_OVERVIEW, db):
         query = db.query(models.Apiary, models.User.username.label("owner_username")).join(
             models.User, models.Apiary.owner_id == models.User.id
         )
@@ -111,7 +112,8 @@ def create_apiary_hive(
     if not apiary:
         raise HTTPException(status_code=404, detail="Apiary not found")
 
-    if current_user.role != models.UserRole.admin:
+    has_manage_permission = check_permission(current_user, Perm.APIARIES_MANAGE, db)
+    if not has_manage_permission:
         member = db.query(models.ApiaryMember).filter(
             models.ApiaryMember.apiary_id == apiary_id,
             models.ApiaryMember.user_id == current_user.id,

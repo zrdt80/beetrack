@@ -44,6 +44,8 @@ class User(Base):
     )
     owned_apiaries = relationship("Apiary", back_populates="owner", cascade="all, delete-orphan")
     apiary_memberships = relationship("ApiaryMember", back_populates="user", cascade="all, delete-orphan")
+    
+    role_assignments = relationship("UserRoleAssignment", back_populates="user", foreign_keys="UserRoleAssignment.user_id", cascade="all, delete-orphan")
 
 
 class UserSession(Base):
@@ -217,11 +219,10 @@ class RoleChangeRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     from_role = Column(Enum(UserRole), nullable=False)
     to_role = Column(Enum(UserRole), nullable=False)
-    # Use existing database enum type name 'requeststatus' created in initial migration
     status = Column(Enum(RoleRequestStatus, name="requeststatus"), default=RoleRequestStatus.pending, nullable=False, index=True)
     reason = Column(String(500), nullable=True)
     admin_comment = Column(String(500), nullable=True)
-    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # renamed from decided_by_id in migration rcr_20250818_01
+    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     decided_at = Column(DateTime, nullable=True)
 
@@ -245,3 +246,63 @@ class AuditEvent(Base):
 
     user = relationship("User", foreign_keys=[user_id])
     actor = relationship("User", foreign_keys=[actor_user_id])
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(64), unique=True, nullable=False, index=True)
+    description = Column(String(255), nullable=True)
+    is_system = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+    user_assignments = relationship("UserRoleAssignment", back_populates="role", cascade="all, delete-orphan")
+
+
+class Permission(Base):
+    __tablename__ = "permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(128), unique=True, nullable=False, index=True)
+    description = Column(String(255), nullable=True)
+    category = Column(String(64), nullable=True, index=True)
+    is_system = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    roles = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
+
+
+class RolePermission(Base):
+    __tablename__ = "role_permissions"
+    __table_args__ = (
+        UniqueConstraint('role_id', 'permission_id', name='uq_role_permission'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False, index=True)
+    permission_id = Column(Integer, ForeignKey("permissions.id"), nullable=False, index=True)
+    granted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    role = relationship("Role", back_populates="permissions")
+    permission = relationship("Permission", back_populates="roles")
+
+
+class UserRoleAssignment(Base):
+    __tablename__ = "user_role_assignments"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'role_id', name='uq_user_role'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False, index=True)
+    assigned_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    assigned_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    role = relationship("Role", back_populates="user_assignments")
+    assigner = relationship("User", foreign_keys=[assigned_by])

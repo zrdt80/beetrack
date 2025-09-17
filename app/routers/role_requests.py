@@ -5,6 +5,7 @@ import sqlalchemy as sa
 from app.database import get_db
 from app import models, schemas
 from app.services import auth
+from app.services.rbac import requires_permission, Perm
 from app.utils.logger import log_event
 
 router = APIRouter()
@@ -18,7 +19,7 @@ REJECTION_TEMPLATES = [
 
 
 @router.get("/templates/rejections", response_model=list[str])
-def get_rejection_templates(_: models.User = Depends(auth.requires_role("admin"))):
+def get_rejection_templates(_: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES))):
     return REJECTION_TEMPLATES
 
 
@@ -130,7 +131,7 @@ def list_role_requests(
     decided: bool | None = Query(None, description="If true only decided (non-pending); if false only pending"),
     order: str = Query("-created_at", pattern="^-?(created_at|decided_at|id)$"),
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.requires_role("admin"))
+    _: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES))
 ):
     query = db.query(models.RoleChangeRequest)
     if username:
@@ -211,7 +212,7 @@ def my_role_request_notifications(
 def decide_role_request(
     request_id: int,
     decision: schemas.RoleRequestDecision,
-    admin_user: models.User = Depends(auth.requires_role("admin")),
+    admin_user: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES)),
     db: Session = Depends(get_db)
 ):
     r = db.query(models.RoleChangeRequest).filter(models.RoleChangeRequest.id == request_id).first()
@@ -269,7 +270,7 @@ def cancel_role_request(
 
 
 @router.get("/stats/summary")
-def role_request_summary(_: models.User = Depends(auth.requires_role("admin")), db: Session = Depends(get_db)):
+def role_request_summary(_: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES)), db: Session = Depends(get_db)):
     counts = {s.value: 0 for s in models.RoleRequestStatus}
     rows = db.query(models.RoleChangeRequest.status, sa.func.count(models.RoleChangeRequest.id)).group_by(models.RoleChangeRequest.status).all()
     for status, cnt in rows:
@@ -281,7 +282,7 @@ def role_request_summary(_: models.User = Depends(auth.requires_role("admin")), 
 @router.get("/stats/daily")
 def role_request_daily(
     days: int = Query(14, ge=1, le=90),
-    _: models.User = Depends(auth.requires_role("admin")),
+    _: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES)),
     db: Session = Depends(get_db)
 ):
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)

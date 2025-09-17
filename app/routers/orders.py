@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
-from app.services.auth import get_current_user, requires_role
+from app.services.auth import get_current_user
+from app.services.rbac import requires_permission, Perm
 from app.utils.logger import log_event
 from datetime import datetime, timezone
 
@@ -13,7 +14,7 @@ router = APIRouter()
 def create_order(
     order_data: schemas.OrderCreate,
     db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)
+    user: models.User = Depends(requires_permission(Perm.ORDERS_CREATE))
 ):
     if not order_data.items:
         log_event(f"Order creation failed: empty order attempted by {user.username}")
@@ -64,7 +65,7 @@ def get_user_orders(
     statuses: str | None = Query(None, description="Comma separated list of statuses to include"),
     product_search: str | None = Query(None, min_length=1, description="Search term for product names in order items"),
     db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)
+    user: models.User = Depends(requires_permission(Perm.ORDERS_VIEW))
 ):
     query = db.query(models.Order).filter(models.Order.user_id == user.id)
 
@@ -121,7 +122,7 @@ def get_all_orders(
     statuses: str | None = Query(None, description="Comma separated list of statuses to include"),
     product_search: str | None = Query(None, min_length=1, description="Search term for product names in order items"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(requires_role("admin"))
+    current_user: models.User = Depends(requires_permission(Perm.ORDERS_MANAGE))
 ):
     query = db.query(models.Order)
 
@@ -172,7 +173,7 @@ def update_order_status(
     order_id: int,
     status_update: schemas.OrderStatusUpdate,
     db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)
+    user: models.User = Depends(requires_permission(Perm.ORDERS_MANAGE))
 ):
     order = db.query(models.Order).get(order_id)
     if not order:
@@ -201,9 +202,16 @@ def delete_order(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
+    from app.services.rbac import check_permission
+    
     order = db.query(models.Order).get(order_id)
-    if not order or (user.role != "admin" and order.user_id != user.id):
-        log_event(f"Order deletion failed: order {order_id} not found or unauthorized access by {user.username}")
+    if not order:
+        log_event(f"Order deletion failed: order {order_id} not found, attempted by {user.username}")
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    has_manage_permission = check_permission(user, Perm.ORDERS_MANAGE, db)
+    if not has_manage_permission and order.user_id != user.id:
+        log_event(f"Order deletion failed: unauthorized access to order {order_id} by {user.username}")
         raise HTTPException(status_code=403, detail="Not authorized to delete this order")
 
     restored_items = []

@@ -1,14 +1,14 @@
 """Add composite indexes and unique constraints
 
-Revision ID: 20250911_01_indexes_and_constraints
+Revision ID: 20250911_01_idx_and_cnstrnt
 Revises: 20250903_01_hives_cleanup
 Create Date: 2025-09-11
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = '20250911_01_indexes_and_constraints'
-down_revision = '20250903_01_hives_cleanup'
+revision = '20250911_01_idx_and_cnstrnt'
+down_revision = '20250903_01'
 branch_labels = None
 depends_on = None
 

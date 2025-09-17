@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
-from app.services.auth import requires_role
+from app.services.rbac import requires_permission, Perm
 from app.utils.logger import record_audit_event
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 @router.get("/overview")
 def admin_overview(
     db: Session = Depends(get_db),
-    admin: models.User = Depends(requires_role("admin")),
+    admin: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_OVERVIEW)),
 ):
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
@@ -80,7 +80,7 @@ def admin_overview(
 def admin_recent_audit(
     db: Session = Depends(get_db),
     limit: int = Query(100, ge=1, le=500),
-    admin: models.User = Depends(requires_role("admin")),
+    admin: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_AUDIT)),
 ):
     events: List[models.AuditEvent] = (
         db.query(models.AuditEvent)
@@ -112,7 +112,7 @@ def admin_recent_audit(
 def admin_active_sessions(
     db: Session = Depends(get_db),
     limit: int = Query(50, ge=1, le=500),
-    admin: models.User = Depends(requires_role("admin")),
+    admin: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_SESSIONS)),
 ):
     sessions: List[models.UserSession] = (
         db.query(models.UserSession)
@@ -143,7 +143,7 @@ def admin_active_sessions(
 def admin_revoke_session(
     session_id: int,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(requires_role("admin")),
+    admin: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_SESSIONS)),
 ):
     session = db.query(models.UserSession).filter(models.UserSession.id == session_id).first()
     if not session:
@@ -162,7 +162,7 @@ def admin_change_user_role(
     user_id: int,
     new_role: models.UserRole,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(requires_role("admin")),
+    admin: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_ROLES)),
 ):
     if user_id == admin.id:
         return {"status": "forbidden", "reason": "cannot_change_own_role"}

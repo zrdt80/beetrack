@@ -7,6 +7,7 @@ from app.utils.limiter import limiter
 from app.utils.hashing import Hasher
 from app.utils.password import validate_password_strength, is_password_breached, PasswordPolicyError
 from app.services import auth
+from app.services.rbac import requires_permission, Perm
 from app.services.session_service import SessionService
 from app.config import settings
 from fastapi.security import OAuth2PasswordRequestForm
@@ -316,7 +317,7 @@ def get_me(current_user: models.User = Depends(auth.get_current_user)):
 
 
 @router.get("/security/stats")
-def get_security_stats(current_user: models.User = Depends(auth.requires_role("admin"))):
+def get_security_stats(current_user: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_OVERVIEW))):
     from app.services.auth_security import auth_failure_tracker
     
     stats = auth_failure_tracker.get_failure_stats()
@@ -439,7 +440,7 @@ def revoke_all_sessions(
 def get_user_sessions_admin(
     user_id: int,
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.USERS_MANAGE))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -458,7 +459,7 @@ def revoke_user_session_admin(
     user_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_SESSIONS))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -483,7 +484,7 @@ def revoke_all_user_sessions_admin(
     user_id: int,
     keep_current: bool = Query(True),
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.ADMIN_MANAGE_SESSIONS))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -656,7 +657,7 @@ def twofa_regenerate(current_user: models.User = Depends(auth.get_current_user),
 def get_user_2fa_status(
     user_id: int,
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.USERS_VIEW))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -672,7 +673,7 @@ def get_user_2fa_status(
 def disable_user_2fa_admin(
     user_id: int,
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.USERS_MANAGE))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -845,7 +846,7 @@ def update_user(
     user_id: int,
     user_data: schemas.UserUpdate,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.requires_role("admin"))
+    _: models.User = Depends(requires_permission(Perm.USERS_MANAGE))
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -891,7 +892,7 @@ def list_users(
     page: int = Query(1, ge=1),
     size: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.requires_role("admin"))
+    current_admin: models.User = Depends(requires_permission(Perm.USERS_VIEW))
 ):
     query = db.query(models.User).order_by(models.User.id)
     total = query.order_by(None).count()

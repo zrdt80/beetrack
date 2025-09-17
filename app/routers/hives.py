@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
 from app.services import auth
-from app.services.auth import requires_role
+from app.services.rbac import requires_permission, Perm, check_permission
 from app.utils.logger import log_event
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 def create_hive(
     hive: schemas.HiveCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(requires_role("admin"))
+    current_user: models.User = Depends(requires_permission(Perm.HIVES_CREATE))
 ):
     if not hive.apiary_id:
         raise HTTPException(status_code=400, detail="apiary_id is required")
@@ -48,7 +48,8 @@ def list_hives(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     q: str | None = Query(None, description="Search by hive name or apiary name"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(requires_permission(Perm.HIVES_VIEW))
 ):
     query = db.query(
         models.Hive,
@@ -87,7 +88,11 @@ def list_hives(
 
 
 @router.get("/{hive_id}", response_model=schemas.HiveRead)
-def get_hive(hive_id: int, db: Session = Depends(get_db)):
+def get_hive(
+    hive_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(requires_permission(Perm.HIVES_VIEW))
+):
     result = db.query(
         models.Hive,
         models.Apiary.name.label("apiary_name")
@@ -110,7 +115,7 @@ def update_hive(
     hive_id: int,
     hive_data: schemas.HiveCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(requires_role("admin"))
+    current_user: models.User = Depends(requires_permission(Perm.HIVES_MANAGE))
 ):
     hive = db.query(models.Hive).get(hive_id)
     if not hive:
@@ -152,11 +157,13 @@ def delete_hive(
         log_event(f"Hive deletion failed: hive {hive_id} not found, attempted by {current_user.username}")
         raise HTTPException(status_code=404, detail="Hive not found")
 
-    if current_user.role != models.UserRole.admin:
+    has_manage_permission = check_permission(current_user, Perm.HIVES_MANAGE, db)
+    
+    if not has_manage_permission:
         apiary = db.query(models.Apiary).filter(models.Apiary.id == hive.apiary_id).first()
         if not apiary or apiary.owner_id != current_user.id:
             log_event(f"Hive deletion failed: insufficient permissions for hive {hive_id}, attempted by {current_user.username}")
-            raise HTTPException(status_code=403, detail="Only owner or admin can delete hives")
+            raise HTTPException(status_code=403, detail="Only apiary owner or users with hive management permissions can delete hives")
 
     hive_name = hive.name
     db.delete(hive)

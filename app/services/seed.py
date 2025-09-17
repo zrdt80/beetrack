@@ -10,6 +10,7 @@ from sqlalchemy import func
 from app.utils.hashing import Hasher
 from app.utils.logger import log_event
 from app.database import Base, engine
+from app.services.rbac_init import initialize_rbac_system, verify_rbac_setup
 
 FORCE_RESEED = False
 GENERATE_LARGE_DATA = True
@@ -480,6 +481,13 @@ def run_seed(db: Session):
             log_event("Seed skipped: users table does not exist")
             return
 
+    rbac_initialized = initialize_rbac_system(db)
+    if rbac_initialized:
+        rbac_status = verify_rbac_setup(db)
+        print(f"🔐 RBAC Status: {rbac_status['status']} - {rbac_status.get('permissions_count', 0)} permissions, {rbac_status.get('roles_count', 0)} roles")
+    else:
+        print("⚠️ RBAC initialization failed - continuing with data seeding")
+
     users_exist = db.query(models.User).first() is not None
     if users_exist and not FORCE_RESEED:
         print("ℹ️ Users exist – will skip user seeding and proceed to seed remaining entities if empty.")
@@ -545,6 +553,14 @@ def run_seed(db: Session):
 
     print("✅ Data seeding completed.")
     log_event("Data seeding completed successfully")
+    
+    try:
+        from app.services.rbac_init import assign_rbac_roles_to_users
+        print("🔐 Assigning RBAC roles to seeded users...")
+        assign_rbac_roles_to_users(db)
+    except Exception as e:
+        print(f"⚠️ RBAC role assignment failed: {e}")
+        log_event(f"RBAC role assignment failed: {str(e)}")
 
 
 def backfill_last_inspection_dates(db: Session):

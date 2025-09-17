@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models, schemas
 from app.database import get_db
-from app.services.auth import get_current_user, requires_role
+from app.services.rbac import requires_permission, Perm
 from app.utils.logger import log_event
 from datetime import datetime, timezone
 
@@ -32,7 +32,7 @@ def _recalc_last_inspection_date(db: Session, hive_ids: list[int]):
 def create_inspection(
     inspection: schemas.InspectionCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_CREATE))
 ):
     hive = db.query(models.Hive).get(inspection.hive_id)
     if not hive:
@@ -68,7 +68,8 @@ def create_inspection(
 def list_inspections(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: models.User = Depends(requires_permission(Perm.INSPECTIONS_VIEW))
 ):
     
     query = db.query(models.Inspection).order_by(models.Inspection.date.desc(), models.Inspection.id.desc())
@@ -94,7 +95,8 @@ def get_inspections_for_hive(
     hive_id: int,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: models.User = Depends(requires_permission(Perm.INSPECTIONS_VIEW))
 ):
     hive = db.query(models.Hive).get(hive_id)
     if not hive:
@@ -127,7 +129,7 @@ def update_inspection(
     inspection_id: int,
     inspection: schemas.InspectionCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(requires_role("admin"))
+    current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_MANAGE))
 ):
     existing_inspection = db.query(models.Inspection).get(inspection_id)
     if not existing_inspection:
@@ -163,7 +165,7 @@ def update_inspection(
 def delete_inspection(
     inspection_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(requires_role("admin"))
+    current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_MANAGE))
 ):
     inspection = db.query(models.Inspection).get(inspection_id)
     if not inspection:
