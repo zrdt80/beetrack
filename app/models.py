@@ -257,7 +257,16 @@ class Role(Base):
     is_system = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+    role_permissions = relationship(
+        "RolePermission",
+        back_populates="role",
+        cascade="all, delete-orphan"
+    )
+    permissions = relationship(
+        "Permission",
+        secondary="role_permissions",
+        viewonly=True
+    )
     user_assignments = relationship("UserRoleAssignment", back_populates="role", cascade="all, delete-orphan")
 
 
@@ -271,7 +280,16 @@ class Permission(Base):
     is_system = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    roles = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
+    role_permissions = relationship(
+        "RolePermission",
+        back_populates="permission",
+        cascade="all, delete-orphan"
+    )
+    roles = relationship(
+        "Role",
+        secondary="role_permissions",
+        viewonly=True
+    )
 
 
 class RolePermission(Base):
@@ -285,8 +303,8 @@ class RolePermission(Base):
     permission_id = Column(Integer, ForeignKey("permissions.id"), nullable=False, index=True)
     granted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    role = relationship("Role", back_populates="permissions")
-    permission = relationship("Permission", back_populates="roles")
+    role = relationship("Role", back_populates="role_permissions")
+    permission = relationship("Permission", back_populates="role_permissions")
 
 
 class UserRoleAssignment(Base):

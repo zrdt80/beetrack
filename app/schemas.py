@@ -659,3 +659,98 @@ class ErrorResponse(BaseModel):
     @classmethod
     def simple(cls, code: str, message: str) -> "ErrorResponse":
         return cls(code=code, message=message)
+
+
+# --------------------
+# --- RBAC SCHEMAS ---
+# --------------------
+
+class PermissionBase(BaseModel):
+    name: str
+    description: str
+    category: str
+
+
+class PermissionRead(PermissionBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+
+class RoleBase(BaseModel):
+    name: str
+    description: str | None = None
+    is_system: bool = False
+
+
+class RoleCreate(RoleBase):
+    permissions: List[int] = []
+
+
+class RoleUpdate(BaseModel):
+    description: str | None = None
+    permissions: List[int] | None = None
+
+
+class RoleRead(RoleBase):
+    id: int
+    created_at: datetime
+    permissions: List[PermissionRead] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class UserRoleAssignmentBase(BaseModel):
+    user_id: int
+    role_id: int
+    expires_at: datetime | None = None
+
+
+class UserRoleAssignmentCreate(UserRoleAssignmentBase):
+    pass
+
+
+class UserRoleAssignmentRead(UserRoleAssignmentBase):
+    id: int
+    assigned_by: int | None = None
+    assigned_at: datetime
+    is_active: bool
+    user: UserRead | None = None
+    role: RoleRead | None = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UserWithRoles(UserRead):
+    role_assignments: List[UserRoleAssignmentRead] = []
+    roles: List[RoleRead] = []
+    permissions: List[str] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class RolePermissionMatrix(BaseModel):
+    roles: List[RoleRead] = []
+    permissions: List[PermissionRead] = []
+    matrix: dict[str, dict[str, bool]] = {}
+
+
+class UserRoleStats(BaseModel):
+    total_users: int
+    active_users: int
+    inactive_users: int
+    users_by_role: dict[str, int]
+    active_assignments: int
+    expired_assignments: int
+
+
+class RBACOverview(BaseModel):
+    permissions_count: int
+    roles_count: int
+    active_assignments_count: int
+    user_stats: UserRoleStats
+    recent_changes: List[dict] = []

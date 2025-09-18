@@ -26,7 +26,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     
     security_headers_enabled: bool = True
-    cors_allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ]
+    cors_extra_origins: str | None = None
     trusted_proxies: list[str] = []
     
     max_login_attempts: int = 5
@@ -57,6 +63,14 @@ class Settings(BaseSettings):
     @classmethod
     def validate_level(cls, v: str):
         return v.upper()
+
+    @field_validator("cors_extra_origins")
+    @classmethod
+    def parse_extra_origins(cls, v: str | None):
+        if not v:
+            return None
+        parts = [p.strip() for p in v.replace(";", ",").replace(" ", ",").split(",") if p.strip()]
+        return ",".join(parts) if parts else None
 
 
 @lru_cache()

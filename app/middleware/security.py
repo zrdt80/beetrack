@@ -81,15 +81,26 @@ class CORSSecurityMiddleware(BaseHTTPMiddleware):
         ]
     
     def _get_allowed_origins(self) -> List[str]:
+        base = list(settings.cors_allowed_origins)
+
+        if getattr(settings, "cors_extra_origins", None):
+            for extra in settings.cors_extra_origins.split(","):
+                if extra and extra not in base:
+                    base.append(extra)
+
         if settings.environment == "production":
-            return settings.cors_allowed_origins
-        else:
-            base_origins = settings.cors_allowed_origins
-            dev_origins = [
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-            ]
-            return list(set(base_origins + dev_origins))
+            return base
+
+        dev_defaults = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+        for origin in dev_defaults:
+            if origin not in base:
+                base.append(origin)
+        return base
     
     def _is_allowed_origin(self, origin: str) -> bool:
         if not origin:

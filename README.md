@@ -152,6 +152,33 @@ docker-compose up --build
 -   API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 -   Frontend: [http://localhost:3000](http://localhost:3000)
 
+### 5. CORS Configuration
+
+The backend uses a custom CORS middleware (not FastAPI's default) that dynamically allows common local development origins and supports environment-based extension.
+
+Default allowed origins (development):
+
+-   `http://localhost:3000`
+-   `http://127.0.0.1:3000`
+-   `http://localhost:5173` (Vite default)
+-   `http://127.0.0.1:5173`
+
+In production, only the values explicitly listed in `Settings.cors_allowed_origins` (environment variable `CORS_ALLOWED_ORIGINS`) plus any provided via `CORS_EXTRA_ORIGINS` are allowed.
+
+To add additional origins without code changes, set:
+
+```env
+CORS_EXTRA_ORIGINS=https://admin.example.com,https://portal.example.com
+```
+
+Notes:
+
+-   Wildcards (`*`) are avoided because credentialed requests (cookies / Authorization) require a specific echoed origin.
+-   Preflight `OPTIONS` responses include `Access-Control-Allow-Credentials: true` and expose rate limiting headers.
+-   If you add a new frontend dev port, add it to `cors_allowed_origins` or export `CORS_EXTRA_ORIGINS`.
+
+After modifying env vars, rebuild or restart the `api` service so the settings cache refreshes.
+
 ---
 
 ## 🔐 Test Users
