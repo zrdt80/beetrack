@@ -19,6 +19,7 @@ import {
     LogOut,
     Settings,
     Bell,
+    Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BeeTrackLogo from "@/components/BeeTrackLogo";
@@ -92,6 +93,13 @@ const navLinks = [
         to: "/dashboard/role-requests",
         label: "Role Moderation",
         icon: Bell,
+        admin: true,
+        workerOnly: false,
+    },
+    {
+        to: "/dashboard/rbac",
+        label: "RBAC",
+        icon: Shield,
         admin: true,
         workerOnly: false,
     },

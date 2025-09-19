@@ -19,6 +19,7 @@ import UserPage from "@/pages/UserPage";
 import SessionsPage from "@/pages/SessionsPage";
 import RoleRequestsPage from "@/pages/RoleRequestsPage";
 import RoleRequestsAdminPage from "@/pages/RoleRequestsAdminPage";
+import RBACAdminPage from "@/pages/RBACAdminPage";
 import UserSettingsLayout from "@/pages/UserSettingsLayout";
 import SecurityPage from "@/pages/SecurityPage";
 
@@ -64,6 +65,16 @@ function App() {
                         element={
                             user.role === "admin" ? (
                                 <RoleRequestsAdminPage />
+                            ) : (
+                                <Navigate to="/dashboard" replace />
+                            )
+                        }
+                    />
+                    <Route
+                        path="rbac"
+                        element={
+                            user.role === "admin" ? (
+                                <RBACAdminPage />
                             ) : (
                                 <Navigate to="/dashboard" replace />
                             )
