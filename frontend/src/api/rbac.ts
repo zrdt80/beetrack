@@ -79,6 +79,25 @@ export interface RBACOverview {
     }>;
 }
 
+export interface RBACChangeItem {
+    id: number;
+    event_code: string;
+    action: string;
+    details: string;
+    timestamp: string;
+    user_id: number | null;
+    username: string;
+    target_user_id?: number | null;
+    metadata?: Record<string, any>;
+}
+
+export interface RBACChangesResponse {
+    items: RBACChangeItem[];
+    total: number;
+    page: number;
+    size: number;
+}
+
 export const getPermissions = async (): Promise<Permission[]> => {
     const res = await api.get<Permission[]>("/admin/rbac/permissions");
     return res.data;
@@ -150,3 +169,18 @@ export const getRolePermissionMatrix =
         const res = await api.get<RolePermissionMatrix>("/admin/rbac/matrix");
         return res.data;
     };
+
+export const getRBACChanges = async (params?: {
+    page?: number;
+    size?: number;
+    actor_id?: number;
+    user_id?: number;
+    event?: string;
+    since?: string;
+    until?: string;
+}): Promise<RBACChangesResponse> => {
+    const res = await api.get<RBACChangesResponse>("/admin/rbac/changes", {
+        params,
+    });
+    return res.data;
+};

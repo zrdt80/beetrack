@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app import models, schemas
 from app.services.rbac import requires_permission, Perm, get_user_permissions
-from app.utils.logger import log_event
+from app.utils.logger import log_event, record_audit_event
+import json
 
 router = APIRouter(prefix="/admin/rbac", tags=["Admin RBAC"])
 
@@ -106,7 +107,13 @@ async def create_role(
             raise HTTPException(status_code=400, detail=f"Permission with ID {perm_id} not found")
     
     db.commit()
-    
+
+    record_audit_event(
+        "RBAC_ROLE_CREATED",
+        actor_user_id=current_user.id,
+        metadata={"role_id": role.id, "role": role.name}
+    )
+
     return await get_role(role.id, db, current_user)
 
 
@@ -150,6 +157,12 @@ async def update_role(
     db.commit()
     
     log_event(f"Admin {current_user.username} updated role {role.name}")
+
+    record_audit_event(
+        "RBAC_ROLE_UPDATED",
+        actor_user_id=current_user.id,
+        metadata={"role_id": role.id, "role": role.name}
+    )
     
     return await get_role(role.id, db, current_user)
 
@@ -183,6 +196,12 @@ async def delete_role(
     db.commit()
     
     log_event(f"Admin {current_user.username} deleted role {role_name}")
+
+    record_audit_event(
+        "RBAC_ROLE_DELETED",
+        actor_user_id=current_user.id,
+        metadata={"role_id": role_id, "role": role_name}
+    )
     
     return {"message": f"Role '{role_name}' deleted successfully"}
 
@@ -285,6 +304,18 @@ async def assign_role_to_user(
     db.commit()
     
     log_event(f"Admin {current_user.username} assigned role {role.name} to user {user.username}")
+
+    record_audit_event(
+        "RBAC_ROLE_ASSIGNED",
+        actor_user_id=current_user.id,
+        user_id=user.id,
+        metadata={
+            "role_id": role.id,
+            "role": role.name,
+            "user_id": user.id,
+            "username": user.username,
+        },
+    )
     
     return {"message": f"Role '{role.name}' assigned to user '{user.username}' successfully"}
 
@@ -312,6 +343,18 @@ async def remove_role_from_user(
     db.commit()
     
     log_event(f"Admin {current_user.username} removed role {role.name} from user {user.username}")
+
+    record_audit_event(
+        "RBAC_ROLE_REMOVED",
+        actor_user_id=current_user.id,
+        user_id=user.id,
+        metadata={
+            "role_id": role.id,
+            "role": role.name,
+            "user_id": user.id,
+            "username": user.username,
+        },
+    )
     
     return {"message": f"Role '{role.name}' removed from user '{user.username}' successfully"}
 
@@ -354,8 +397,53 @@ async def get_rbac_overview(
         expired_assignments=expired_assignments
     )
     
-    # TODO: Add recent changes when audit trail is implemented
+    events = (
+        db.query(models.AuditEvent)
+        .options(joinedload(models.AuditEvent.actor))
+        .filter(models.AuditEvent.event_code.like("RBAC_%"))
+        .order_by(models.AuditEvent.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
     recent_changes = []
+    for e in events:
+        try:
+            meta = json.loads(e.metadata_json) if e.metadata_json else {}
+        except Exception:
+            meta = {}
+
+        code = e.event_code or ""
+        action = ""
+        details = ""
+
+        if code == "RBAC_ROLE_ASSIGNED":
+            action = "assigned role"
+            details = f"{meta.get('role', '?')} → {meta.get('username', 'user')}"
+        elif code == "RBAC_ROLE_REMOVED":
+            action = "removed role"
+            details = f"{meta.get('role', '?')} from {meta.get('username', 'user')}"
+        elif code == "RBAC_ROLE_CREATED":
+            action = "created role"
+            details = f"{meta.get('role', '?')}"
+        elif code == "RBAC_ROLE_UPDATED":
+            action = "updated role"
+            details = f"{meta.get('role', '?')}"
+        elif code == "RBAC_ROLE_DELETED":
+            action = "deleted role"
+            details = f"{meta.get('role', '?')}"
+        else:
+            action = code.replace("RBAC_", "").replace("_", " ").lower()
+            details = meta.get("detail") or meta.get("details") or ""
+
+        recent_changes.append({
+            "id": e.id,
+            "action": action,
+            "details": details,
+            "timestamp": e.created_at.isoformat() if getattr(e, "created_at", None) else None,
+            "user_id": e.actor_user_id,
+            "username": (e.actor.username if getattr(e, "actor", None) and getattr(e.actor, "username", None) else "system"),
+        })
     
     overview = schemas.RBACOverview(
         permissions_count=permissions_count,
@@ -392,3 +480,70 @@ async def get_role_permission_matrix(
     
     log_event(f"Admin {current_user.username} viewed role-permission matrix")
     return result
+
+
+@router.get("/changes")
+async def list_rbac_changes(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
+    actor_id: Optional[int] = Query(None),
+    user_id: Optional[int] = Query(None),
+    event: Optional[str] = Query(None, description="Filter by exact RBAC_* event code"),
+    since: Optional[datetime] = Query(None),
+    until: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_AUDIT)),
+):
+    q = db.query(models.AuditEvent).options(joinedload(models.AuditEvent.actor)).filter(
+        models.AuditEvent.event_code.like("RBAC_%")
+    )
+    if actor_id is not None:
+        q = q.filter(models.AuditEvent.actor_user_id == actor_id)
+    if user_id is not None:
+        q = q.filter(models.AuditEvent.user_id == user_id)
+    if event is not None:
+        q = q.filter(models.AuditEvent.event_code == event)
+    if since is not None:
+        q = q.filter(models.AuditEvent.created_at >= since)
+    if until is not None:
+        q = q.filter(models.AuditEvent.created_at <= until)
+
+    total = q.count()
+    offset = (page - 1) * size
+    events = q.order_by(models.AuditEvent.created_at.desc()).offset(offset).limit(size).all()
+
+    items = []
+    for e in events:
+        try:
+            meta = json.loads(e.metadata_json) if e.metadata_json else {}
+        except Exception:
+            meta = {}
+        code = e.event_code or ""
+        action = code.replace("RBAC_", "").replace("_", " ").lower()
+        details = meta.get("details") or meta.get("detail")
+        if not details:
+            if code == "RBAC_ROLE_ASSIGNED":
+                details = f"{meta.get('role', '?')} → {meta.get('username', 'user')}"
+            elif code == "RBAC_ROLE_REMOVED":
+                details = f"{meta.get('role', '?')} from {meta.get('username', 'user')}"
+            elif code in ("RBAC_ROLE_CREATED", "RBAC_ROLE_UPDATED", "RBAC_ROLE_DELETED"):
+                details = f"{meta.get('role', '?')}"
+
+        items.append({
+            "id": e.id,
+            "event_code": e.event_code,
+            "action": action,
+            "details": details or "",
+            "timestamp": e.created_at.isoformat() if getattr(e, "created_at", None) else None,
+            "user_id": e.actor_user_id,
+            "username": (e.actor.username if getattr(e, "actor", None) and getattr(e.actor, "username", None) else "system"),
+            "target_user_id": e.user_id,
+            "metadata": meta,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+    }

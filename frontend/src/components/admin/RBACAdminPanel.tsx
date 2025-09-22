@@ -11,11 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Shield, Users, Key, Lock, Settings, Eye } from "lucide-react";
+import { Shield, Users, Key, Lock, Settings, Eye, History } from "lucide-react";
 import UserRoleManagement from "./UserRoleManagement";
 import RoleManagement from "./RoleManagement";
 import PermissionMatrix from "./PermissionMatrix";
 import RBACSystemOverview from "./RBACSystemOverview";
+import RBACChangesTable from "./RBACChangesTable";
 
 export default function RBACAdminPanel() {
     const [overview, setOverview] = useState<RBACOverview | null>(null);
@@ -175,7 +176,7 @@ export default function RBACAdminPanel() {
                         onValueChange={setActiveTab}
                         className="w-full"
                     >
-                        <TabsList className="grid w-full grid-cols-4 gap-6 h-12 bg-gray-50 border border-gray-200 p-1 rounded-lg">
+                        <TabsList className="grid w-full grid-cols-5 gap-6 h-12 bg-gray-50 border border-gray-200 p-1 rounded-lg">
                             <TabsTrigger
                                 value="overview"
                                 className="flex items-center gap-2 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-white data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all duration-200"
@@ -204,6 +205,13 @@ export default function RBACAdminPanel() {
                                 <Key className="w-4 h-4" />
                                 Permissions
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="changes"
+                                className="flex items-center gap-2 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-white data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all duration-200"
+                            >
+                                <History className="w-4 h-4" />
+                                Changes
+                            </TabsTrigger>
                         </TabsList>
 
                         <div className="mt-8">
@@ -224,6 +232,10 @@ export default function RBACAdminPanel() {
 
                             <TabsContent value="matrix" className="mt-0">
                                 <PermissionMatrix />
+                            </TabsContent>
+
+                            <TabsContent value="changes" className="mt-0">
+                                <RBACChangesTable />
                             </TabsContent>
                         </div>
                     </Tabs>
