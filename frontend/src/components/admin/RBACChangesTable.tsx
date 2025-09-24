@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getRBACChanges, type RBACChangeItem } from "@/api/rbac";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -21,9 +22,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { formatDateTime, localInputToUtcIso } from "@/lib/datetime";
+import {
+    formatDateTime,
+    localInputToUtcIso,
+    utcIsoToLocalInput,
+} from "@/lib/datetime";
 
 export default function RBACChangesTable() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [items, setItems] = useState<RBACChangeItem[]>([]);
     const [page, setPage] = useState(1);
     const [size, setSize] = useState(20);
@@ -33,6 +39,8 @@ export default function RBACChangesTable() {
     const [eventFilter, setEventFilter] = useState<string>("all");
     const [since, setSince] = useState<string>("");
     const [until, setUntil] = useState<string>("");
+    const [actorId, setActorId] = useState<string>("");
+    const [userId, setUserId] = useState<string>("");
 
     const load = async (opts?: {
         page?: number;
@@ -40,6 +48,8 @@ export default function RBACChangesTable() {
         eventFilter?: string;
         since?: string;
         until?: string;
+        actorId?: string;
+        userId?: string;
     }) => {
         try {
             setLoading(true);
@@ -48,6 +58,8 @@ export default function RBACChangesTable() {
             const effectiveEvent = opts?.eventFilter ?? eventFilter;
             const effectiveSinceLocal = opts?.since ?? since;
             const effectiveUntilLocal = opts?.until ?? until;
+            const effectiveActorId = opts?.actorId ?? actorId;
+            const effectiveUserId = opts?.userId ?? userId;
 
             const params: {
                 page: number;
@@ -55,6 +67,8 @@ export default function RBACChangesTable() {
                 event?: string;
                 since?: string;
                 until?: string;
+                actor_id?: number;
+                user_id?: number;
             } = { page: effectivePage, size: effectiveSize };
 
             if (effectiveEvent && effectiveEvent !== "all")
@@ -68,6 +82,12 @@ export default function RBACChangesTable() {
                 : undefined;
             if (sinceIso) params.since = sinceIso;
             if (untilIso) params.until = untilIso;
+            const actorNum = effectiveActorId
+                ? parseInt(effectiveActorId)
+                : NaN;
+            const userNum = effectiveUserId ? parseInt(effectiveUserId) : NaN;
+            if (Number.isFinite(actorNum)) params.actor_id = actorNum;
+            if (Number.isFinite(userNum)) params.user_id = userNum;
             const res = await getRBACChanges(params);
             setItems(res.items);
             setTotal(res.total);
@@ -80,7 +100,37 @@ export default function RBACChangesTable() {
     };
 
     useEffect(() => {
-        load({ page: 1 });
+        const eventQ = searchParams.get("event") ?? "all";
+        const sizeQ = parseInt(searchParams.get("size") || "20");
+        const pageQ = parseInt(searchParams.get("page") || "1");
+        const sinceIso = searchParams.get("since");
+        const untilIso = searchParams.get("until");
+        const actorQ = searchParams.get("actor_id");
+        const userQ = searchParams.get("user_id");
+
+        const initEvent = eventQ || "all";
+        const initSize = Number.isFinite(sizeQ) && sizeQ > 0 ? sizeQ : 20;
+        const initPage = Number.isFinite(pageQ) && pageQ > 0 ? pageQ : 1;
+        const initSince = sinceIso ? utcIsoToLocalInput(sinceIso) : "";
+        const initUntil = untilIso ? utcIsoToLocalInput(untilIso) : "";
+        const initActor = actorQ && /^[0-9]+$/.test(actorQ) ? actorQ : "";
+        const initUser = userQ && /^[0-9]+$/.test(userQ) ? userQ : "";
+
+        setEventFilter(initEvent);
+        setSince(initSince);
+        setUntil(initUntil);
+        setSize(initSize);
+        setActorId(initActor);
+        setUserId(initUser);
+        load({
+            page: initPage,
+            size: initSize,
+            eventFilter: initEvent,
+            since: initSince,
+            until: initUntil,
+            actorId: initActor,
+            userId: initUser,
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -95,7 +145,7 @@ export default function RBACChangesTable() {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="flex flex-col gap-1">
                         <label className="text-xs text-gray-600">Event</label>
                         <Select
@@ -124,6 +174,34 @@ export default function RBACChangesTable() {
                                 </SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">
+                            Actor ID
+                        </label>
+                        <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="e.g. 12"
+                            value={actorId}
+                            onChange={(e) =>
+                                setActorId(
+                                    e.target.value.replace(/[^0-9]/g, "")
+                                )
+                            }
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">User ID</label>
+                        <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="e.g. 34"
+                            value={userId}
+                            onChange={(e) =>
+                                setUserId(e.target.value.replace(/[^0-9]/g, ""))
+                            }
+                        />
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-xs text-gray-600">Since</label>
@@ -163,7 +241,21 @@ export default function RBACChangesTable() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => load({ page: 1 })}
+                            onClick={() => {
+                                const params: Record<string, string> = {};
+                                if (eventFilter && eventFilter !== "all")
+                                    params.event = eventFilter;
+                                if (since)
+                                    params.since = localInputToUtcIso(since);
+                                if (until)
+                                    params.until = localInputToUtcIso(until);
+                                if (size !== 20) params.size = String(size);
+                                if (actorId) params.actor_id = actorId;
+                                if (userId) params.user_id = userId;
+                                params.page = "1";
+                                setSearchParams(params, { replace: true });
+                                load({ page: 1 });
+                            }}
                         >
                             Apply
                         </Button>
@@ -176,12 +268,17 @@ export default function RBACChangesTable() {
                                 setSince("");
                                 setUntil("");
                                 setSize(20);
+                                setActorId("");
+                                setUserId("");
+                                setSearchParams({}, { replace: true });
                                 load({
                                     page: 1,
                                     size: 20,
                                     eventFilter: "all",
                                     since: "",
                                     until: "",
+                                    actorId: "",
+                                    userId: "",
                                 });
                             }}
                         >
@@ -245,7 +342,23 @@ export default function RBACChangesTable() {
                             <PaginationControls
                                 page={page}
                                 pages={pages}
-                                onChange={(p) => load({ page: p })}
+                                onChange={(p) => {
+                                    const params: Record<string, string> = {};
+                                    if (eventFilter && eventFilter !== "all")
+                                        params.event = eventFilter;
+                                    if (since)
+                                        params.since =
+                                            localInputToUtcIso(since);
+                                    if (until)
+                                        params.until =
+                                            localInputToUtcIso(until);
+                                    if (size !== 20) params.size = String(size);
+                                    if (actorId) params.actor_id = actorId;
+                                    if (userId) params.user_id = userId;
+                                    params.page = String(p);
+                                    setSearchParams(params, { replace: true });
+                                    load({ page: p });
+                                }}
                             />
                             <div className="text-xs text-gray-600 sm:ml-2 whitespace-nowrap self-start sm:self-auto">
                                 {total.toLocaleString()} total
