@@ -184,3 +184,17 @@ export const getRBACChanges = async (params?: {
     });
     return res.data;
 };
+
+export const exportRBACChangesCSV = async (params?: {
+    actor_id?: number;
+    user_id?: number;
+    event?: string;
+    since?: string;
+    until?: string;
+}): Promise<Blob> => {
+    const res = await api.get<Blob>("/admin/rbac/changes/export", {
+        params,
+        responseType: "blob",
+    });
+    return res.data;
+};

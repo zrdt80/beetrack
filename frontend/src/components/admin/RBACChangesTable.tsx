@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getRBACChanges, type RBACChangeItem } from "@/api/rbac";
+import {
+    getRBACChanges,
+    exportRBACChangesCSV,
+    type RBACChangeItem,
+} from "@/api/rbac";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
     Table,
@@ -35,6 +39,7 @@ export default function RBACChangesTable() {
     const [size, setSize] = useState(20);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
 
     const [eventFilter, setEventFilter] = useState<string>("all");
     const [since, setSince] = useState<string>("");
@@ -135,6 +140,38 @@ export default function RBACChangesTable() {
     }, []);
 
     const pages = Math.max(1, Math.ceil(total / size));
+
+    const handleExport = async () => {
+        try {
+            setExporting(true);
+            const params: {
+                event?: string;
+                since?: string;
+                until?: string;
+                actor_id?: number;
+                user_id?: number;
+            } = {};
+            if (eventFilter && eventFilter !== "all")
+                params.event = eventFilter;
+            if (since) params.since = localInputToUtcIso(since);
+            if (until) params.until = localInputToUtcIso(until);
+            if (actorId) params.actor_id = parseInt(actorId);
+            if (userId) params.user_id = parseInt(userId);
+
+            const blob = await exportRBACChangesCSV(params);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const date = new Date().toISOString().slice(0, 10);
+            a.download = `rbac_changes_${date}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to export RBAC changes", e);
+        } finally {
+            setExporting(false);
+        }
+    };
 
     return (
         <Card>
@@ -283,6 +320,14 @@ export default function RBACChangesTable() {
                             }}
                         >
                             Reset
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            disabled={exporting}
+                            onClick={handleExport}
+                        >
+                            {exporting ? "Exporting..." : "Export CSV"}
                         </Button>
                     </div>
                 </div>

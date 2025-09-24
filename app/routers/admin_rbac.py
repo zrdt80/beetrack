@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 from typing import List, Optional
@@ -9,6 +10,8 @@ from app import models, schemas
 from app.services.rbac import requires_permission, Perm, get_user_permissions
 from app.utils.logger import log_event, record_audit_event
 import json
+import io
+import csv
 
 router = APIRouter(prefix="/admin/rbac", tags=["Admin RBAC"])
 
@@ -547,3 +550,90 @@ async def list_rbac_changes(
         "page": page,
         "size": size,
     }
+
+
+@router.get("/changes/export")
+async def export_rbac_changes_csv(
+    actor_id: Optional[int] = Query(None),
+    user_id: Optional[int] = Query(None),
+    event: Optional[str] = Query(None, description="Filter by exact RBAC_* event code"),
+    since: Optional[datetime] = Query(None),
+    until: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_AUDIT)),
+):
+    q = db.query(models.AuditEvent).options(joinedload(models.AuditEvent.actor)).filter(
+        models.AuditEvent.event_code.like("RBAC_%")
+    )
+    if actor_id is not None:
+        q = q.filter(models.AuditEvent.actor_user_id == actor_id)
+    if user_id is not None:
+        q = q.filter(models.AuditEvent.user_id == user_id)
+    if event is not None:
+        q = q.filter(models.AuditEvent.event_code == event)
+    if since is not None:
+        q = q.filter(models.AuditEvent.created_at >= since)
+    if until is not None:
+        q = q.filter(models.AuditEvent.created_at <= until)
+
+    header = [
+        "id",
+        "timestamp",
+        "username",
+        "actor_user_id",
+        "event_code",
+        "action",
+        "details",
+        "target_user_id",
+    ]
+
+    def row_for_event(e: models.AuditEvent):
+        try:
+            meta = json.loads(e.metadata_json) if e.metadata_json else {}
+        except Exception:
+            meta = {}
+        code = e.event_code or ""
+        action = code.replace("RBAC_", "").replace("_", " ").lower()
+        details = meta.get("details") or meta.get("detail")
+        if not details:
+            if code == "RBAC_ROLE_ASSIGNED":
+                details = f"{meta.get('role', '?')} → {meta.get('username', 'user')}"
+            elif code == "RBAC_ROLE_REMOVED":
+                details = f"{meta.get('role', '?')} from {meta.get('username', 'user')}"
+            elif code in ("RBAC_ROLE_CREATED", "RBAC_ROLE_UPDATED", "RBAC_ROLE_DELETED"):
+                details = f"{meta.get('role', '?')}"
+        username = (
+            e.actor.username
+            if getattr(e, "actor", None) and getattr(e.actor, "username", None)
+            else "system"
+        )
+        ts = e.created_at.isoformat() if getattr(e, "created_at", None) else None
+        return [
+            e.id,
+            ts,
+            username,
+            e.actor_user_id,
+            e.event_code,
+            action,
+            details or "",
+            e.user_id,
+        ]
+
+    def iter_csv():
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(header)
+        yield buffer.getvalue()
+        buffer.seek(0)
+        buffer.truncate(0)
+
+        for e in q.order_by(models.AuditEvent.created_at.desc()).yield_per(1000):
+            writer.writerow(row_for_event(e))
+            yield buffer.getvalue()
+            buffer.seek(0)
+            buffer.truncate(0)
+
+    filename = "rbac_changes.csv"
+    response = StreamingResponse(iter_csv(), media_type="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
