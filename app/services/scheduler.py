@@ -7,6 +7,7 @@ from app.database import SessionLocal
 from app import models
 from app.utils.logger import log_event
 import pandas as pd
+from app.config import settings
 
 
 def archive_logs():
@@ -49,9 +50,34 @@ def purge_old_logs(days: int = 30):
         db.close()
 
 
+def purge_old_audit_events(days: int | None = None):
+    retention_days = days if days is not None else settings.audit_retention_days
+    db: Session = SessionLocal()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    try:
+        deleted = (
+            db.query(models.AuditEvent)
+            .filter(models.AuditEvent.created_at < cutoff)
+            .delete()
+        )
+        db.commit()
+        if deleted:
+            log_event(
+                f"Scheduler: Purged {deleted} audit events older than {retention_days} days"
+            )
+    except Exception as e:
+        log_event(f"Scheduler: Audit purge failed - {str(e)}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
     scheduler = BackgroundScheduler()
     scheduler.add_job(archive_logs, CronTrigger(day="*/7", hour=0, minute=0))
-    scheduler.add_job(purge_old_logs, CronTrigger(hour=1, minute=0))  # daily purge
+    scheduler.add_job(purge_old_logs, CronTrigger(hour=1, minute=0))
+    scheduler.add_job(
+        purge_old_audit_events,
+        CronTrigger(hour=2, minute=0),
+    )
     scheduler.start()
     log_event("Scheduler started: log archiving job scheduled for every 7 days")

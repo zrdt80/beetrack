@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     log_db_events: bool = True
 
     enable_scheduler: bool = True
+    audit_retention_days: int = 180
 
     rate_limiting_enabled: bool = True
     rate_limit_requests_per_minute: int = 60
