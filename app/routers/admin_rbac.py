@@ -559,6 +559,8 @@ async def export_rbac_changes_csv(
     event: Optional[str] = Query(None, description="Filter by exact RBAC_* event code"),
     since: Optional[datetime] = Query(None),
     until: Optional[datetime] = Query(None),
+    page: Optional[int] = Query(None, ge=1, description="When provided with size, export only this page"),
+    size: Optional[int] = Query(None, ge=1, le=200, description="When provided with page, export only that page size"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_permission(Perm.ADMIN_VIEW_AUDIT)),
 ):
@@ -627,7 +629,14 @@ async def export_rbac_changes_csv(
         buffer.seek(0)
         buffer.truncate(0)
 
-        for e in q.order_by(models.AuditEvent.created_at.desc()).yield_per(1000):
+        query = q.order_by(models.AuditEvent.created_at.desc())
+        if page is not None and size is not None:
+            offset = (page - 1) * size
+            query = query.offset(offset).limit(size)
+        else:
+            query = query.yield_per(1000)
+
+        for e in query:
             writer.writerow(row_for_event(e))
             yield buffer.getvalue()
             buffer.seek(0)

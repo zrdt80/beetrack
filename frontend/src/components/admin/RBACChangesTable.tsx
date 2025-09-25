@@ -31,6 +31,7 @@ import {
     localInputToUtcIso,
     utcIsoToLocalInput,
 } from "@/lib/datetime";
+import { toast } from "sonner";
 
 export default function RBACChangesTable() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -46,6 +47,7 @@ export default function RBACChangesTable() {
     const [until, setUntil] = useState<string>("");
     const [actorId, setActorId] = useState<string>("");
     const [userId, setUserId] = useState<string>("");
+    const [exportScope, setExportScope] = useState<"all" | "page">("all");
 
     const load = async (opts?: {
         page?: number;
@@ -150,6 +152,8 @@ export default function RBACChangesTable() {
                 until?: string;
                 actor_id?: number;
                 user_id?: number;
+                page?: number;
+                size?: number;
             } = {};
             if (eventFilter && eventFilter !== "all")
                 params.event = eventFilter;
@@ -157,6 +161,10 @@ export default function RBACChangesTable() {
             if (until) params.until = localInputToUtcIso(until);
             if (actorId) params.actor_id = parseInt(actorId);
             if (userId) params.user_id = parseInt(userId);
+            if (exportScope === "page") {
+                params.page = page;
+                params.size = size;
+            }
 
             const blob = await exportRBACChangesCSV(params);
             const url = window.URL.createObjectURL(blob);
@@ -166,8 +174,14 @@ export default function RBACChangesTable() {
             a.download = `rbac_changes_${date}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
+            toast.success(
+                exportScope === "page"
+                    ? "Exported current page as CSV"
+                    : "Exported all filtered results as CSV"
+            );
         } catch (e) {
             console.error("Failed to export RBAC changes", e);
+            toast.error("Failed to export RBAC changes");
         } finally {
             setExporting(false);
         }
@@ -329,6 +343,29 @@ export default function RBACChangesTable() {
                         >
                             {exporting ? "Exporting..." : "Export CSV"}
                         </Button>
+                        <div className="flex items-center gap-2">
+                            <label className="text-xs text-gray-600">
+                                Scope
+                            </label>
+                            <Select
+                                value={exportScope}
+                                onValueChange={(v) =>
+                                    setExportScope(v as "all" | "page")
+                                }
+                            >
+                                <SelectTrigger className="h-9 w-[160px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Export all filtered
+                                    </SelectItem>
+                                    <SelectItem value="page">
+                                        Export current page
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
                 {loading ? (
