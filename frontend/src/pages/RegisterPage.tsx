@@ -35,9 +35,10 @@ export default function RegisterPage() {
             };
             await registerUser(payload);
             navigate("/login");
-        } catch (err: any) {
-            const status = err?.response?.status;
-            const detail = err?.response?.data?.detail;
+        } catch (err: unknown) {
+            const error = err as { response?: { status?: number; data?: { detail?: string } } };
+            const status = error?.response?.status;
+            const detail = error?.response?.data?.detail;
             if (status === 429) {
                 setError(
                     "Too many registration attempts. Please try again later."

@@ -8,6 +8,6 @@ const MockComponent = () => (
 describe("App Smoke Test", () => {
     it("renders without crashing", () => {
         const { getByTestId } = render(<MockComponent />);
-        expect(getByTestId("mock-component")).toBeInTheDocument();
+        expect(getByTestId("mock-component")).toBeDefined();
     });
 });

@@ -88,7 +88,7 @@ export interface RBACChangeItem {
     user_id: number | null;
     username: string;
     target_user_id?: number | null;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 export interface RBACChangesResponse {

@@ -18,8 +18,9 @@ export function useRoleRequestPolling(options: Options = {}) {
             const data = await getMyRoleRequestSummary();
             setSummary(data);
             setError(null);
-        } catch (e: any) {
-            setError(e?.response?.data?.detail || e.message);
+        } catch (e: unknown) {
+            const error = e as { response?: { data?: { detail?: string } }; message?: string };
+            setError(error?.response?.data?.detail || error?.message || 'Unknown error');
         }
     };
 
