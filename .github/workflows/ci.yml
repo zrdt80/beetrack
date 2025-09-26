@@ -36,6 +36,7 @@ jobs:
                   METRICS_ENABLED: "false"
                   DETAILED_LOGGING_ENABLED: "false"
                   CORRELATION_IDS_ENABLED: "false"
+                  PYTHONPATH: "."
               run: |
                   pytest --cov=app
 
