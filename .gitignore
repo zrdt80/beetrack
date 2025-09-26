@@ -81,8 +81,8 @@ logs/
 # Exports
 exports/
 
-# Local development database
-beetrack.db
+# Database
+*.db
 
 # Todo files
 todo.txt
