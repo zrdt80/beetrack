@@ -10,20 +10,14 @@ from app.config import settings
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from app.schemas import ErrorResponse, ErrorDetail
+from contextlib import asynccontextmanager
 
 from app.middleware.rate_limiting import GlobalRateLimitMiddleware
 from app.middleware.security import SecurityHeadersMiddleware, CORSSecurityMiddleware, IPFilteringMiddleware
 from app.middleware.monitoring import PrometheusMiddleware, CorrelationIdMiddleware, DetailedLoggingMiddleware
 
-app = FastAPI(
-    title="BeeTrack API",
-    description="Apiary and order management system for beekeepers",
-    version="1.0.0"
-)
-
-
-@app.on_event("startup")
-def _startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     if settings.enable_scheduler:
         start_scheduler()
     
@@ -41,6 +35,16 @@ def _startup():
             replace_existing=True
         )
         metrics_scheduler.start()
+    
+    yield
+
+app = FastAPI(
+    title="BeeTrack API",
+    description="Apiary and order management system for beekeepers",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

@@ -117,7 +117,7 @@ def update_hive(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_permission(Perm.HIVES_MANAGE))
 ):
-    hive = db.query(models.Hive).get(hive_id)
+    hive = db.get(models.Hive, hive_id)
     if not hive:
         log_event(f"Hive update failed: hive {hive_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Hive not found")
@@ -152,7 +152,7 @@ def delete_hive(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    hive = db.query(models.Hive).get(hive_id)
+    hive = db.get(models.Hive, hive_id)
     if not hive:
         log_event(f"Hive deletion failed: hive {hive_id} not found, attempted by {current_user.username}")
         raise HTTPException(status_code=404, detail="Hive not found")

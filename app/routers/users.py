@@ -799,7 +799,7 @@ def update_me(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    update_data = user_data.dict(exclude_unset=True)
+    update_data = user_data.model_dump(exclude_unset=True)
 
     if "password" in update_data:
         try:
