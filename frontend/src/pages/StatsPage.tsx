@@ -227,7 +227,9 @@ export default function StatsPage() {
                                 <ResponsiveContainer width="100%" height={400}>
                                     <PieChart>
                                         <Pie
-                                            data={topProducts}
+                                            data={topProducts.map(
+                                                (product) => ({ ...product })
+                                            )}
                                             dataKey="sold"
                                             nameKey="product"
                                             cx="50%"
@@ -236,7 +238,7 @@ export default function StatsPage() {
                                             fill="#ffc658"
                                             label={({ name, percent }) =>
                                                 `${name} (${(
-                                                    (percent ?? 0) * 100
+                                                    Number(percent ?? 0) * 100
                                                 ).toFixed(0)}%)`
                                             }
                                         >
