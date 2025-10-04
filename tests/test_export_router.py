@@ -184,8 +184,8 @@ def test_export_filtered_orders_as_admin_csv_with_filters(db_session, admin_user
     cd = r.headers.get("content-disposition", "")
     assert cd.endswith('.csv"') or cd.endswith(".csv") or ".csv" in cd
     content = r.content.decode("utf-8")
-    assert "completed" in content
-    assert "pending" not in content
+    assert "completed" in content.lower()
+    assert "pending" not in content.lower()
 
 
 def test_export_filtered_orders_as_regular_user_only_own(db_session, admin_user, regular_user):
