@@ -60,7 +60,7 @@ def delete_log(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    log = db.query(models.Log).get(log_id)
+    log = db.get(models.Log, log_id)
     if not log:
         log_event(f"Log deletion failed: log {log_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Log not found")

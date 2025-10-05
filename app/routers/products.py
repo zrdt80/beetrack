@@ -26,7 +26,7 @@ def create_product(
             f"Product creation failed: '{normalized_name}' already exists (case-insensitive), attempted by admin {current_user.username}"
         )
         raise HTTPException(status_code=400, detail="Product with this name already exists")
-    payload = product.dict()
+    payload = product.model_dump()
     payload["name"] = normalized_name
     new_product = models.Product(**payload)
     db.add(new_product)
@@ -68,7 +68,7 @@ def list_products(
 
 @router.get("/{product_id}", response_model=schemas.ProductRead)
 def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(models.Product).get(product_id)
+    product = db.get(models.Product, product_id)
     if not product:
         log_event(f"Product not found: {product_id}")
         raise HTTPException(status_code=404, detail="Product not found")
@@ -83,12 +83,12 @@ def update_product(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    product = db.query(models.Product).get(product_id)
+    product = db.get(models.Product, product_id)
     if not product:
         log_event(f"Product update failed: product {product_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Product not found")
 
-    payload = product_data.dict(exclude_unset=True)
+    payload = product_data.model_dump(exclude_unset=True)
     if "name" in payload and payload["name"] is not None:
         new_name = payload["name"].strip()
         if new_name != product.name:
@@ -122,7 +122,7 @@ def delete_product(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_role("admin"))
 ):
-    product = db.query(models.Product).get(product_id)
+    product = db.get(models.Product, product_id)
     if not product:
         log_event(f"Product deletion failed: product {product_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Product not found")

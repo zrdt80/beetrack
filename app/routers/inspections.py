@@ -22,7 +22,7 @@ def _recalc_last_inspection_date(db: Session, hive_ids: list[int]):
     )
     max_map = {hid: max_date for hid, max_date in results}
     for hid in unique_ids:
-        hive = db.query(models.Hive).get(hid)
+        hive = db.get(models.Hive, hid)
         if not hive:
             continue
         hive.last_inspection_date = max_map.get(hid)
@@ -34,12 +34,12 @@ def create_inspection(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_CREATE))
 ):
-    hive = db.query(models.Hive).get(inspection.hive_id)
+    hive = db.get(models.Hive, inspection.hive_id)
     if not hive:
         log_event(f"Inspection creation failed: hive {inspection.hive_id} not found, attempted by {current_user.username}")
         raise HTTPException(status_code=404, detail="Hive not found")
 
-    new_inspection = models.Inspection(**inspection.dict())
+    new_inspection = models.Inspection(**inspection.model_dump())
     
     if new_inspection.date is None:
         new_inspection.date = datetime.now(timezone.utc)
@@ -98,7 +98,7 @@ def get_inspections_for_hive(
     db: Session = Depends(get_db),
     _: models.User = Depends(requires_permission(Perm.INSPECTIONS_VIEW))
 ):
-    hive = db.query(models.Hive).get(hive_id)
+    hive = db.get(models.Hive, hive_id)
     if not hive:
         log_event(f"Inspections request failed: hive {hive_id} not found")
         raise HTTPException(status_code=404, detail="Hive not found")
@@ -131,14 +131,14 @@ def update_inspection(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_MANAGE))
 ):
-    existing_inspection = db.query(models.Inspection).get(inspection_id)
+    existing_inspection = db.get(models.Inspection, inspection_id)
     if not existing_inspection:
         log_event(f"Inspection update failed: inspection {inspection_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Inspection not found")
 
     old_hive_id = existing_inspection.hive_id
 
-    for key, value in inspection.dict(exclude_unset=True).items():
+    for key, value in inspection.model_dump(exclude_unset=True).items():
         setattr(existing_inspection, key, value)
     
     if existing_inspection.date is None:
@@ -167,7 +167,7 @@ def delete_inspection(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(requires_permission(Perm.INSPECTIONS_MANAGE))
 ):
-    inspection = db.query(models.Inspection).get(inspection_id)
+    inspection = db.get(models.Inspection, inspection_id)
     if not inspection:
         log_event(f"Inspection deletion failed: inspection {inspection_id} not found, attempted by admin {current_user.username}")
         raise HTTPException(status_code=404, detail="Inspection not found")

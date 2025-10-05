@@ -27,7 +27,7 @@ def create_order(
     total = 0
     product_names = []
     for item in order_data.items:
-        product = db.query(models.Product).get(item.product_id)
+        product = db.get(models.Product, item.product_id)
         if not product:
             log_event(f"Order creation failed: product ID {item.product_id} not found, attempted by {user.username}")
             raise HTTPException(status_code=404, detail=f"Product ID {item.product_id} not found")
@@ -175,7 +175,7 @@ def update_order_status(
     db: Session = Depends(get_db),
     user: models.User = Depends(requires_permission(Perm.ORDERS_MANAGE))
 ):
-    order = db.query(models.Order).get(order_id)
+    order = db.get(models.Order, order_id)
     if not order:
         log_event(f"Order update failed: order {order_id} not found, attempted by {user.username}")
         raise HTTPException(status_code=404, detail="Order not found")
@@ -204,7 +204,7 @@ def delete_order(
 ):
     from app.services.rbac import check_permission
     
-    order = db.query(models.Order).get(order_id)
+    order = db.get(models.Order, order_id)
     if not order:
         log_event(f"Order deletion failed: order {order_id} not found, attempted by {user.username}")
         raise HTTPException(status_code=404, detail="Order not found")
