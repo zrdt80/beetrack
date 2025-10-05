@@ -853,7 +853,7 @@ def update_user(
         log_event(f"Admin update failed: user {user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
 
-    update_data = user_data.dict(exclude_unset=True)
+    update_data = user_data.model_dump(exclude_unset=True)
     if "password" in update_data:
         try:
             validate_password_strength(update_data["password"])

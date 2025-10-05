@@ -47,7 +47,7 @@ class UserRead(UserBase):
     two_factor_enabled: bool | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserUpdate(BaseModel):
@@ -62,7 +62,7 @@ class UserUpdate(BaseModel):
     locale: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ---------------------
@@ -142,7 +142,7 @@ class UserSessionRead(UserSessionBase):
     is_valid: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserSessionUpdate(BaseModel):
@@ -173,7 +173,7 @@ class HiveRead(HiveBase):
     last_inspection_date: Optional[datetime]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ApiaryHiveCreate(HiveBase):
@@ -200,7 +200,7 @@ class InspectionRead(InspectionBase):
     hive_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # -----------------------
@@ -225,14 +225,14 @@ class ProductUpdate(BaseModel):
     stock_quantity: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ProductRead(ProductBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ---------------------
@@ -254,7 +254,7 @@ class OrderItemRead(BaseModel):
     price_each: float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class OrderRead(BaseModel):
@@ -266,14 +266,14 @@ class OrderRead(BaseModel):
     items: List[OrderItemRead]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class OrderStatusUpdate(BaseModel):
     status: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # --------------------------
@@ -326,7 +326,7 @@ class LogEntry(BaseModel):
     level: str | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class LogCursorPage(BaseModel):
@@ -375,7 +375,7 @@ class RoleRequestRead(BaseModel):
     decided_at: datetime | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RoleRequestDecision(BaseModel):
@@ -448,7 +448,7 @@ class ApiaryRead(ApiaryBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ApiaryMemberRead(BaseModel):
@@ -461,7 +461,7 @@ class ApiaryMemberRead(BaseModel):
     is_active: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ApiaryMemberUpdate(BaseModel):
@@ -485,7 +485,7 @@ class ApiaryInvitationRead(BaseModel):
     decided_at: datetime | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
     last_decided_at: datetime | None = None
 
 
@@ -510,7 +510,7 @@ class ApiaryMemberAdd(BaseModel):
     role: ApiaryRole = ApiaryRole.worker
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ----------------------
