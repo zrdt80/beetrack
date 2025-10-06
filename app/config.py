@@ -1,6 +1,7 @@
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
+
 
 class Settings(BaseSettings):
     environment: str = "development"  # development|staging|production
@@ -25,21 +26,21 @@ class Settings(BaseSettings):
     rate_limit_burst_requests: int = 10
     rate_limit_storage: str = "memory"
     redis_url: str = "redis://localhost:6379/0"
-    
+
     security_headers_enabled: bool = True
     cors_allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
     ]
     cors_extra_origins: str | None = None
     trusted_proxies: list[str] = []
-    
+
     max_login_attempts: int = 5
     lockout_duration_minutes: int = 15
     suspicious_activity_threshold: int = 100
-    
+
     metrics_enabled: bool = True
     metrics_update_interval: int = 30
     prometheus_endpoint_enabled: bool = True
@@ -48,10 +49,11 @@ class Settings(BaseSettings):
     system_metrics_collection: bool = True
     slow_query_threshold_seconds: float = 1.0
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        case_sensitive=False,
+    )
 
     @field_validator("secret_key")
     @classmethod
@@ -70,12 +72,17 @@ class Settings(BaseSettings):
     def parse_extra_origins(cls, v: str | None):
         if not v:
             return None
-        parts = [p.strip() for p in v.replace(";", ",").replace(" ", ",").split(",") if p.strip()]
+        parts = [
+            p.strip()
+            for p in v.replace(";", ",").replace(" ", ",").split(",")
+            if p.strip()
+        ]
         return ",".join(parts) if parts else None
 
 
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()

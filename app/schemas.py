@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, constr, field_validator
+from pydantic import BaseModel, EmailStr, constr, field_validator, ConfigDict
 from typing import Annotated, Any
 from enum import Enum
 from datetime import datetime
@@ -15,8 +15,11 @@ class UserRole(str, Enum):
 # --- USER SCHEMAS ---
 # --------------------
 
+
 class UserBase(BaseModel):
-    username: Annotated[str, constr(min_length=3, max_length=50, pattern=r"^[A-Za-z0-9_.-]+$")]
+    username: Annotated[
+        str, constr(min_length=3, max_length=50, pattern=r"^[A-Za-z0-9_.-]+$")
+    ]
     email: EmailStr
     role: UserRole = UserRole.user
     created_at: datetime = None
@@ -45,9 +48,7 @@ class UserCreate(UserBase):
 class UserRead(UserBase):
     id: int
     two_factor_enabled: bool | None = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
@@ -60,14 +61,13 @@ class UserUpdate(BaseModel):
     theme: Optional[str] = None
     timezone: Optional[str] = None
     locale: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------------------
 # --- LOGIN SCHEMAS ---
 # ---------------------
+
 
 class Token(BaseModel):
     access_token: str
@@ -89,6 +89,7 @@ class LoginRequest(BaseModel):
 # ------------------------
 # --- 2FA TOTP SCHEMAS ---
 # ------------------------
+
 
 class TwoFASetupStart(BaseModel):
     provisioning_uri: str
@@ -123,6 +124,7 @@ class LoginRequires2FA(BaseModel):
 # --- SESSION SCHEMAS ---
 # -----------------------
 
+
 class UserSessionBase(BaseModel):
     user_agent: Optional[str] = None
     ip_address: Optional[str] = None
@@ -140,22 +142,19 @@ class UserSessionRead(UserSessionBase):
     last_activity: datetime
     expires_at: datetime
     is_valid: bool
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSessionUpdate(BaseModel):
     last_activity: Optional[datetime] = None
     is_valid: Optional[bool] = None
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --------------------
 # --- HIVE SCHEMAS ---
 # --------------------
+
 
 class HiveBase(BaseModel):
     name: str
@@ -171,9 +170,7 @@ class HiveRead(HiveBase):
     apiary_id: int | None = None
     apiary_name: str | None = None
     last_inspection_date: Optional[datetime]
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApiaryHiveCreate(HiveBase):
@@ -183,6 +180,7 @@ class ApiaryHiveCreate(HiveBase):
 # --------------------------
 # --- INSPECTION SCHEMAS ---
 # --------------------------
+
 
 class InspectionBase(BaseModel):
     date: Optional[datetime] = None
@@ -198,14 +196,13 @@ class InspectionCreate(InspectionBase):
 class InspectionRead(InspectionBase):
     id: int
     hive_id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # -----------------------
 # --- PRODUCT SCHEMAS ---
 # -----------------------
+
 
 class ProductBase(BaseModel):
     name: str
@@ -223,21 +220,18 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     unit_price: Optional[float] = None
     stock_quantity: Optional[int] = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductRead(ProductBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------------------
 # --- ORDER SCHEMAS ---
 # ---------------------
+
 
 class OrderItemCreate(BaseModel):
     product_id: int
@@ -252,9 +246,7 @@ class OrderItemRead(BaseModel):
     product_id: int
     quantity: int
     price_each: float
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderRead(BaseModel):
@@ -264,21 +256,18 @@ class OrderRead(BaseModel):
     status: str
     total_price: float
     items: List[OrderItemRead]
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderStatusUpdate(BaseModel):
     status: str
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --------------------------
 # --- PAGINATION SCHEMAS ---
 # --------------------------
+
 
 class PageMeta(BaseModel):
     page: int
@@ -309,6 +298,7 @@ class InspectionPage(Page):
 class OrderPage(Page):
     items: list[OrderRead]
 
+
 class UserPage(Page):
     items: list[UserRead]
 
@@ -324,9 +314,7 @@ class LogEntry(BaseModel):
     timestamp: datetime
     event: str
     level: str | None = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LogCursorPage(BaseModel):
@@ -345,6 +333,7 @@ class LogStats(BaseModel):
 # ------------------------------
 # --- ROLE CHANGE REQUESTS -----
 # ------------------------------
+
 
 class RoleRequestStatus(str, Enum):
     pending = "pending"
@@ -373,9 +362,7 @@ class RoleRequestRead(BaseModel):
     decided_by: int | None = None
     created_at: datetime
     decided_at: datetime | None = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleRequestDecision(BaseModel):
@@ -418,6 +405,7 @@ class RoleRequestRejectionTemplates(BaseModel):
 # --- APIARIES ------
 # -------------------
 
+
 class ApiaryRole(str, Enum):
     owner = "owner"
     manager = "manager"
@@ -446,9 +434,7 @@ class ApiaryRead(ApiaryBase):
     owner_id: int
     owner_username: str | None = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApiaryMemberRead(BaseModel):
@@ -459,9 +445,7 @@ class ApiaryMemberRead(BaseModel):
     role: ApiaryRole
     joined_at: datetime
     is_active: bool
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApiaryMemberUpdate(BaseModel):
@@ -483,9 +467,7 @@ class ApiaryInvitationRead(BaseModel):
     token: str
     created_at: datetime
     decided_at: datetime | None = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
     last_decided_at: datetime | None = None
 
 
@@ -508,14 +490,13 @@ class ApiaryTransferOwnershipRequest(BaseModel):
 class ApiaryMemberAdd(BaseModel):
     user_id: int
     role: ApiaryRole = ApiaryRole.worker
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ----------------------
 # --- EXPORT SCHEMAS ---
 # ----------------------
+
 
 class ExportFormat(str, Enum):
     csv = "csv"
@@ -535,7 +516,7 @@ class ExportFilterBase(BaseModel):
     end_date: Optional[datetime] = None
     format: ExportFormat = ExportFormat.csv
     timezone: Optional[str] = None
-    
+
     @field_validator("apiary_ids")
     @classmethod
     def validate_apiary_ids(cls, v):
@@ -551,8 +532,8 @@ class OrderExportFilter(BaseModel):
     timezone: Optional[str] = None
     user_ids: Optional[List[int]] = None
     status_filter: Optional[List[str]] = None
-    
-    
+
+
 class InspectionExportFilter(ExportFilterBase):
     hive_ids: Optional[List[int]] = None
     temperature_min: Optional[float] = None
@@ -566,7 +547,7 @@ class HiveExportFilter(BaseModel):
     timezone: Optional[str] = None
     status_filter: Optional[List[str]] = None
     last_inspection_days: Optional[int] = None
-    
+
     @field_validator("apiary_ids")
     @classmethod
     def validate_apiary_ids(cls, v):
@@ -586,8 +567,8 @@ class ApiaryExportFilter(BaseModel):
 class ExportRequest(BaseModel):
     data_type: ExportDataType
     filters: dict = {}
-    
-    
+
+
 class ExportResponse(BaseModel):
     success: bool
     message: str
@@ -611,7 +592,7 @@ class ExportPermissionCheck(BaseModel):
 class DateRangeValidation(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    
+
     @field_validator("end_date")
     @classmethod
     def validate_date_range(cls, v, values):
@@ -640,9 +621,11 @@ class ExportPreview(BaseModel):
     date_range: Optional[str] = None
     filters_applied: List[str] = []
 
+
 # -----------------------
 # --- ERROR RESPONSES ---
 # -----------------------
+
 
 class ErrorDetail(BaseModel):
     loc: List[str] | None = None
@@ -665,6 +648,7 @@ class ErrorResponse(BaseModel):
 # --- RBAC SCHEMAS ---
 # --------------------
 
+
 class PermissionBase(BaseModel):
     name: str
     description: str
@@ -673,9 +657,7 @@ class PermissionBase(BaseModel):
 
 class PermissionRead(PermissionBase):
     id: int
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleBase(BaseModel):
@@ -697,9 +679,7 @@ class RoleRead(RoleBase):
     id: int
     created_at: datetime
     permissions: List[PermissionRead] = []
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserRoleAssignmentBase(BaseModel):
@@ -719,18 +699,14 @@ class UserRoleAssignmentRead(UserRoleAssignmentBase):
     is_active: bool
     user: UserRead | None = None
     role: RoleRead | None = None
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserWithRoles(UserRead):
     role_assignments: List[UserRoleAssignmentRead] = []
     roles: List[RoleRead] = []
     permissions: List[str] = []
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RolePermissionMatrix(BaseModel):
