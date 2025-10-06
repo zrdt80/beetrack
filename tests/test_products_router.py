@@ -4,21 +4,39 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app import models
-from tests.conftest import _create_user
+from tests.conftest import _create_user, client_as
 
 
-def make_product(db: Session, name: str, price: float = 10.0, stock: int = 100) -> models.Product:
-    p = models.Product(name=name, description=f"{name} desc", unit_price=price, stock_quantity=stock)
+def make_product(
+    db: Session, name: str, price: float = 10.0, stock: int = 100
+) -> models.Product:
+    p = models.Product(
+        name=name, description=f"{name} desc", unit_price=price, stock_quantity=stock
+    )
     db.add(p)
     db.flush()
     return p
 
 
-def make_order_with_product(db: Session, user: models.User, product: models.Product, qty: int = 1) -> models.Order:
-    order = models.Order(user_id=user.id, date=datetime.now(timezone.utc), status="pending", total_price=0)
+def make_order_with_product(
+    db: Session, user: models.User, product: models.Product, qty: int = 1
+) -> models.Order:
+    order = models.Order(
+        user_id=user.id,
+        date=datetime.now(timezone.utc),
+        status="pending",
+        total_price=0,
+    )
     db.add(order)
     db.flush()
-    db.add(models.OrderItem(order_id=order.id, product_id=product.id, quantity=qty, price_each=product.unit_price))
+    db.add(
+        models.OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            quantity=qty,
+            price_each=product.unit_price,
+        )
+    )
     order.total_price = qty * product.unit_price
     db.commit()
     db.refresh(order)
@@ -44,41 +62,41 @@ def test_create_product_success(client: TestClient, db_session: Session, admin_u
     assert data["stock_quantity"] == 5
 
 
-def test_create_product_conflict_case_insensitive(client: TestClient, db_session: Session, admin_user):
+def test_create_product_conflict_case_insensitive(
+    client: TestClient, db_session: Session, admin_user
+):
     admin_user.role = models.UserRole.admin
     db_session.commit()
 
     make_product(db_session, "Honey")
 
-    resp = client.post("/products/", json={
-        "name": "hOnEy",
-        "description": "dup",
-        "unit_price": 3.0,
-        "stock_quantity": 1,
-    })
+    resp = client.post(
+        "/products/",
+        json={
+            "name": "hOnEy",
+            "description": "dup",
+            "unit_price": 3.0,
+            "stock_quantity": 1,
+        },
+    )
     assert resp.status_code == 400
     assert "already exists" in resp.json()["message"].lower()
 
 
-def test_create_product_requires_admin(client: TestClient, db_session: Session, regular_user):
-    from app.main import app
-    from app.services.auth import get_current_user
-
-    def override_get_current_user():
-        return regular_user
-
-    app.dependency_overrides[get_current_user] = override_get_current_user
-
-    resp = client.post("/products/", json={
-        "name": "NoPerm",
-        "description": "",
-        "unit_price": 1.0,
-        "stock_quantity": 1,
-    })
-
-    assert resp.status_code == 403
-
-    app.dependency_overrides.pop(get_current_user, None)
+def test_create_product_requires_admin(
+    client: TestClient, db_session: Session, regular_user
+):
+    with client_as(db_session, regular_user) as c:
+        resp = c.post(
+            "/products/",
+            json={
+                "name": "NoPerm",
+                "description": "",
+                "unit_price": 1.0,
+                "stock_quantity": 1,
+            },
+        )
+        assert resp.status_code == 403
 
 
 def test_list_products_pagination_and_headers(client: TestClient, db_session: Session):
@@ -112,17 +130,22 @@ def test_update_product_success(client: TestClient, db_session: Session, admin_u
 
     p = make_product(db_session, "UpdA", 5.0, 2)
 
-    resp = client.put(f"/products/{p.id}", json={
-        "name": "  Renamed  ",
-        "unit_price": 6.0,
-    })
+    resp = client.put(
+        f"/products/{p.id}",
+        json={
+            "name": "  Renamed  ",
+            "unit_price": 6.0,
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "Renamed"
     assert data["unit_price"] == pytest.approx(6.0)
 
 
-def test_update_product_conflict_case_insensitive(client: TestClient, db_session: Session, admin_user):
+def test_update_product_conflict_case_insensitive(
+    client: TestClient, db_session: Session, admin_user
+):
     admin_user.role = models.UserRole.admin
     db_session.commit()
 
@@ -156,7 +179,9 @@ def test_delete_product_success(client: TestClient, db_session: Session, admin_u
     assert miss.status_code == 404
 
 
-def test_delete_product_blocked_by_order_reference(client: TestClient, db_session: Session, admin_user):
+def test_delete_product_blocked_by_order_reference(
+    client: TestClient, db_session: Session, admin_user
+):
     admin_user.role = models.UserRole.admin
     db_session.commit()
 
