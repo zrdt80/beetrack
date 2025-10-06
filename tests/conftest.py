@@ -9,7 +9,8 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test.db")
 os.environ["SECRET_KEY"] = os.environ.get(
-    "TEST_SECRET_KEY", "ZZ1xeW9URjQX2CGN8vBvkXJMc64UL9JoxF9K9xxjwJcMmUVT6a3LQpU87T0mLNyB"
+    "TEST_SECRET_KEY",
+    "ZZ1xeW9URjQX2CGN8vBvkXJMc64UL9JoxF9K9xxjwJcMmUVT6a3LQpU87T0mLNyB",
 )
 os.environ["ENABLE_SCHEDULER"] = "false"
 os.environ["METRICS_ENABLED"] = "false"
@@ -104,9 +105,7 @@ def _ensure_permission(session, user: models.User, permission_name: str) -> None
         session.flush()
 
     role = (
-        session.query(models.Role)
-        .filter(models.Role.name == "test_admin_role")
-        .first()
+        session.query(models.Role).filter(models.Role.name == "test_admin_role").first()
     )
     if not role:
         role = models.Role(
@@ -126,9 +125,7 @@ def _ensure_permission(session, user: models.User, permission_name: str) -> None
         .first()
         is None
     ):
-        session.add(
-            models.RolePermission(role_id=role.id, permission_id=permission.id)
-        )
+        session.add(models.RolePermission(role_id=role.id, permission_id=permission.id))
         session.flush()
 
     if (
@@ -163,3 +160,42 @@ def admin_user(db_session):
 @pytest.fixture
 def regular_user(db_session):
     return _create_user(db_session, prefix="member")
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def client_as(session, user):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.database import get_db
+    from app.services.auth import get_current_user
+
+    def override_get_db():
+        try:
+            yield session
+        finally:
+            pass
+
+    def override_get_current_user():
+        return user
+
+    original_db = app.dependency_overrides.get(get_db)
+    original_user = app.dependency_overrides.get(get_current_user)
+
+    try:
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        if original_db is not None:
+            app.dependency_overrides[get_db] = original_db
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if original_user is not None:
+            app.dependency_overrides[get_current_user] = original_user
+        else:
+            app.dependency_overrides.pop(get_current_user, None)
