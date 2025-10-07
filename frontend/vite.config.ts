@@ -13,10 +13,13 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    react: ["react", "react-dom", "react-router-dom"],
-                    vendor_ui: ["lucide-react"],
+                    react: ["react", "react-dom"],
+                    "react-router": ["react-router-dom"],
+
+                    "ui-core": ["lucide-react"],
                 },
             },
         },
+        chunkSizeWarningLimit: 600,
     },
 });
