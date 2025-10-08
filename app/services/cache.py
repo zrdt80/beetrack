@@ -36,7 +36,12 @@ class CacheService:
             return None
 
         try:
-            return await client.get(key)
+            val = await client.get(key)
+            if val is not None:
+                log_event(f"Cache hit {key}", level="DEBUG")
+            else:
+                log_event(f"Cache miss {key}", level="DEBUG")
+            return val
         except Exception as e:
             log_event(f"Cache get error: {e}", level="ERROR")
             return None
@@ -48,6 +53,7 @@ class CacheService:
 
         try:
             await client.setex(key, ttl, value)
+            log_event(f"Cache set {key} ttl={ttl}", level="DEBUG")
             return True
         except Exception as e:
             log_event(f"Cache set error: {e}", level="ERROR")

@@ -22,6 +22,8 @@ except Exception as e:
     print(f'❌ Failed to create tables: {e}')
     exit(1)
 "
+    echo "📌 Stamping Alembic head to current..."
+    alembic stamp head || true
 fi
 
 echo "🗂️ Ensuring static directories exist..."
