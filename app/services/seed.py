@@ -13,7 +13,11 @@ from app.database import Base, engine
 from app.services.rbac_init import initialize_rbac_system, verify_rbac_setup
 
 FORCE_RESEED = False
-GENERATE_LARGE_DATA = True
+GENERATE_LARGE_DATA = os.getenv("GENERATE_LARGE_DATA", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 RANDOM_SEED = 42
 INSPECTIONS_PER_HIVE = 30
 ORDERS_COUNT = 400
@@ -28,7 +32,9 @@ def ensure_tables_exist():
         existing_tables = inspector.get_table_names()
         if "users" not in existing_tables:
             print("⚠️ Tables don't exist. Creating tables directly with SQLAlchemy...")
-            log_event("Creating tables with SQLAlchemy (alembic migrations may have failed)")
+            log_event(
+                "Creating tables with SQLAlchemy (alembic migrations may have failed)"
+            )
             Base.metadata.create_all(bind=engine)
             return True
         return False
@@ -45,26 +51,29 @@ def _generate_inspections(base_date: datetime, hives: list) -> list:
             dt = base_date + timedelta(days=i, hours=(hive_index % 4))
             temp = round(32.0 + random.random() * 2.5, 1)
             disease = random.choices(
-                ["none", "varroa", "nosema", "foulbrood"],
-                weights=[75, 10, 8, 7]
+                ["none", "varroa", "nosema", "foulbrood"], weights=[75, 10, 8, 7]
             )[0]
             notes_lookup = {
                 "none": "Normal activity",
                 "varroa": "Mites monitored",
                 "nosema": "Spore check",
-                "foulbrood": "Isolation protocol"
+                "foulbrood": "Isolation protocol",
             }
-            inspections.append({
-                "hive_id": hive_index,
-                "date": dt.isoformat() + "Z",
-                "temperature": temp,
-                "disease_detected": disease,
-                "notes": notes_lookup[disease]
-            })
+            inspections.append(
+                {
+                    "hive_id": hive_index,
+                    "date": dt.isoformat() + "Z",
+                    "temperature": temp,
+                    "disease_detected": disease,
+                    "notes": notes_lookup[disease],
+                }
+            )
     return inspections
 
 
-def _generate_dense_hive_inspections(base_date: datetime, dense_hives: list, existing: list) -> None:
+def _generate_dense_hive_inspections(
+    base_date: datetime, dense_hives: list, existing: list
+) -> None:
     extra_days = 40
     for dense_id in dense_hives:
         start_offset = 100
@@ -72,16 +81,17 @@ def _generate_dense_hive_inspections(base_date: datetime, dense_hives: list, exi
             dt = base_date + timedelta(days=start_offset + d, hours=(dense_id % 5))
             temp = round(32.5 + random.random() * 2.8, 1)
             disease = random.choices(
-                ["none", "varroa", "nosema", "foulbrood"],
-                weights=[70, 12, 10, 8]
+                ["none", "varroa", "nosema", "foulbrood"], weights=[70, 12, 10, 8]
             )[0]
-            existing.append({
-                "hive_id": dense_id,
-                "date": dt.isoformat() + "Z",
-                "temperature": temp,
-                "disease_detected": disease,
-                "notes": f"Extended monitoring {d+1}"
-            })
+            existing.append(
+                {
+                    "hive_id": dense_id,
+                    "date": dt.isoformat() + "Z",
+                    "temperature": temp,
+                    "disease_detected": disease,
+                    "notes": f"Extended monitoring {d+1}",
+                }
+            )
 
 
 def _generate_orders(order_base: datetime, products: list, users: list) -> list:
@@ -92,13 +102,15 @@ def _generate_orders(order_base: datetime, products: list, users: list) -> list:
         user_id = (oid % user_count) + 1 if user_count else 1
         order_date = order_base + timedelta(minutes=30 * oid)
         status = random.choices(
-            ["completed", "pending", "cancelled", "shipped"],
-            weights=[55, 20, 5, 20]
+            ["completed", "pending", "cancelled", "shipped"], weights=[55, 20, 5, 20]
         )[0]
         items_count = random.randint(ORDER_ITEMS_MIN, ORDER_ITEMS_MAX)
         chosen_products = (
-            random.sample(range(1, product_count + 1), k=min(items_count, product_count))
-            if product_count else []
+            random.sample(
+                range(1, product_count + 1), k=min(items_count, product_count)
+            )
+            if product_count
+            else []
         )
         items = []
         total = 0.0
@@ -108,19 +120,19 @@ def _generate_orders(order_base: datetime, products: list, users: list) -> list:
             except Exception:
                 unit_price = 10.0
             quantity = random.randint(1, 5)
-            items.append({
-                "product_id": pid,
-                "quantity": quantity,
-                "price_each": unit_price
-            })
+            items.append(
+                {"product_id": pid, "quantity": quantity, "price_each": unit_price}
+            )
             total += unit_price * quantity
-        orders.append({
-            "user_id": user_id,
-            "date": order_date.isoformat() + "Z",
-            "status": status,
-            "total_price": round(total, 2),
-            "items": items
-        })
+        orders.append(
+            {
+                "user_id": user_id,
+                "date": order_date.isoformat() + "Z",
+                "status": status,
+                "total_price": round(total, 2),
+                "items": items,
+            }
+        )
     return orders
 
 
@@ -132,7 +144,9 @@ def _generate_large_data(base_seed: dict) -> dict:
 
     base_date = datetime(2025, 7, 1, 8, 0, 0)
     inspections = _generate_inspections(base_date, hives)
-    _generate_dense_hive_inspections(base_date, dense_hives=[1, 2], existing=inspections)
+    _generate_dense_hive_inspections(
+        base_date, dense_hives=[1, 2], existing=inspections
+    )
 
     order_base = datetime(2025, 7, 1, 12, 0, 0)
     orders = _generate_orders(order_base, products, users)
@@ -160,9 +174,11 @@ def _clear_existing_data(db: Session):
     dialect = db.bind.dialect.name
     try:
         if dialect == "postgresql":
-            db.execute(text(
-                "TRUNCATE TABLE order_items, orders, user_sessions, inspections, apiary_invitations, apiary_members, hives, apiaries, products, role_change_requests, logs, users RESTART IDENTITY CASCADE"
-            ))
+            db.execute(
+                text(
+                    "TRUNCATE TABLE order_items, orders, user_sessions, inspections, apiary_invitations, apiary_members, hives, apiaries, products, role_change_requests, logs, users RESTART IDENTITY CASCADE"
+                )
+            )
         else:
             ordered_tables = [
                 models.OrderItem.__table__,
@@ -191,12 +207,14 @@ def _clear_existing_data(db: Session):
 def _seed_users(db: Session, seed_data: dict):
     users_payload = []
     for user in seed_data.get("users", []):
-        users_payload.append(models.User(
-            username=user["username"],
-            email=user["email"],
-            hashed_password=Hasher.hash_password(user["password"]),
-            role=user["role"]
-        ))
+        users_payload.append(
+            models.User(
+                username=user["username"],
+                email=user["email"],
+                hashed_password=Hasher.hash_password(user["password"]),
+                role=user["role"],
+            )
+        )
     db.add_all(users_payload)
     db.commit()
     log_event(f"Seeded {len(users_payload)} users")
@@ -205,12 +223,14 @@ def _seed_users(db: Session, seed_data: dict):
 def _seed_products(db: Session, seed_data: dict):
     products_payload = []
     for product in seed_data.get("products", []):
-        products_payload.append(models.Product(
-            name=product["name"],
-            description=product["description"],
-            unit_price=product["unit_price"],
-            stock_quantity=product["stock_quantity"]
-        ))
+        products_payload.append(
+            models.Product(
+                name=product["name"],
+                description=product["description"],
+                unit_price=product["unit_price"],
+                stock_quantity=product["stock_quantity"],
+            )
+        )
     db.add_all(products_payload)
     db.commit()
     log_event(f"Seeded {len(products_payload)} products")
@@ -258,7 +278,11 @@ def _seed_apiary_members(db: Session, seed_data: dict):
         user = users_by_username.get((m.get("username") or "").lower())
         if not apiary or not user:
             continue
-        existing = db.query(models.ApiaryMember).filter_by(apiary_id=apiary.id, user_id=user.id).first()
+        existing = (
+            db.query(models.ApiaryMember)
+            .filter_by(apiary_id=apiary.id, user_id=user.id)
+            .first()
+        )
         if existing:
             continue
         role_value = (m.get("role") or "worker").lower()
@@ -266,7 +290,11 @@ def _seed_apiary_members(db: Session, seed_data: dict):
             role = models.ApiaryRole(role_value)
         except Exception:
             role = models.ApiaryRole.worker
-        db.add(models.ApiaryMember(apiary_id=apiary.id, user_id=user.id, role=role, is_active=True))
+        db.add(
+            models.ApiaryMember(
+                apiary_id=apiary.id, user_id=user.id, role=role, is_active=True
+            )
+        )
         created += 1
     if created:
         db.commit()
@@ -288,12 +316,14 @@ def _seed_hives(db: Session, seed_data: dict):
                 lid_dt = datetime.fromisoformat(lid.replace("Z", "+00:00"))
             except Exception:
                 lid_dt = None
-        hives_payload.append(models.Hive(
-            name=hive["name"],
-            status=hive.get("status", "active"),
-            last_inspection_date=lid_dt,
-            apiary_id=apiary_id,
-        ))
+        hives_payload.append(
+            models.Hive(
+                name=hive["name"],
+                status=hive.get("status", "active"),
+                last_inspection_date=lid_dt,
+                apiary_id=apiary_id,
+            )
+        )
     db.add_all(hives_payload)
     db.commit()
     log_event(f"Seeded {len(hives_payload)} hives (last_inspection_date deferred)")
@@ -316,13 +346,15 @@ def _seed_inspections(db: Session, seed_data: dict):
             dt = datetime.fromisoformat(inspection["date"].replace("Z", "+00:00"))
         except Exception:
             dt = datetime.now(timezone.utc)
-        db.add(models.Inspection(
-            hive_id=real_id,
-            date=dt,
-            temperature=inspection.get("temperature"),
-            disease_detected=inspection.get("disease_detected", "none"),
-            notes=inspection.get("notes")
-        ))
+        db.add(
+            models.Inspection(
+                hive_id=real_id,
+                date=dt,
+                temperature=inspection.get("temperature"),
+                disease_detected=inspection.get("disease_detected", "none"),
+                notes=inspection.get("notes"),
+            )
+        )
         inspections_count += 1
     db.commit()
     log_event(f"Seeded {inspections_count} inspections (committed)")
@@ -413,7 +445,14 @@ def _seed_role_change_requests(db: Session):
 
     requests: list[models.RoleChangeRequest] = []
 
-    def add_request(u, created_at: datetime, status, from_role, to_role=models.UserRole.worker, reason_prefix="Pattern seed"):
+    def add_request(
+        u,
+        created_at: datetime,
+        status,
+        from_role,
+        to_role=models.UserRole.worker,
+        reason_prefix="Pattern seed",
+    ):
         r = models.RoleChangeRequest(
             user_id=u.id,
             from_role=from_role,
@@ -422,7 +461,11 @@ def _seed_role_change_requests(db: Session):
             reason=f"{reason_prefix} for {u.username}",
             created_at=created_at,
         )
-        if status in (models.RoleRequestStatus.approved, models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled):
+        if status in (
+            models.RoleRequestStatus.approved,
+            models.RoleRequestStatus.rejected,
+            models.RoleRequestStatus.canceled,
+        ):
             r.decided_at = created_at + timedelta(hours=rng.randint(2, 8))
             if admin_user:
                 r.decided_by = admin_user.id
@@ -437,7 +480,9 @@ def _seed_role_change_requests(db: Session):
     for w in selected_workers:
         current = random_start()
         for i in range(3):
-            status = rng.choice([models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled])
+            status = rng.choice(
+                [models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled]
+            )
             req = add_request(w, current, status, from_role=models.UserRole.user)
             requests.append(req)
             current = next_after(current)
@@ -445,7 +490,9 @@ def _seed_role_change_requests(db: Session):
     for u in selected_users:
         current = random_start()
         for i in range(3):
-            status = rng.choice([models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled])
+            status = rng.choice(
+                [models.RoleRequestStatus.rejected, models.RoleRequestStatus.canceled]
+            )
             req = add_request(u, current, status, from_role=models.UserRole.user)
             requests.append(req)
             current = next_after(current)
@@ -453,14 +500,24 @@ def _seed_role_change_requests(db: Session):
     for w in selected_workers:
         related = [r for r in requests if r.user_id == w.id]
         last_time = max(r.created_at for r in related)
-        req = add_request(w, next_after(last_time), models.RoleRequestStatus.approved, from_role=models.UserRole.user)
+        req = add_request(
+            w,
+            next_after(last_time),
+            models.RoleRequestStatus.approved,
+            from_role=models.UserRole.user,
+        )
         requests.append(req)
 
     pending_users = rng.sample(selected_users, 2)
     for u in pending_users:
         related = [r for r in requests if r.user_id == u.id]
         last_time = max(r.created_at for r in related)
-        req = add_request(u, next_after(last_time), models.RoleRequestStatus.pending, from_role=models.UserRole.user)
+        req = add_request(
+            u,
+            next_after(last_time),
+            models.RoleRequestStatus.pending,
+            from_role=models.UserRole.user,
+        )
         req.decided_at = None
         req.decided_by = None
         req.admin_comment = None
@@ -484,13 +541,17 @@ def run_seed(db: Session):
     rbac_initialized = initialize_rbac_system(db)
     if rbac_initialized:
         rbac_status = verify_rbac_setup(db)
-        print(f"🔐 RBAC Status: {rbac_status['status']} - {rbac_status.get('permissions_count', 0)} permissions, {rbac_status.get('roles_count', 0)} roles")
+        print(
+            f"🔐 RBAC Status: {rbac_status['status']} - {rbac_status.get('permissions_count', 0)} permissions, {rbac_status.get('roles_count', 0)} roles"
+        )
     else:
         print("⚠️ RBAC initialization failed - continuing with data seeding")
 
     users_exist = db.query(models.User).first() is not None
     if users_exist and not FORCE_RESEED:
-        print("ℹ️ Users exist – will skip user seeding and proceed to seed remaining entities if empty.")
+        print(
+            "ℹ️ Users exist – will skip user seeding and proceed to seed remaining entities if empty."
+        )
         log_event("Users exist – running partial seed for remaining entities")
 
     if FORCE_RESEED:
@@ -498,14 +559,16 @@ def run_seed(db: Session):
             _clear_existing_data(db)
         except Exception:
             return
-        
+
     print("🌱 Running data seed...")
     log_event("Data seeding started")
 
     seed_data = _load_seed_data()
 
     if GENERATE_LARGE_DATA:
-        print("🧪 GENERATE_LARGE_DATA=True: building large synthetic dataset in-memory...")
+        print(
+            "🧪 GENERATE_LARGE_DATA=True: building large synthetic dataset in-memory..."
+        )
         log_event("Generating large synthetic seed dataset")
         seed_data = _generate_large_data(seed_data)
 
@@ -553,9 +616,10 @@ def run_seed(db: Session):
 
     print("✅ Data seeding completed.")
     log_event("Data seeding completed successfully")
-    
+
     try:
         from app.services.rbac_init import assign_rbac_roles_to_users
+
         print("🔐 Assigning RBAC roles to seeded users...")
         assign_rbac_roles_to_users(db)
     except Exception as e:

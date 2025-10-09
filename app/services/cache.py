@@ -5,6 +5,7 @@ from functools import wraps
 import redis.asyncio as redis
 from app.config import settings
 from app.utils.logger import log_event
+from app.services.metrics import app_metrics
 
 
 class CacheService:
@@ -37,10 +38,15 @@ class CacheService:
 
         try:
             val = await client.get(key)
+            prefix = key.split(":", 1)[0] if ":" in key else key
             if val is not None:
-                log_event(f"Cache hit {key}", level="DEBUG")
+                app_metrics.record_cache_hit(prefix)
+                if settings.detailed_logging_enabled:
+                    log_event(f"Cache hit [{prefix}]", level="DEBUG")
             else:
-                log_event(f"Cache miss {key}", level="DEBUG")
+                app_metrics.record_cache_miss(prefix)
+                if settings.detailed_logging_enabled:
+                    log_event(f"Cache miss [{prefix}]", level="DEBUG")
             return val
         except Exception as e:
             log_event(f"Cache get error: {e}", level="ERROR")
@@ -53,7 +59,10 @@ class CacheService:
 
         try:
             await client.setex(key, ttl, value)
-            log_event(f"Cache set {key} ttl={ttl}", level="DEBUG")
+            prefix = key.split(":", 1)[0] if ":" in key else key
+            app_metrics.record_cache_set(prefix)
+            if settings.detailed_logging_enabled:
+                log_event(f"Cache set [{prefix}] ttl={ttl}s", level="DEBUG")
             return True
         except Exception as e:
             log_event(f"Cache set error: {e}", level="ERROR")
@@ -66,6 +75,10 @@ class CacheService:
 
         try:
             await client.delete(key)
+            prefix = key.split(":", 1)[0] if ":" in key else key
+            app_metrics.record_cache_delete(prefix, mode="single")
+            if settings.detailed_logging_enabled:
+                log_event(f"Cache delete [{prefix}]", level="INFO")
             return True
         except Exception as e:
             log_event(f"Cache delete error: {e}", level="ERROR")
@@ -82,7 +95,16 @@ class CacheService:
                 keys.append(key)
 
             if keys:
-                return await client.delete(*keys)
+                deleted = await client.delete(*keys)
+                app_metrics.record_cache_delete(
+                    pattern.split(":", 1)[0], mode="pattern"
+                )
+                if settings.detailed_logging_enabled:
+                    log_event(
+                        f"Cache delete pattern [{pattern}] -> {deleted} keys",
+                        level="INFO",
+                    )
+                return deleted
             return 0
         except Exception as e:
             log_event(f"Cache delete pattern error: {e}", level="ERROR")

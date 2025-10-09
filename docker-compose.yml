@@ -12,11 +12,16 @@ services:
             - beetrack-net
 
     redis:
-        image: redis:8.2-alpine
+        image: redis:7-alpine
         restart: unless-stopped
         command: ["redis-server", "--appendonly", "yes"]
         ports:
             - "6379:6379"
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
         networks:
             - beetrack-net
 
@@ -32,10 +37,23 @@ services:
         env_file:
             - .env
         depends_on:
-            - db
-            - redis
+            db:
+                condition: service_started
+            redis:
+                condition: service_healthy
         ports:
             - "8000:8000"
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3); sys.exit(0)",
+                ]
+            interval: 15s
+            timeout: 5s
+            retries: 5
         networks:
             - beetrack-net
 
