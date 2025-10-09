@@ -102,6 +102,7 @@ Built for real-world use with FastAPI, PostgreSQL, Docker, cron jobs, Alembic, J
 | **UI**         | Tailwind CSS, shadcn/ui, Radix UI                 |
 | **Auth**       | JWT (OAuth2), bcrypt, TOTP 2FA                    |
 | **Database**   | PostgreSQL                                        |
+| **Cache**      | Redis 7                                           |
 | **Security**   | Rate limiting (SlowAPI), CORS, Session management |
 | **Scheduling** | APScheduler                                       |
 | **Exports**    | pandas, reportlab (PDF generation)                |
@@ -131,6 +132,11 @@ Create two `.env` files:
 ```env
 DATABASE_URL=postgresql+psycopg2://beetadmin:securepassword123@db:5432/beetrack
 SECRET_KEY=changeme
+RATE_LIMIT_STORAGE=redis
+REDIS_URL=redis://redis:6379/0
+DETAILED_LOGGING_ENABLED=true
+PROMETHEUS_ENDPOINT_ENABLED=true
+# GENERATE_LARGE_DATA=false
 ```
 
 #### `.env.db`
@@ -479,6 +485,8 @@ After launch:
 
 -   Frontend: [http://localhost:3000](http://localhost:3000)
 -   Backend docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+You can also check readiness at: [http://localhost:8000/healthz](http://localhost:8000/healthz)
 
 ---
 
