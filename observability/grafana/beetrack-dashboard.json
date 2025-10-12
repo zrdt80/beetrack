@@ -1,0 +1,148 @@
+{
+    "__inputs": [],
+    "__requires": [
+        {
+            "type": "grafana",
+            "id": "grafana",
+            "name": "Grafana",
+            "version": "9.x"
+        },
+        {
+            "type": "panel",
+            "id": "timeseries",
+            "name": "Time series",
+            "version": "9.x"
+        },
+        { "type": "panel", "id": "stat", "name": "Stat", "version": "9.x" },
+        {
+            "type": "datasource",
+            "id": "prometheus",
+            "name": "Prometheus",
+            "version": "2.x"
+        }
+    ],
+    "title": "BeeTrack Overview",
+    "tags": ["beetrack", "fastapi", "redis"],
+    "timezone": "browser",
+    "schemaVersion": 37,
+    "version": 1,
+    "refresh": "10s",
+    "templating": { "list": [] },
+    "panels": [
+        {
+            "type": "stat",
+            "title": "HTTP RPS (1m)",
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(http_requests_total[1m]))",
+                    "legendFormat": "rps"
+                }
+            ],
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+        },
+        {
+            "type": "timeseries",
+            "title": "HTTP P95 latency (s)",
+            "gridPos": { "h": 6, "w": 9, "x": 6, "y": 0 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, method))",
+                    "legendFormat": "{{method}}"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Cache hit ratio",
+            "gridPos": { "h": 6, "w": 9, "x": 15, "y": 0 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(cache_hits_total[5m])) / clamp_min(sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m])), 1e-9)",
+                    "legendFormat": "hit_ratio"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "DB slow queries",
+            "gridPos": { "h": 6, "w": 8, "x": 0, "y": 6 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(db_slow_queries_total[5m])) by (table)",
+                    "legendFormat": "{{table}}"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Rate limit hits",
+            "gridPos": { "h": 6, "w": 8, "x": 8, "y": 6 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(rate_limit_hits_total[5m])) by (endpoint)",
+                    "legendFormat": "{{endpoint}}"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "System CPU %",
+            "gridPos": { "h": 6, "w": 8, "x": 16, "y": 6 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "system_cpu_usage_percent",
+                    "legendFormat": "cpu"
+                }
+            ]
+        },
+        {
+            "type": "stat",
+            "title": "Readiness",
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 12 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(up)",
+                    "legendFormat": "up"
+                }
+            ],
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+        },
+        {
+            "type": "stat",
+            "title": "Requests (5m)",
+            "gridPos": { "h": 6, "w": 6, "x": 18, "y": 12 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(increase(http_requests_total[5m]))",
+                    "legendFormat": "requests"
+                }
+            ],
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+        },
+        {
+            "type": "timeseries",
+            "title": "Cache operations",
+            "gridPos": { "h": 6, "w": 12, "x": 6, "y": 12 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(cache_sets_total[5m])) by (prefix)",
+                    "legendFormat": "sets {{prefix}}"
+                },
+                {
+                    "expr": "sum(rate(cache_deletes_total[5m])) by (prefix,mode)",
+                    "legendFormat": "deletes {{prefix}}/{{mode}}"
+                }
+            ]
+        }
+    ]
+}

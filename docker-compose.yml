@@ -69,6 +69,39 @@ services:
         networks:
             - beetrack-net
 
+    prometheus:
+        image: prom/prometheus:v3.6.0
+        restart: unless-stopped
+        command:
+            - --config.file=/etc/prometheus/prometheus.yml
+        volumes:
+            - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+        ports:
+            - "9090:9090"
+        depends_on:
+            api:
+                condition: service_started
+        networks:
+            - beetrack-net
+
+    grafana:
+        image: grafana/grafana:12.3.0-18392635519-ubuntu
+        restart: unless-stopped
+        environment:
+            - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=false
+            - GF_USERS_DEFAULT_THEME=light
+        volumes:
+            - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+            - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+            - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+        ports:
+            - "3001:3000"
+        depends_on:
+            prometheus:
+                condition: service_started
+        networks:
+            - beetrack-net
+
 volumes:
     pgdata:
 

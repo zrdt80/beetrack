@@ -8,8 +8,8 @@ from prometheus_client import (
     Info,
     CollectorRegistry,
     generate_latest,
+    CONTENT_TYPE_LATEST,
 )
-from prometheus_client.openmetrics.exposition import CONTENT_TYPE_LATEST
 from functools import wraps
 from app.config import settings
 
