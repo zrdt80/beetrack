@@ -72,6 +72,7 @@ services:
     prometheus:
         image: prom/prometheus:v3.6.0
         restart: unless-stopped
+        profiles: [observability]
         command:
             - --config.file=/etc/prometheus/prometheus.yml
         volumes:
@@ -87,6 +88,7 @@ services:
     grafana:
         image: grafana/grafana:12.3.0-18392635519-ubuntu
         restart: unless-stopped
+        profiles: [observability]
         environment:
             - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=false
             - GF_USERS_DEFAULT_THEME=light
@@ -99,6 +101,20 @@ services:
         depends_on:
             prometheus:
                 condition: service_started
+        networks:
+            - beetrack-net
+
+    redis_exporter:
+        image: oliver006/redis_exporter:v1.78.0
+        restart: unless-stopped
+        profiles: [observability]
+        environment:
+            - REDIS_ADDR=redis://redis:6379
+        depends_on:
+            redis:
+                condition: service_healthy
+        ports:
+            - "9121:9121"
         networks:
             - beetrack-net
 
