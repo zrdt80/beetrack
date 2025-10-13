@@ -1,0 +1,81 @@
+groups:
+    - name: beetrack-alerts
+      rules:
+          - alert: BeetrackApiDown
+            expr: up{job="beetrack-api"} == 0
+            for: 1m
+            labels:
+                severity: critical
+                service: beetrack
+            annotations:
+                summary: "BeeTrack API is down"
+                description: "Prometheus target for BeeTrack API is down for more than 1 minute."
+
+          - alert: HighHttpErrorRate
+            expr: |
+                (sum(rate(http_requests_total{status_code=~"5.."}[5m])))
+                /
+                clamp_min(sum(rate(http_requests_total[5m])), 1e-9) > 0.05
+            for: 10m
+            labels:
+                severity: warning
+                service: beetrack
+            annotations:
+                summary: "High HTTP 5xx error rate (>5%)"
+                description: "5xx responses exceed 5% of total over the last 10 minutes."
+
+          - alert: ElevatedP95Latency
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.4
+            for: 10m
+            labels:
+                severity: warning
+                service: beetrack
+            annotations:
+                summary: "Elevated P95 latency (>400ms)"
+                description: "The 95th percentile latency is above 400ms for the last 10 minutes."
+
+          - alert: ElevatedP99Latency
+            expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+            for: 5m
+            labels:
+                severity: critical
+                service: beetrack
+            annotations:
+                summary: "Elevated P99 latency (>1s)"
+                description: "The 99th percentile latency is above 1s for the last 5 minutes."
+
+          - alert: LowCacheHitRatio
+            expr: |
+                sum(rate(cache_hits_total[5m]))
+                /
+                clamp_min(sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m])), 1e-9) < 0.5
+            for: 10m
+            labels:
+                severity: warning
+                service: beetrack
+            annotations:
+                summary: "Low cache hit ratio (<50%)"
+                description: "Cache hit ratio has been below 50% for the last 10 minutes."
+
+          - alert: RedisMemoryHigh
+            expr: |
+                (redis_memory_max_bytes > 0)
+                and
+                (redis_memory_used_bytes / clamp_min(redis_memory_max_bytes, 1)) > 0.9
+            for: 5m
+            labels:
+                severity: warning
+                service: beetrack
+            annotations:
+                summary: "Redis memory usage high (>90% of max)"
+                description: "Redis is using more than 90% of its max memory. Consider scaling or tuning eviction."
+
+          - alert: RedisEvictionsOccurring
+            expr: increase(redis_evicted_keys_total[5m]) > 0
+            for: 5m
+            labels:
+                severity: info
+                service: beetrack
+            annotations:
+                summary: "Redis evictions detected"
+                description: "Redis is evicting keys over the last 5 minutes."

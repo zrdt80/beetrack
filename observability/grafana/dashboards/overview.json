@@ -108,8 +108,21 @@
         },
         {
             "type": "timeseries",
+            "title": "DB slow queries",
+            "gridPos": { "h": 6, "w": 8, "x": 0, "y": 6 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(db_slow_queries_total[5m])) by (table)",
+                    "legendFormat": "{{table}}"
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+        },
+        {
+            "type": "timeseries",
             "title": "Rate limit hits",
-            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+            "gridPos": { "h": 6, "w": 8, "x": 8, "y": 6 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -120,17 +133,47 @@
             "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
         },
         {
+            "type": "timeseries",
+            "title": "System CPU %",
+            "gridPos": { "h": 6, "w": 8, "x": 16, "y": 6 },
+            "datasource": "Prometheus",
+            "targets": [
+                { "expr": "system_cpu_usage_percent", "legendFormat": "cpu" }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "percent" },
+                "overrides": []
+            }
+        },
+        {
             "type": "stat",
             "title": "Readiness",
-            "gridPos": { "h": 6, "w": 6, "x": 12, "y": 6 },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 12 },
             "datasource": "Prometheus",
             "targets": [{ "expr": "sum(up)", "legendFormat": "up" }],
             "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
         },
         {
+            "type": "timeseries",
+            "title": "Cache operations",
+            "gridPos": { "h": 6, "w": 12, "x": 6, "y": 12 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(cache_sets_total[5m])) by (prefix)",
+                    "legendFormat": "sets {{prefix}}"
+                },
+                {
+                    "expr": "sum(rate(cache_deletes_total[5m])) by (prefix,mode)",
+                    "legendFormat": "deletes {{prefix}}/{{mode}}"
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+        },
+        {
             "type": "stat",
             "title": "Requests (5m)",
-            "gridPos": { "h": 6, "w": 6, "x": 18, "y": 6 },
+            "gridPos": { "h": 6, "w": 6, "x": 18, "y": 12 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -143,7 +186,7 @@
         {
             "type": "timeseries",
             "title": "HTTP 5xx rate",
-            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
+            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -156,7 +199,7 @@
         {
             "type": "timeseries",
             "title": "HTTP P99 latency (ms)",
-            "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+            "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -169,7 +212,7 @@
         {
             "type": "timeseries",
             "title": "Avg sizes (bytes)",
-            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
+            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -186,7 +229,7 @@
         {
             "type": "timeseries",
             "title": "Redis memory used",
-            "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
+            "gridPos": { "h": 6, "w": 12, "x": 12, "y": 24 },
             "datasource": "Prometheus",
             "targets": [
                 { "expr": "redis_memory_used_bytes", "legendFormat": "used" },
@@ -197,7 +240,7 @@
         {
             "type": "stat",
             "title": "Redis total keys",
-            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 24 },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 30 },
             "datasource": "Prometheus",
             "targets": [
                 { "expr": "sum(redis_db_keys)", "legendFormat": "keys" }
@@ -207,7 +250,7 @@
         {
             "type": "timeseries",
             "title": "Redis ops/sec",
-            "gridPos": { "h": 6, "w": 9, "x": 6, "y": 24 },
+            "gridPos": { "h": 6, "w": 9, "x": 6, "y": 30 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -220,7 +263,7 @@
         {
             "type": "timeseries",
             "title": "Redis evictions/sec",
-            "gridPos": { "h": 6, "w": 9, "x": 15, "y": 24 },
+            "gridPos": { "h": 6, "w": 9, "x": 15, "y": 30 },
             "datasource": "Prometheus",
             "targets": [
                 {
@@ -233,7 +276,7 @@
         {
             "type": "timeseries",
             "title": "Redis keyspace hit ratio",
-            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 30 },
+            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 36 },
             "datasource": "Prometheus",
             "targets": [
                 {

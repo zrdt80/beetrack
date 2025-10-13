@@ -158,6 +158,39 @@ docker-compose up --build
 -   API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 -   Frontend: [http://localhost:3000](http://localhost:3000)
 
+---
+
+## 🩺 Health & Readiness
+
+The API exposes endpoints for monitoring and orchestration:
+
+-   `GET /health` – basic liveness check
+-   `GET /healthz` – readiness check (used by Docker healthcheck and CI)
+-   `GET /health/detailed` – includes DB and Redis connectivity status
+
+Docker healthchecks use `/healthz` and Redis `PING` to determine container health.
+
+---
+
+## 📈 Observability (Prometheus + Grafana)
+
+An optional observability stack is provided via Docker Compose profiles.
+
+Start the core app plus observability:
+
+```bash
+docker-compose --profile observability up -d
+```
+
+Services:
+
+-   Prometheus: http://localhost:9090 (scrapes `api:8000/metrics` and Redis Exporter)
+-   Grafana: http://localhost:3001 (datasource provisioned; dashboard auto-loaded)
+
+Metrics endpoint: `GET /metrics` serves Prometheus TEXT format. Built-in panels include HTTP traffic, latency (P95/P99), 5xx rate, cache hit ratio, DB slow queries, rate limit hits, system CPU, and Redis internals (keys, memory, ops/sec, evictions, keyspace hit ratio).
+
+Alerting rules are loaded from `observability/prometheus/alerts/alerts.yml` for API down, high error rate, elevated latency, low cache hit ratio, and Redis memory pressure.
+
 ### 5. CORS Configuration
 
 The backend uses a custom CORS middleware (not FastAPI's default) that dynamically allows common local development origins and supports environment-based extension.
