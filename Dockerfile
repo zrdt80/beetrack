@@ -17,4 +17,9 @@ EXPOSE 8000
 
 COPY entrypoint.sh .
 COPY wait-for-it.sh .
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends bash \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& chmod +x entrypoint.sh wait-for-it.sh \
+	&& sed -i 's/\r$//' entrypoint.sh wait-for-it.sh
 ENTRYPOINT ["./entrypoint.sh"]

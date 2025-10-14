@@ -138,7 +138,10 @@
             "gridPos": { "h": 6, "w": 8, "x": 16, "y": 6 },
             "datasource": "Prometheus",
             "targets": [
-                { "expr": "system_cpu_usage_percent", "legendFormat": "cpu" }
+                {
+                    "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\\\"idle\\\"}[5m])))",
+                    "legendFormat": "cpu"
+                }
             ],
             "fieldConfig": {
                 "defaults": { "unit": "percent" },
@@ -286,6 +289,55 @@
             ],
             "fieldConfig": {
                 "defaults": { "unit": "percentunit" },
+                "overrides": []
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Memory used %",
+            "gridPos": { "h": 6, "w": 6, "x": 12, "y": 36 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "100 * (1 - (node_memory_MemAvailable_bytes / clamp_min(node_memory_MemTotal_bytes, 1)))",
+                    "legendFormat": "mem"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "percent" },
+                "overrides": []
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Network throughput (bytes/s)",
+            "gridPos": { "h": 6, "w": 12, "x": 18, "y": 36 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum by (device) (rate(node_network_receive_bytes_total{device!~\\\"lo\\\"}[5m]))",
+                    "legendFormat": "recv {{device}}"
+                },
+                {
+                    "expr": "sum by (device) (rate(node_network_transmit_bytes_total{device!~\\\"lo\\\"}[5m]))",
+                    "legendFormat": "sent {{device}}"
+                }
+            ],
+            "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] }
+        },
+        {
+            "type": "timeseries",
+            "title": "Disk used %",
+            "gridPos": { "h": 6, "w": 12, "x": 0, "y": 42 },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "100 * (1 - (sum(node_filesystem_free_bytes{fstype!~\\\"tmpfs|overlay|squashfs\\\"}) / clamp_min(sum(node_filesystem_size_bytes{fstype!~\\\"tmpfs|overlay|squashfs\\\"}), 1)))",
+                    "legendFormat": "disk"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "percent" },
                 "overrides": []
             }
         }

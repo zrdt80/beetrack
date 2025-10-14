@@ -105,6 +105,15 @@ services:
         networks:
             - beetrack-net
 
+    node_exporter:
+        image: prom/node-exporter:v1.8.1
+        restart: unless-stopped
+        profiles: [observability]
+        ports:
+            - "9100:9100"
+        networks:
+            - beetrack-net
+
     redis_exporter:
         image: oliver006/redis_exporter:v1.78.0
         restart: unless-stopped
