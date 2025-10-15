@@ -224,6 +224,22 @@ Metrics endpoint: `GET /metrics` serves Prometheus TEXT format. Built-in panels 
 
 Alerting rules are loaded from `observability/prometheus/alerts/alerts.yml` for API down, high error rate, elevated latency, low cache hit ratio, and Redis memory pressure.
 
+### 🔎 Distributed Tracing (OpenTelemetry + Tempo)
+
+Traces are exported via OpenTelemetry (OTLP) to Grafana Tempo (enabled in the `observability` profile). The app auto-instruments FastAPI, SQLAlchemy, and outbound HTTPX.
+
+Quick start:
+
+```bash
+docker-compose --profile observability up -d tempo grafana prometheus
+```
+
+Notes:
+
+-   The API sends traces to `http://tempo:4317` (OTLP gRPC) by default.
+-   You can disable tracing by setting `TRACING_ENABLED=false` in the environment.
+-   Grafana has a Tempo datasource pre-provisioned; you can explore traces and link them to metrics via exemplars.
+
 ## 🔐 Test Users
 
 | Role   | Username   | Email               | Password  |
